@@ -1146,22 +1146,8 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
         ret = ret + "ENDIF( BUILD_OCT )\n"
         
 
-# BUILD MEX FILES
-
-#    STRING( REPLACE ".cpp" "" tmp_fname_0 ${mex_cpp_file} )
-#    STRING( REGEX REPLACE "\\/.*\\/" "" tmp_fname_1 ${tmp_fname_0} )
-#    MESSAGE( STATUS "  ${tmp_fname_1}" )
-
 ### OCTAVE CMD:
-
-# BUILD MEX FILES
-
-#    STRING( REPLACE ".cpp" "" tmp_fname_0 ${mex_cpp_file} )
-#    STRING( REGEX REPLACE "\\/.*\\/" "" tmp_fname_1 ${tmp_fname_0} )
-#    MESSAGE( STATUS "  ${tmp_fname_1}" )
-
-### OCTAVE CMD:
-# [bhone@linbhone mex]$ mkoctfile -v Bar_mex_impl.cpp Bar_class_def.cpp Bar_mat_support.cpp -I.
+# mkoctfile -v Bar_mex_impl.cpp Bar_class_def.cpp Bar_mat_support.cpp -I.
 #g++ -c -fPIC -I/usr/include/octave-3.4.3/octave/.. -I/usr/include/octave-3.4.3/octave -I/usr/include/freetype2 -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -m64 -mtune=generic -I. Bar_mex_impl.cpp -o Bar_mex_impl.o
 
 ### MAT COMMAND:
