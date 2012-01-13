@@ -1,0 +1,74 @@
+{
+   "UINT_8" : 
+      {
+         "C_TYPE" : "uint8_t",
+         "DEFAULT_VALUE" : "0",
+         "STREAM_CAST" : "int",
+         "MAT_TYPE" : "mxUINT8_CLASS"
+      },
+   "UINT_16" :
+      {
+         "C_TYPE" : "uint16_t",
+         "DEFAULT_VALUE" : "0",
+         "STREAM_CAST" : "int",
+         "MAT_TYPE" : "mxUINT16_CLASS"
+      },
+   "UINT_32" :
+      {
+         "C_TYPE" : "uint32_t",
+         "DEFAULT_VALUE" : "0",
+         "STREAM_CAST" : "long int",
+         "MAT_TYPE" : "mxUINT32_CLASS"
+      },
+   "UINT_64" :
+      {
+         "C_TYPE" : "uint64_t",
+         "DEFAULT_VALUE" : "0",
+         "STREAM_CAST" : "long int",
+         "MAT_TYPE" : "mxUINT64_CLASS"
+      },
+   "INT_8" :
+      {
+         "C_TYPE" : "char",
+         "STREAM_CAST" : "int",
+         "DEFAULT_VALUE" : "0",
+         "MAT_TYPE" : "mxINT8_CLASS"
+      },
+   "INT_16" :
+      {
+         "C_TYPE" : "int16_t",
+         "STREAM_CAST" : "int",
+         "DEFAULT_VALUE" : "0",
+         "MAT_TYPE" : "mxINT16_CLASS"
+      },
+   "INT_32" :
+      {
+         "C_TYPE" : "int32_t",
+         "DEFAULT_VALUE" : "0",
+         "MAT_TYPE" : "mxINT32_CLASS"
+      },
+   "INT_64" :
+      {
+         "C_TYPE" : "int64_t",
+         "DEFAULT_VALUE" : "0",
+         "MAT_TYPE" : "mxINT64_CLASS"
+      },
+   "SINGLE" :
+      {
+         "C_TYPE" : "float",
+         "DEFAULT_VALUE" : "0.0",
+         "MAT_TYPE" : "mxSINGLE_CLASS"
+      },
+   "DOUBLE" :
+      {
+         "C_TYPE" : "double",
+         "DEFAULT_VALUE" : "0",
+         "MAT_TYPE" : "mxDOUBLE_CLASS"
+      },
+   "BOOL" :
+      {
+         "C_TYPE" : "bool",
+         "DEFAULT_VALUE" : "0",
+         "MAT_TYPE" : "mxUINT32_CLASS"
+      }
+}
