@@ -1095,9 +1095,12 @@ MESSAGE(  STATUS "MATLAB_INC_DIR = ${MATLAB_INC_DIR}" )
 ########### MATLAB STUFF #################
 
 ########### OCTAVE STUFF #################
-SET( OCTAVE_LIBDIR )
-SET( OCT_EXT )
-SET( OCTAVE_INC_DIR )
+SET( OCT_LIBS f77blas lapack atlas fftw3 fftw3f m octinterp octave cruft gfortran quadmath )
+SET( OCT_LIBDIRS /usr/lib/atlas /usr/lib/octave /usr/lib/octave/3.4.3  )
+SET( OCT_EXT .mex )
+SET( OCT_DEFS "-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -m32 -march=i686 -mtune=atom -fasynchronous-unwind-tables -mieee-fp -fPIC -Wall -Wp -pipe -g" )
+SET (OCT_LINK_FLAGS "-Wl,-Bsymbolic -Wl,-z,relro")
+SET( OCT_INC_DIRS /usr/include/octave-3.4.3/octave/.. /usr/include/octave-3.4.3/octave /usr/include/freetypes2 )
 
 MESSAGE(  STATUS "OCTAVE_LIBDIR  = ${OCTAVE_LIBDIR}" )
 MESSAGE(  STATUS "OCT_EXT        = ${OCT_EXT}")
@@ -1113,7 +1116,7 @@ ADD_LIBRARY( auto_interface_data SHARED ${C_FILES} )
 
 # FOR FILE IN MEX_MAT_SUPPORT AND MEXX_CLASS_DEF, set -fPIC
 SET_SOURCE_FILES_PROPERTIES( ${MEX_CLASS_DEF} ${MEX_MAT_SUPPORT} PROPERTIES COMPILE_FLAGS "-fPIC" )
-ADD_LIBRARY( auto_interface_mat_support SHARED ${MEX_MAT_SUPPORT} ${MEX_CLASS_DEF} )
+ADD_LIBRARY( auto_interface_mat_support SHARED ${MEX_MAT_SUPPORT} ${MEX_CLASS_DEF} mex/props_parser.cpp )
 SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPIC" )
 
 """
@@ -1134,14 +1137,15 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
         ret = ret + "SET( BUILD_OCT FALSE )\n"
         ret = ret + "IF( BUILD_OCT )\n"
 
+        ret = ret + TAB + "LINK_DIRECTORIES( ${OCT_LIBDIRS} )\n"
 
         for struct_name, struct_def in self.structs.items():
 
             ret = ret + TAB + '# %s\n' % ( struct_name )
-            ret = ret + TAB + 'SET_SOURCE_FILES_PROPERTIES( %s COMPILE_FLAGS "-I{MATLAB_PATH}/extern/include -fPIC" )\n' %( struct_name )
-            ret = ret + TAB + 'ADD_LIBRARY( %s SHARED mex/%s_mex_impl.cpp )\n' %( struct_name, struct_name )
-            ret = ret + TAB + 'SET_TARGET_PROPERTIES( %s PROPERTIES PREFIX "" SUFFIX ".mexa64" LINK_FLAGS "-L${MATLAB_LIBDIR} -lmex -lmx" )\n' % ( struct_name )
-            ret = ret + TAB + 'TARGET_LINK_LIBRARIES( %s auto_interface_mat_support )\n\n' % ( struct_name )
+            ret = ret + TAB + 'SET_SOURCE_FILES_PROPERTIES( %s_mex_impl COMPILE_FLAGS ${OCT_DEFS} )\n' %( struct_name )
+            ret = ret + TAB + 'ADD_LIBRARY( %s_mex_impl SHARED mex/%s_mex_impl.cpp )\n' %( struct_name, struct_name )
+            ret = ret + TAB + 'SET_TARGET_PROPERTIES( %s_mex_impl PROPERTIES PREFIX "" SUFFIX ".mex" )\n' % ( struct_name )
+            ret = ret + TAB + 'TARGET_LINK_LIBRARIES( %s_mex_impl auto_interface_mat_support ${OCT_LIBS} )\n\n' % ( struct_name )
 
         ret = ret + "ENDIF( BUILD_OCT )\n"
         
@@ -1186,6 +1190,14 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
         fOut = open( self.inc_dir + os.sep + "props_parser.h", "w" )
         fOut.write( PROPS_PARSER_H )
         fOut.close() 
+
+        fOut = open ( self.mex_dir + os.sep + "props_parser.cpp", "w" )
+        fOut.write( PROPS_PARSER_C )
+        fOut.close()
+
+        fOut = open ( self.mex_dir + os.sep + "props_parser.h", "w" )
+        fOut.write( PROPS_PARSER_H )
+        fOut.close()
 
         fOut = open( self.out_dir + os.sep + "CMakeLists.txt", "w" )
         fOut.write( self.create_cmake_lists() )
