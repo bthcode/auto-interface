@@ -172,6 +172,7 @@ Usage:
         ret = ret + "disp( 'initializing c structures')\n"
         ret = ret + "ref = %s_mex_impl(0)\n" % ( struct_name )
         ret = ret + "ref2 = %s_mex_impl(0)\n" % ( struct_name )
+        ret = ret + "ref3 = %s_mex_impl(0)\n" % ( struct_name )
         ret = ret + "\n"
         ret = ret + "disp( 'setting defaults...' )\n"
         ret = ret + "%s_mex_impl(6, ref )\n" % ( struct_name )
@@ -185,9 +186,17 @@ Usage:
         ret = ret + "disp( 'writing barf.props...' );\n"
         ret = ret + "%s_mex_impl( 2, ref2, 'barf.props', 'out.' );\n" % ( struct_name )
         ret = ret + "\n"
+        ret = ret + "disp( 'writing binary barf.bin...');\n"
+        ret = ret + "%s_mex_impl( 4, ref2, 'barf.bin' );\n" % ( struct_name )
+        ret = ret + "\n"
+        ret = ret + "disp( 'reading binary barf.bin...');\n"
+        ret = ret + "%s_mex_impl( 5, ref3, 'barf.bin' );\n" % ( struct_name )
+        ret = ret + "bar = %s_mex_impl( 8, ref3 )\n" % ( struct_name )
+        ret = ret + "\n"
         ret = ret + "disp( 'deleting c structures' )\n"
         ret = ret + "%s_mex_impl(1, ref )\n" % ( struct_name )
         ret = ret + "%s_mex_impl(1, ref2 )\n" % ( struct_name )
+        ret = ret + "%s_mex_impl(1, ref3 )\n" % ( struct_name )
         ret = ret + "disp( 'success' )\n"
         return ret
     # end create_mat_test
@@ -698,11 +707,54 @@ bar
         ### Write Binary
         ret = ret + 'void write_binary_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[])\n{\n' % (struct_name )
         ret = ret + TAB + '// call a %s object\'s write_binary\n' % ( struct_name )
+        ret = ret + TAB + 'char * file_name;\n'
+        ret = ret + TAB + 'int  buflen;\n'
+        ret = ret + TAB + 'if ( nrhs != 3 )\n'
+        ret = ret + TAB + '{\n'
+        ret = ret + TAB + TAB + '// print error\n'
+        ret = ret + TAB + TAB + 'return;\n'
+        ret = ret + TAB + '}\n'
+        ret = ret + TAB + 'if (mxIsChar(prhs[2]) != 1)\n'
+        ret = ret + TAB + '{\n'
+        ret = ret + TAB + TAB + 'mexErrMsgTxt("Filename must be a string.");'
+        ret = ret + TAB + TAB + 'return;\n'
+        ret = ret + TAB + '}\n'
+        ret = ret + TAB + '// copy file name and prefix into c strings\n'
+        ret = ret + TAB + 'buflen = (mxGetM(prhs[2]) * mxGetN(prhs[2])) + 1;\n'
+        ret = ret + TAB + 'file_name = (char * )mxCalloc(buflen, sizeof(char));\n'
+        ret = ret + TAB + 'mxGetString(prhs[2], file_name, buflen);\n'
+        ret = ret + TAB + '// cast to class pointer\n'
+        ret = ret + TAB + '%s * p = %s_pointer_from_mxArray( prhs[1] );\n\n' % ( struct_name, struct_name )
+        ret = ret + TAB + 'std::ofstream of_out;\n'
+        ret = ret + TAB + 'of_out.open( file_name, std::ios::binary );\n'
+        ret = ret + TAB + 'p->write_binary( of_out );\n'
+
         ret = ret + '}\n\n'
 
         ### Read Binary
         ret = ret + 'void read_binary_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[])\n{\n' % (struct_name )
         ret = ret + TAB + '// call a %s object\'s read_binary\n' % ( struct_name )
+        ret = ret + TAB + 'char * file_name;\n'
+        ret = ret + TAB + 'int  buflen;\n'
+        ret = ret + TAB + 'if ( nrhs != 3 )\n'
+        ret = ret + TAB + '{\n'
+        ret = ret + TAB + TAB + '// print error\n'
+        ret = ret + TAB + TAB + 'return;\n'
+        ret = ret + TAB + '}\n'
+        ret = ret + TAB + 'if (mxIsChar(prhs[2]) != 1)\n'
+        ret = ret + TAB + '{\n'
+        ret = ret + TAB + TAB + 'mexErrMsgTxt("Filename must be a string.");'
+        ret = ret + TAB + TAB + 'return;\n'
+        ret = ret + TAB + '}\n'
+        ret = ret + TAB + '// copy file name and prefix into c strings\n'
+        ret = ret + TAB + 'buflen = (mxGetM(prhs[2]) * mxGetN(prhs[2])) + 1;\n'
+        ret = ret + TAB + 'file_name = (char * )mxCalloc(buflen, sizeof(char));\n'
+        ret = ret + TAB + 'mxGetString(prhs[2], file_name, buflen);\n'
+        ret = ret + TAB + '// cast to class pointer\n'
+        ret = ret + TAB + '%s * p = %s_pointer_from_mxArray( prhs[1] );\n\n' % ( struct_name, struct_name )
+        ret = ret + TAB + 'std::ifstream if_in;\n'
+        ret = ret + TAB + 'if_in.open( file_name, std::ios::binary );\n'
+        ret = ret + TAB + 'p->read_binary( if_in );\n'
         ret = ret + '}\n\n'
 
         ### Set Defaults
@@ -789,6 +841,7 @@ bar
         ret = ret + '#include <string>\n'
         ret = ret + '#include <map>\n'
         ret = ret + '#include <vector>\n'
+        ret = ret + '#include <fstream>\n'
         ret = ret + '#include <sstream>\n\n'
         ret = ret + '#include <props_parser.h>\n\n'
 
@@ -836,7 +889,11 @@ bar
         ret = ret + TAB + "void set_defaults();\n\n"
         ret = ret + TAB + "void read_props( std::istream& r_in_stream, std::string& r_prefix );\n\n"
         ret = ret + TAB + "std::size_t read_props( std::map< std::string, std::string>& r_params, std::string& r_prefix );\n\n"
- 
+
+        ## TODO: read/write to/from json
+
+        ret = ret + TAB + "void write_binary( std::ofstream& r_out_stream );\n\n"
+        ret = ret + TAB + "void read_binary( std::ifstream& r_in_stream );\n\n"
 
         ### End Class
         ret = ret + "};\n\n"
@@ -867,6 +924,56 @@ bar
 
         ### Constructor
         ret = ret + '%s::%s() : num_fields(%s){}\n\n\n' % ( struct_name, struct_name, len( struct_def['FIELDS'] ) )
+
+        ### Read Binary
+        ret = ret + "void %s::read_binary( std::ifstream& r_stream ){\n\n" % ( struct_name )
+        for f in struct_def['FIELDS']:
+            if self.basetypes.has_key( f['TYPE'] ):
+                ret = ret + TAB + 'r_stream.read( (char*)&(%s), sizeof(%s) );\n' %( f['NAME'], f['NAME'] )
+            elif f['TYPE'] == 'STRUCT':
+                ret = ret + TAB + '%s.read_binary( r_stream );\n' % ( f['NAME'] )
+            elif f['TYPE'] == 'VECTOR':
+                ret = ret + TAB + 'std::size_t tmp_%s_size;\n' % ( f['NAME'] )
+                ret = ret + TAB + 'r_stream.read( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % ( f['NAME'], f['NAME'] )
+                if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
+                    ctype = self.basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
+                    ret = ret + TAB + 'for ( std::size_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
+                    ret = ret + TAB + TAB + '%s tmp_%s;\n' % ( ctype, ctype )
+                    ret = ret + TAB + TAB + 'r_stream.read( (char*)&(tmp_%s), sizeof(tmp_%s));\n' % ( ctype, ctype )
+                    ret = ret + TAB + TAB + '%s.push_back( tmp_%s );\n' % ( f['NAME'], ctype )
+                    ret = ret + TAB + '}\n'
+                elif f['CONTAINED_TYPE'] == 'STRUCT':
+                    ctype = f['STRUCT_TYPE']
+                    print ctype
+                    ret = ret + TAB + 'for ( std::size_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
+                    ret = ret + TAB + TAB + '%s tmp_%s;\n' % ( ctype, ctype )
+                    ret = ret + TAB + TAB + 'tmp_%s.read_binary( r_stream );\n' % ( ctype )
+                    ret = ret + TAB + TAB + '%s.push_back( tmp_%s );\n' % ( f['NAME'], ctype )
+                    ret = ret + TAB + '}\n'
+        ret = ret + "}\n\n"
+
+
+        ### Write Binary
+        ret = ret + "void %s::write_binary( std::ofstream& r_stream ){\n\n" % ( struct_name )
+        for f in struct_def['FIELDS']:
+            if self.basetypes.has_key( f['TYPE'] ):
+                ret = ret + TAB + 'r_stream.write( (char*)&(%s), sizeof(%s) );\n' %( f['NAME'], f['NAME'] )
+            elif f['TYPE'] == 'STRUCT':
+                ret = ret + TAB + '%s.write_binary( r_stream );\n' % ( f['NAME'] )
+            elif f['TYPE'] == 'VECTOR':
+                ret = ret + TAB + 'std::size_t tmp_%s_size = %s.size();\n' % ( f['NAME'], f['NAME'] )
+                ret = ret + TAB + 'r_stream.write( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % ( f['NAME'], f['NAME'] )
+                if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
+                    ret = ret + TAB + 'for ( std::size_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
+                    ret = ret + TAB + TAB + 'r_stream.write( (char*)&(%s[ii]), sizeof(%s[ii]));\n' % ( f['NAME'], f['NAME'] )
+                    ret = ret + TAB + '}\n'
+                elif f['CONTAINED_TYPE'] == 'STRUCT':
+                    ret = ret + TAB + 'for ( std::size_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
+                    ret = ret + TAB + TAB + '%s[ii].write_binary( r_stream );\n' % ( f['NAME'] )
+                    ret = ret + TAB + '}\n'
+        ret = ret + "}\n\n"
+
+
 
         ### Write Props
         ret = ret + "void %s::write_props( std::ostream& r_stream, std::string& r_prefix ){\n\n" % ( struct_name )
