@@ -878,6 +878,9 @@ bar
                 else:
                     print 'ERROR - vector with unknown type or no CONTAINED_TYPE key'
                     sys.exit(1)
+            else:
+                print 'ERROR - vector with no TYPE'
+                sys.exit(1)
             ret = ret + TAB + "%s  %s; ///<%s\n" % ( c_decl, f['NAME'], f['DESCRIPTION'] )
 
         ret = ret + TAB + 'std::size_t num_fields;\n'
