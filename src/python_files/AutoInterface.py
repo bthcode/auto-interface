@@ -63,7 +63,7 @@ ELSE(WIN32)
   ELSE(APPLE)
     SET(OCTAVE_ROOT "")
     FILE(GLOB OCTAVE_LOCAL_PATHS "/usr/local/lib/octave-*")
-    FILE(GLOB OCTAVE_USR_PATHS "/usr/lib/octave/*")
+    FILE(GLOB OCTAVE_USR_PATHS "/usr/lib/octave/*" "/usr/lib64/octave/*")
     FILE(GLOB OCTAVE_LOCAL_INC_PATHS "/usr/local/include/octave/*" )
     FILE(GLOB OCTAVE_USR_INC_PATHS "/usr/include/octave-*/octave/")
 
@@ -117,41 +117,8 @@ SET(OCTAVE_LIBRARIES
   ${OCTAVE_CRUFT_LIBRARY}  
 )
 
-# Macros for building MEX-files
-MACRO(OCTAVE_EXTRACT_SOURCES_LIBRARIES sources thirdlibraries)
-  SET(${sources})
-  SET(${thirdlibraries})
-  FOREACH(_arg ${ARGN})
-    GET_FILENAME_COMPONENT(_ext ${_arg} EXT)
-    IF("${_ext}" STREQUAL "")
-      LIST(APPEND ${thirdlibraries} "${_arg}")
-    ELSE("${_ext}" STREQUAL "")
-      LIST(APPEND ${sources} "${_arg}")
-    ENDIF ("${_ext}" STREQUAL "")
-  ENDFOREACH(_arg)
-ENDMACRO(OCTAVE_EXTRACT_SOURCES_LIBRARIES)
-
-# OCTAVE_MEX_CREATE(functionname inputfiles thridlibraries)
-MACRO(OCTAVE_MEX_CREATE functionname)
-  OCTAVE_EXTRACT_SOURCES_LIBRARIES(sources thirdlibraries ${ARGN})
-  ADD_LIBRARY(${functionname} SHARED ${sources})
-  TARGET_LINK_LIBRARIES(${functionname} ${OCTAVE_LIBRARIES} ${thirdlibraries})
-  SET_TARGET_PROPERTIES(${functionname} PROPERTIES
-    PREFIX ""
-    SUFFIX  ".${OCTAVE_MEXFILE_EXT}"
-  )
-ENDMACRO(OCTAVE_MEX_CREATE)
-
 INCLUDE(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(Octave DEFAULT_MSG OCTAVE_ROOT OCTAVE_INCLUDE_DIR OCTAVE_OCTINTERP_LIBRARY OCTAVE_OCTAVE_LIBRARY OCTAVE_CRUFT_LIBRARY)
-
-MARK_AS_ADVANCED(
-  OCTAVE_OCTINTERP_LIBRARY
-  OCTAVE_OCTAVE_LIBRARY
-  OCTAVE_CRUFT_LIBRARY
-  OCTAVE_LIBRARIES
-  OCTAVE_INCLUDE_DIR
-)
 """
 
 PROPS_PARSER_C="""
@@ -1361,13 +1328,17 @@ INCLUDE_DIRECTORIES( ${INC_DIR} "mex" /usr/include/octave-3.4.3/octave/ )
 ADD_LIBRARY( auto_interface_data SHARED ${C_FILES} )
 
 
+"""
+        ret = ret + "IF( BUILD_MEX )\n"
+
+        ret = ret + """
 # FOR FILE IN MEX_MAT_SUPPORT AND MEXX_CLASS_DEF, set -fPIC
 SET_SOURCE_FILES_PROPERTIES( ${MEX_CLASS_DEF} ${MEX_MAT_SUPPORT} PROPERTIES COMPILE_FLAGS "-fPIC" )
 ADD_LIBRARY( auto_interface_mat_support SHARED ${MEX_MAT_SUPPORT} ${MEX_CLASS_DEF} mex/props_parser.cpp )
 SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPIC" )
-
 """
-        ret = ret + "IF( BUILD_MEX )\n"
+
+
 
 
         for struct_name, struct_def in self.structs.items():
@@ -1382,7 +1353,16 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
         
         ret = ret + "IF( BUILD_OCT )\n"
 
+
         ret = ret + TAB + "FIND_PACKAGE( octave )\n"
+
+
+        ret = ret + """
+# FOR FILE IN MEX_MAT_SUPPORT AND MEXX_CLASS_DEF, set -fPIC
+SET_SOURCE_FILES_PROPERTIES( ${MEX_CLASS_DEF} ${MEX_MAT_SUPPORT} PROPERTIES COMPILE_FLAGS "-fPIC" )
+ADD_LIBRARY( auto_interface_mat_support SHARED ${MEX_MAT_SUPPORT} ${MEX_CLASS_DEF} mex/props_parser.cpp )
+SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPIC" )
+"""
 
         ret = ret + """
     MESSAGE( STATUS "------- OCTAVE CONFIG ----------" )
@@ -1404,6 +1384,7 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
 
 
         ret = ret + TAB + "LINK_DIRECTORIES( ${OCT_LIBDIRS} )\n"
+        ret = ret + TAB + "INCLUDE_DIRECTORIES( ${OCT_INC_DIRS} )\n"
 
         for struct_name, struct_def in self.structs.items():
 
