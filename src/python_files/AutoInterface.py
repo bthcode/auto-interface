@@ -8,6 +8,152 @@ __author__="Brian Hone"
 
 import json, string, pprint, sys, os
 
+FIND_OCT="""
+# - Try to find a version of Octave and headers/library required by the 
+#   used compiler. It determines the right MEX-File extension and add 
+#   a macro to help the build of MEX-functions.
+#
+# This module defines: 
+#  OCTAVE_INCLUDE_DIR:         include path for mex.h, mexproto.h
+#  OCTAVE_OCTINTERP_LIBRARY:   path to the library octinterp
+#  OCTAVE_OCTAVE_LIBRARY:      path to the library octave
+#  OCTAVE_CRUFT_LIBRARY:       path to the library cruft
+#  OCTAVE_LIBRARIES:           required libraries: octinterp, octave, cruft
+#  OCTAVE_CREATE_MEX:          macro to build a MEX-file
+#
+# The macro OCTAVE_CREATE_MEX requires in this order:
+#  - function's name which will be called in Octave;
+#  - C/C++ source files;
+#  - third libraries required.
+
+# Copyright (c) 2009-2011 Arnaud Barr <arnaud.barre@gmail.com>
+# Redistribution and use is allowed according to the terms of the BSD license.
+# For details see the accompanying COPYING-CMAKE-SCRIPTS file.
+
+IF(OCTAVE_ROOT AND OCTAVE_INCLUDE_DIR AND OCTAVE_LIBRARIES)
+   # in cache already
+   SET(Octave_FIND_QUIETLY TRUE)
+ENDIF(OCTAVE_ROOT AND OCTAVE_INCLUDE_DIR AND OCTAVE_LIBRARIES)
+
+SET(OCTAVE_MEXFILE_EXT mex)
+
+IF(WIN32)
+  FILE(GLOB OCTAVE_PATHS "c:/Octave/*")
+  FIND_PATH(OCTAVE_ROOT "bin/octave.exe" ${OCTAVE_PATHS})
+  
+  FILE(GLOB OCTAVE_INCLUDE_PATHS "${OCTAVE_ROOT}/include/octave-*/octave")
+  FILE(GLOB OCTAVE_LIBRARIES_PATHS "${OCTAVE_ROOT}/lib/octave-*")
+
+  # LIBOCTINTERP, LIBOCTAVE, LIBCRUFT names
+  SET(LIBOCTINTERP "liboctinterp")
+  SET(LIBOCTAVE "liboctave")
+  SET(LIBCRUFT "libcruft")
+ELSE(WIN32)
+  # MEX files extension
+  IF(APPLE)
+    FILE(GLOB OCTAVE_PATHS "/Applications/Octave*")
+    FIND_PATH(OCTAVE_ROOT "Contents/Resources/bin/octave" ${OCTAVE_PATHS})
+
+    FILE(GLOB OCTAVE_INCLUDE_PATHS "${OCTAVE_ROOT}/Contents/Resources/include/octave-*/octave")
+    FILE(GLOB OCTAVE_LIBRARIES_PATHS "${OCTAVE_ROOT}/Contents/Resources/lib/octave-*")
+
+    SET(LIBOCTINTERP "liboctinterp.dylib")
+    SET(LIBOCTAVE "liboctave.dylib")
+    SET(LIBCRUFT "libcruft.dylib")
+  ELSE(APPLE)
+    SET(OCTAVE_ROOT "")
+    FILE(GLOB OCTAVE_LOCAL_PATHS "/usr/local/lib/octave-*")
+    FILE(GLOB OCTAVE_USR_PATHS "/usr/lib/octave/*")
+    FILE(GLOB OCTAVE_LOCAL_INC_PATHS "/usr/local/include/octave/*" )
+    FILE(GLOB OCTAVE_USR_INC_PATHS "/usr/include/octave-*/octave/")
+
+    MESSAGE( STATUS "octave local paths: " ${OCTAVE_LOCAL_PATHS} )
+    MESSAGE( STATUS "octave usr paths: " ${OCTAVE_USR_PATHS} )
+    MESSAGE( STATUS "octave local inc paths: " ${OCTAVE_LOCAL_INC_PATHS} )
+    MESSAGE( STATUS "octave usr inc paths: " ${OCTAVE_USR_INC_PATHS} )
+
+    SET (OCTAVE_INCLUDE_PATHS 
+      "/usr/local/include"
+      "/usr/local/include/octave"
+      "/usr/include"
+      "/usr/include/octave"
+      ${OCTAVE_LOCAL_INC_PATHS}
+      ${OCTAVE_USR_INC_PATHS})
+    SET (OCTAVE_LIBRARIES_PATHS
+      "/usr/local/lib"
+      "/usr/local/lib/octave"
+      ${OCTAVE_LOCAL_PATHS}
+      "/usr/lib"
+      "/usr/lib/octave"
+      ${OCTAVE_USR_PATHS})
+      
+    SET (LIBOCTINTERP "octinterp")
+    SET (LIBOCTAVE "octave")
+    SET (LIBCRUFT "cruft")
+  ENDIF(APPLE)
+ENDIF(WIN32)
+  
+FIND_LIBRARY(OCTAVE_OCTINTERP_LIBRARY
+    ${LIBOCTINTERP}
+    ${OCTAVE_LIBRARIES_PATHS} NO_DEFAULT_PATH
+    )
+FIND_LIBRARY(OCTAVE_OCTAVE_LIBRARY
+    ${LIBOCTAVE}
+    ${OCTAVE_LIBRARIES_PATHS} NO_DEFAULT_PATH
+    )
+FIND_LIBRARY(OCTAVE_CRUFT_LIBRARY
+    ${LIBCRUFT}
+    ${OCTAVE_LIBRARIES_PATHS} NO_DEFAULT_PATH
+    )
+FIND_PATH(OCTAVE_INCLUDE_DIR
+    "mex.h"
+    ${OCTAVE_INCLUDE_PATHS} NO_DEFAULT_PATH
+    )
+
+# This is common to UNIX and Win32:
+SET(OCTAVE_LIBRARIES
+  ${OCTAVE_OCTINTERP_LIBRARY}
+  ${OCTAVE_OCTAVE_LIBRARY}
+  ${OCTAVE_CRUFT_LIBRARY}  
+)
+
+# Macros for building MEX-files
+MACRO(OCTAVE_EXTRACT_SOURCES_LIBRARIES sources thirdlibraries)
+  SET(${sources})
+  SET(${thirdlibraries})
+  FOREACH(_arg ${ARGN})
+    GET_FILENAME_COMPONENT(_ext ${_arg} EXT)
+    IF("${_ext}" STREQUAL "")
+      LIST(APPEND ${thirdlibraries} "${_arg}")
+    ELSE("${_ext}" STREQUAL "")
+      LIST(APPEND ${sources} "${_arg}")
+    ENDIF ("${_ext}" STREQUAL "")
+  ENDFOREACH(_arg)
+ENDMACRO(OCTAVE_EXTRACT_SOURCES_LIBRARIES)
+
+# OCTAVE_MEX_CREATE(functionname inputfiles thridlibraries)
+MACRO(OCTAVE_MEX_CREATE functionname)
+  OCTAVE_EXTRACT_SOURCES_LIBRARIES(sources thirdlibraries ${ARGN})
+  ADD_LIBRARY(${functionname} SHARED ${sources})
+  TARGET_LINK_LIBRARIES(${functionname} ${OCTAVE_LIBRARIES} ${thirdlibraries})
+  SET_TARGET_PROPERTIES(${functionname} PROPERTIES
+    PREFIX ""
+    SUFFIX  ".${OCTAVE_MEXFILE_EXT}"
+  )
+ENDMACRO(OCTAVE_MEX_CREATE)
+
+INCLUDE(FindPackageHandleStandardArgs)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(Octave DEFAULT_MSG OCTAVE_ROOT OCTAVE_INCLUDE_DIR OCTAVE_OCTINTERP_LIBRARY OCTAVE_OCTAVE_LIBRARY OCTAVE_CRUFT_LIBRARY)
+
+MARK_AS_ADVANCED(
+  OCTAVE_OCTINTERP_LIBRARY
+  OCTAVE_OCTAVE_LIBRARY
+  OCTAVE_CRUFT_LIBRARY
+  OCTAVE_LIBRARIES
+  OCTAVE_INCLUDE_DIR
+)
+"""
+
 PROPS_PARSER_C="""
 #include "props_parser.h"
 
@@ -936,19 +1082,18 @@ bar
             elif f['TYPE'] == 'STRUCT':
                 ret = ret + TAB + '%s.read_binary( r_stream );\n' % ( f['NAME'] )
             elif f['TYPE'] == 'VECTOR':
-                ret = ret + TAB + 'std::size_t tmp_%s_size;\n' % ( f['NAME'] )
+                ret = ret + TAB + 'uint32_t tmp_%s_size;\n' % ( f['NAME'] )
                 ret = ret + TAB + 'r_stream.read( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % ( f['NAME'], f['NAME'] )
                 if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
                     ctype = self.basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
-                    ret = ret + TAB + 'for ( std::size_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
+                    ret = ret + TAB + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
                     ret = ret + TAB + TAB + '%s tmp_%s;\n' % ( ctype, ctype )
                     ret = ret + TAB + TAB + 'r_stream.read( (char*)&(tmp_%s), sizeof(tmp_%s));\n' % ( ctype, ctype )
                     ret = ret + TAB + TAB + '%s.push_back( tmp_%s );\n' % ( f['NAME'], ctype )
                     ret = ret + TAB + '}\n'
                 elif f['CONTAINED_TYPE'] == 'STRUCT':
                     ctype = f['STRUCT_TYPE']
-                    print ctype
-                    ret = ret + TAB + 'for ( std::size_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
+                    ret = ret + TAB + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
                     ret = ret + TAB + TAB + '%s tmp_%s;\n' % ( ctype, ctype )
                     ret = ret + TAB + TAB + 'tmp_%s.read_binary( r_stream );\n' % ( ctype )
                     ret = ret + TAB + TAB + '%s.push_back( tmp_%s );\n' % ( f['NAME'], ctype )
@@ -964,14 +1109,14 @@ bar
             elif f['TYPE'] == 'STRUCT':
                 ret = ret + TAB + '%s.write_binary( r_stream );\n' % ( f['NAME'] )
             elif f['TYPE'] == 'VECTOR':
-                ret = ret + TAB + 'std::size_t tmp_%s_size = %s.size();\n' % ( f['NAME'], f['NAME'] )
+                ret = ret + TAB + 'uint32_t tmp_%s_size = %s.size();\n' % ( f['NAME'], f['NAME'] )
                 ret = ret + TAB + 'r_stream.write( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % ( f['NAME'], f['NAME'] )
                 if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
-                    ret = ret + TAB + 'for ( std::size_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
+                    ret = ret + TAB + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
                     ret = ret + TAB + TAB + 'r_stream.write( (char*)&(%s[ii]), sizeof(%s[ii]));\n' % ( f['NAME'], f['NAME'] )
                     ret = ret + TAB + '}\n'
                 elif f['CONTAINED_TYPE'] == 'STRUCT':
-                    ret = ret + TAB + 'for ( std::size_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
+                    ret = ret + TAB + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
                     ret = ret + TAB + TAB + '%s[ii].write_binary( r_stream );\n' % ( f['NAME'] )
                     ret = ret + TAB + '}\n'
         ret = ret + "}\n\n"
@@ -1161,7 +1306,9 @@ PROJECT(AutoInterfaceOut)
 
 SET( CMAKE_VERBOSE_MAKEFILE ON )
 
-SET( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${AutoInterfaceOut_SOURCE_DIR} )
+SET( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${AutoInterfaceOut_SOURCE_DIR}  ${AutoInterfaceOut_SOURCE_DIR}/cmake_local_modules )
+
+MESSAGE( STATUS "MODULE PATH: ${CMAKE_MODULE_PATH}" )
 
 FILE( GLOB C_FILES  RELATIVE ${AutoInterfaceOut_SOURCE_DIR} "src/*.cpp"  )
 FILE( GLOB MEX_FILES  RELATIVE ${AutoInterfaceOut_SOURCE_DIR} "mex/*mex_impl.cpp" )
@@ -1169,6 +1316,7 @@ FILE( GLOB MEX_CLASS_DEF RELATIVE ${AutoInterfaceOut_SOURCE_DIR} "mex/*class_def
 FILE( GLOB MEX_MAT_SUPPORT RELATIVE ${AutoInterfaceOut_SOURCE_DIR} "mex/*mat_support.cpp" )
 
 SET( INC_DIR  "inc" )
+
 
 ########### VERBOSE DEBUG ##########
 MESSAGE( STATUS "C_FILES:" )
@@ -1194,6 +1342,9 @@ ENDFOREACH()
 MESSAGE( STATUS "INC_DIR    = ${INC_DIR}" )
 ########### VERBOSE DEBUG ##########
 
+OPTION( BUILD_OCT "Build octave mex?" False )
+OPTION( BUILD_MEX "Build MTLAB mex?" False )
+
 ########### MATLAB STUFF #################
 SET( MATLAB_LIBDIR )
 SET( MEX_EXT )
@@ -1203,20 +1354,6 @@ MESSAGE(  STATUS "MATLAB_LIBDIR  = ${MATLAB_LIBDIR}" )
 MESSAGE(  STATUS "MEX_EXT        = ${MEX_EXT}")
 MESSAGE(  STATUS "MATLAB_INC_DIR = ${MATLAB_INC_DIR}" )
 ########### MATLAB STUFF #################
-
-########### OCTAVE STUFF #################
-SET( OCT_LIBS f77blas lapack atlas fftw3 fftw3f m octinterp octave cruft gfortran quadmath )
-SET( OCT_LIBDIRS /usr/lib/atlas /usr/lib/octave /usr/lib/octave/3.4.3  )
-SET( OCT_EXT .mex )
-SET( OCT_DEFS "-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -m32 -march=i686 -mtune=atom -fasynchronous-unwind-tables -mieee-fp -fPIC -Wall -Wp -pipe -g" )
-SET (OCT_LINK_FLAGS "-Wl,-Bsymbolic -Wl,-z,relro")
-SET( OCT_INC_DIRS /usr/include/octave-3.4.3/octave/.. /usr/include/octave-3.4.3/octave /usr/include/freetypes2 )
-
-MESSAGE(  STATUS "OCTAVE_LIBDIR  = ${OCTAVE_LIBDIR}" )
-MESSAGE(  STATUS "OCT_EXT        = ${OCT_EXT}")
-MESSAGE(  STATUS "OCTAVE_INC_DIR = ${OCTAVE_INC_DIR}" )
-########### MATLAB STUFF #################
-
 
 
 INCLUDE_DIRECTORIES( ${INC_DIR} "mex" /usr/include/octave-3.4.3/octave/ )
@@ -1230,7 +1367,6 @@ ADD_LIBRARY( auto_interface_mat_support SHARED ${MEX_MAT_SUPPORT} ${MEX_CLASS_DE
 SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPIC" )
 
 """
-        ret = ret + "SET( BUILD_MEX FALSE )\n"
         ret = ret + "IF( BUILD_MEX )\n"
 
 
@@ -1244,8 +1380,28 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
 
         ret = ret + "ENDIF( BUILD_MEX )\n\n"
         
-        ret = ret + "SET( BUILD_OCT FALSE )\n"
         ret = ret + "IF( BUILD_OCT )\n"
+
+        ret = ret + TAB + "FIND_PACKAGE( octave )\n"
+
+        ret = ret + """
+    MESSAGE( STATUS "------- OCTAVE CONFIG ----------" )
+    MESSAGE( STATUS "includes: ${OCTAVE_INCLUDE_DIR}" )
+    MESSAGE( STATUS "lib: ${OCTAVE_OCTAVE_LIBRARY}" )
+    MESSAGE( STATUS "lib_cruft: ${OCTAVE_CRUFT_LIBRARY}" )
+    MESSAGE( STATUS "lib_octinterp: ${OCTAVE_OCTINTERP_LIBRARY}" )
+    SET( OCT_EXT .mex      )
+    SET( OCT_DEFS "-fPIC"  )
+    SET( OCT_LINK_FLAGS "" )
+    SET( OCT_LIBS ${OCTAVE_OCTAVE_LIBRARY} )
+    SET( OCT_LIBDIRS ${OCTAVE_LOCAL_PATHS} ${OCTAVE_USR_PATHS} )
+    SET( OCT_INC_DIRS ${OCTAVE_LOCAL_INC_PATHS} ${OCTAVE_USR_INC_PATHS} )
+    MESSAGE( STATUS "--------------------------------" )
+
+"""
+
+
+
 
         ret = ret + TAB + "LINK_DIRECTORIES( ${OCT_LIBDIRS} )\n"
 
@@ -1339,10 +1495,14 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
         self.mex_dir = self.out_dir + os.sep + 'mex/'
         self.inc_dir = self.out_dir + os.sep + 'inc/'
         self.src_dir = self.out_dir + os.sep + 'src/'
+        self.cmake_dir = self.out_dir + os.sep + 'cmake_local_modules'
         self.mat_dir = self.out_dir + os.sep + 'mat/'
-        for d in self.mex_dir, self.inc_dir, self.src_dir, self.mat_dir:
+        for d in self.mex_dir, self.inc_dir, self.src_dir, self.cmake_dir, self.mat_dir:
             if not os.path.exists( d ):
                 os.mkdir(d)
+        find_oct_file = open( self.cmake_dir + '/Findoctave.cmake' , 'w' )
+        find_oct_file.write( FIND_OCT )
+        find_oct_file.close()
     # end create_directory_structure
 
 
