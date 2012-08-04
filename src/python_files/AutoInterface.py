@@ -574,6 +574,25 @@ bar
                 ret = ret + TAB + TAB + 'mxArray * p_tmp = %s_to_mat( &(p_%s->%s) );\n' % ( f["STRUCT_TYPE"], struct_name, f['NAME'] )
                 ret = ret + TAB + TAB + 'mxSetFieldByNumber( p_ret, nth_element, %s, p_tmp );\n' % ( count )
                 ret = ret + TAB + '}\n\n'
+            elif f['TYPE'] == "COMPLEX" :
+                c_type = self.basetypes[ f['COMPLEX_TYPE'] ]['C_TYPE']
+                mat_type = self.basetypes[ f['COMPLEX_TYPE'] ]['MAT_TYPE']
+                # 1. Create numeric array
+                ret = ret + TAB + '{\n'
+                ret = ret + TAB + TAB + 'mxArray * p_tmp;\n'
+                ret = ret + TAB + TAB + 'mwSize tmp_dims[2] = { 1, 1 };\n'
+                ret = ret + TAB + TAB + '\n'
+                ret = ret + TAB + TAB + 'p_tmp = mxCreateNumericArray (2, tmp_dims, %s, mxCOMPLEX);\n' % ( mat_type )
+                # 2. Get pointer
+                ret = ret + TAB + TAB + '%s * p_real = ( %s * ) mxGetPr( p_tmp );\n' % ( c_type, c_type )
+                ret = ret + TAB + TAB + '%s * p_imag = ( %s * ) mxGetPi( p_tmp );\n' % ( c_type, c_type )
+                # 3. Copy c data to that pointer
+                ret = ret + TAB + TAB + 'p_real[0] = p_%s->%s.real();\n' % ( struct_name, f['NAME'] )
+                ret = ret + TAB + TAB + 'p_imag[0] = p_%s->%s.real();\n' % ( struct_name, f['NAME'] )
+                # 4. Set the mat struct element's point to the numeric array
+                ret = ret + TAB + TAB + 'mxSetFieldByNumber (p_ret, nth_element, %s, p_tmp) ;\n' % ( count )
+                ret = ret + TAB + '}\n\n'
+
             elif f['TYPE'] == 'VECTOR':
                 if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
                     c_type = self.basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
@@ -605,6 +624,44 @@ bar
                     # 4. Set the mat struct element's point to the numeric array
                     ret = ret + TAB + TAB + 'mxSetFieldByNumber (p_ret, nth_element, %s, p_tmp) ;\n' % ( count )
                     ret = ret + TAB + '}\n\n'
+
+                elif f['CONTAINED_TYPE'] == 'COMPLEX':
+                    c_type = self.basetypes[ f['COMPLEX_TYPE'] ]['C_TYPE']
+                    mat_type = self.basetypes[ f['COMPLEX_TYPE'] ]['MAT_TYPE']
+                    # 1. Create numeric array
+                    ret = ret + TAB + 'if ( p_%s->%s.size() ) {\n' % ( struct_name, f['NAME'] )
+                    ret = ret + TAB + TAB + 'mxArray * p_tmp;\n'
+                    ret = ret + TAB + TAB + 'mwSize tmp_dims[2] = { p_%s->%s.size(), 1 };\n' % ( struct_name, f['NAME'] )
+                    ret = ret + TAB + TAB + '\n'
+                    ret = ret + TAB + TAB + 'p_tmp = mxCreateNumericArray (2, tmp_dims, %s, mxCOMPLEX);\n' % ( mat_type )
+                    # 2. Get pointer
+                    ret = ret + TAB + TAB + '%s * real_ptr = ( %s * ) mxGetPr( p_tmp );\n' % ( c_type, c_type )
+                    ret = ret + TAB + TAB + '%s * imag_ptr = ( %s * ) mxGetPi( p_tmp );\n' % ( c_type, c_type )
+                    # 3. Copy c data to that pointer
+                    ret = ret + TAB + TAB + 'for ( std::size_t ii=0; ii < p_%s->%s.size(); ii++ ) {\n' % ( struct_name, f['NAME'] )
+                    ret = ret + TAB + TAB + TAB + 'real_ptr[ii] = p_%s->%s[ii].real();\n' % ( struct_name, f['NAME'] )
+                    ret = ret + TAB + TAB + TAB + 'imag_ptr[ii] = p_%s->%s[ii].imag();\n' % ( struct_name, f['NAME'] )
+                    ret = ret + TAB + TAB + '}\n'
+                    # 4. Set the mat struct element's point to the numeric array
+                    ret = ret + TAB + TAB + 'mxSetFieldByNumber (p_ret, nth_element, %s, p_tmp) ;\n' % ( count )
+                    ret = ret + TAB + '}\n'
+                    ret = ret + TAB + 'else'
+                    ret = ret + TAB + '{ // placeholder for empty vector\n'
+                    ret = ret + TAB + TAB + 'mexPrintf( "empty vector for %s\\n" );\n' % f['NAME']
+                    ret = ret + TAB + TAB + 'mxArray * p_tmp;\n'
+                    ret = ret + TAB + TAB + 'mwSize tmp_dims[2] = { 1, 1 };\n'
+                    ret = ret + TAB + TAB + '\n'
+                    ret = ret + TAB + TAB + 'p_tmp = mxCreateNumericArray (2, tmp_dims, %s, mxCOMPLEX);\n' % ( mat_type )
+                    # 2. Get pointer
+                    ret = ret + TAB + TAB + '%s * real_ptr = ( %s * ) mxGetPr( p_tmp );\n' % ( c_type, c_type )
+                    ret = ret + TAB + TAB + '%s * imag_ptr = ( %s * ) mxGetPr( p_tmp );\n' % ( c_type, c_type )
+                    # 3. Copy c data to that pointero       
+                    ret = ret + TAB + TAB + 'real_ptr[0] = 0;\n'
+                    ret = ret + TAB + TAB + 'imag_ptr[0] = 0;\n'
+                    # 4. Set the mat struct element's point to the numeric array
+                    ret = ret + TAB + TAB + 'mxSetFieldByNumber (p_ret, nth_element, %s, p_tmp) ;\n' % ( count )
+                    ret = ret + TAB + '}\n\n'
+
      
                 elif f['CONTAINED_TYPE'] == 'STRUCT':
                     ret = ret + TAB + 'if ( p_%s->%s.size() )\n' % ( struct_name, f['NAME'] )
@@ -658,6 +715,20 @@ bar
                 ret = ret + TAB + TAB + TAB + 'mat_to_%s( p_tmp, &(p_%s->%s), 0 );\n' % ( f['STRUCT_TYPE'], struct_name, f['NAME'] )
                 ret = ret + TAB + TAB + '}\n'
                 ret = ret + TAB + '}\n\n'
+            elif f['TYPE'] == "COMPLEX":
+                c_type = self.basetypes[ f['COMPLEX_TYPE'] ]['C_TYPE']
+                mat_type = self.basetypes[ f['COMPLEX_TYPE'] ]['MAT_TYPE']
+                # 1. Get a pointer to the right place in the mxArray
+                ret = ret + TAB + '{\n'
+                ret = ret + TAB + TAB + 'mxArray * p_tmp = mxGetField (pMat, nth_element, "%s");\n' % ( f['NAME'] )
+                ret = ret + TAB + TAB + 'if ( p_tmp )\n'
+                ret = ret + TAB + TAB + '{\n'
+                ret = ret + TAB + TAB + TAB + '%s * p_tmp1 = mxGetPr( p_tmp );\n' % ( c_type )
+                ret = ret + TAB + TAB + TAB + '%s * p_tmp2 = mxGetPi( p_tmp );\n' % ( c_type )
+                ret = ret + TAB + TAB + TAB + 'if ( p_tmp1 ) p_%s->%s.real( *p_tmp1 );\n' % ( struct_name, f['NAME'] )
+                ret = ret + TAB + TAB + TAB + 'if ( p_tmp2 ) p_%s->%s.imag( *p_tmp2 );\n' % ( struct_name, f['NAME'] )
+                ret = ret + TAB + TAB + '}\n'
+                ret = ret + TAB + '}\n\n'
             elif f['TYPE'] == 'VECTOR':
                 if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
                     c_type = self.basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
@@ -677,6 +748,29 @@ bar
                     ret = ret + TAB + TAB + TAB + 'for (size_t i=0; i < num_elements; i++ )\n'
                     ret = ret + TAB + TAB + TAB + '{\n'
                     ret = ret + TAB + TAB + TAB + TAB + 'p_%s->%s[ i ] = (ptr[i]);\n' % ( struct_name, f['NAME'] )
+                    ret = ret + TAB + TAB + TAB + '}\n'
+                    ret = ret + TAB + TAB + '}\n'
+                    ret = ret + TAB + '}\n\n'
+                elif f['CONTAINED_TYPE'] == "COMPLEX" :
+                    c_type = self.basetypes[ f['COMPLEX_TYPE'] ]['C_TYPE']
+                    mat_type = self.basetypes[ f['COMPLEX_TYPE'] ]['MAT_TYPE']
+                    ret = ret + TAB + '{\n'
+                    # 1. Clear the output vector
+                    ret = ret + TAB + 'p_%s->%s.clear();\n' % ( struct_name, f['NAME'] )
+                    # 2. Get the new array size and resize the vector
+                    ret = ret + TAB + TAB + 'mxArray * p_tmp = mxGetField (pMat, nth_element, "%s");\n' % ( f['NAME'] )
+                    ret = ret + TAB + TAB + 'if ( p_tmp )\n'
+                    ret = ret + TAB + TAB + '{\n'
+                    ret = ret + TAB + TAB + TAB + 'mwSize num_elements = mxGetNumberOfElements (p_tmp);\n'
+                    ret = ret + TAB + TAB + TAB + 'p_%s->%s.resize( num_elements );\n' % ( struct_name, f['NAME'] )
+                    ret = ret + TAB + TAB + TAB + '// Get a raw pointer to the matlab storage\n'
+                    ret = ret + TAB + TAB + TAB + '%s * real_ptr = mxGetPr( p_tmp );\n' % ( c_type )
+                    ret = ret + TAB + TAB + TAB + '%s * imag_ptr = mxGetPi( p_tmp );\n' % ( c_type )
+                    ret = ret + TAB + TAB + TAB + '// Copy the data into c\n'
+                    ret = ret + TAB + TAB + TAB + 'for (size_t i=0; i < num_elements; i++ )\n'
+                    ret = ret + TAB + TAB + TAB + '{\n'
+                    ret = ret + TAB + TAB + TAB + TAB + 'if ( real_ptr ) p_%s->%s[ i ].real( real_ptr[ i ] );\n' % ( struct_name, f['NAME'] )
+                    ret = ret + TAB + TAB + TAB + TAB + 'if ( imag_ptr ) p_%s->%s[ i ].imag( imag_ptr[ i ] );\n' % ( struct_name, f['NAME'] )
                     ret = ret + TAB + TAB + TAB + '}\n'
                     ret = ret + TAB + TAB + '}\n'
                     ret = ret + TAB + '}\n\n'
@@ -953,6 +1047,7 @@ bar
         ret = ret + '#include <iostream>\n'
         ret = ret + '#include <string>\n'
         ret = ret + '#include <map>\n'
+        ret = ret + '#include <complex>\n'
         ret = ret + '#include <vector>\n'
         ret = ret + '#include <fstream>\n'
         ret = ret + '#include <sstream>\n\n'
@@ -988,9 +1083,13 @@ bar
                     c_decl = 'std::vector< %s >' % ( f['STRUCT_TYPE'] )
                 elif self.basetypes.has_key( f['CONTAINED_TYPE'] ):
                     c_decl = 'std::vector< %s >' % ( self.basetypes[ f['CONTAINED_TYPE'] ][ 'C_TYPE' ] )
+                elif f['CONTAINED_TYPE'] == 'COMPLEX':
+                    c_decl = 'std::vector< std::complex< %s > >' % ( self.basetypes[ f['COMPLEX_TYPE' ] ][ 'C_TYPE' ] )
                 else:
                     print 'ERROR - vector with unknown type or no CONTAINED_TYPE key'
                     sys.exit(1)
+            elif f['TYPE'] == 'COMPLEX':
+                c_decl = 'std::complex< %s >' % ( self.basetypes[ f['COMPLEX_TYPE' ] ][ 'C_TYPE' ] )
             else:
                 print 'ERROR - vector with no TYPE'
                 sys.exit(1)
@@ -1044,7 +1143,7 @@ bar
         ### Read Binary
         ret = ret + "void %s::read_binary( std::ifstream& r_stream ){\n\n" % ( struct_name )
         for f in struct_def['FIELDS']:
-            if self.basetypes.has_key( f['TYPE'] ):
+            if self.basetypes.has_key( f['TYPE'] ) or f['TYPE'] == 'COMPLEX':
                 ret = ret + TAB + 'r_stream.read( (char*)&(%s), sizeof(%s) );\n' %( f['NAME'], f['NAME'] )
             elif f['TYPE'] == 'STRUCT':
                 ret = ret + TAB + '%s.read_binary( r_stream );\n' % ( f['NAME'] )
@@ -1065,20 +1164,27 @@ bar
                     ret = ret + TAB + TAB + 'tmp_%s.read_binary( r_stream );\n' % ( ctype )
                     ret = ret + TAB + TAB + '%s.push_back( tmp_%s );\n' % ( f['NAME'], ctype )
                     ret = ret + TAB + '}\n'
+                elif f['CONTAINED_TYPE'] == 'COMPLEX':
+                    ctype = 'std::complex< %s >' % self.basetypes[f['COMPLEX_TYPE']]['C_TYPE']
+                    ret = ret + TAB + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
+                    ret = ret + TAB + TAB + '%s tmp_cmplx;\n' % ( ctype )
+                    ret = ret + TAB + TAB + 'r_stream.read( (char*)&(tmp_cmplx), sizeof(tmp_cmplx));\n' 
+                    ret = ret + TAB + TAB + '%s.push_back( tmp_cmplx );\n' % ( f['NAME'] )
+                    ret = ret + TAB + '}\n'
         ret = ret + "}\n\n"
 
 
         ### Write Binary
         ret = ret + "void %s::write_binary( std::ofstream& r_stream ){\n\n" % ( struct_name )
         for f in struct_def['FIELDS']:
-            if self.basetypes.has_key( f['TYPE'] ):
+            if self.basetypes.has_key( f['TYPE'] ) or f['TYPE'] == 'COMPLEX':
                 ret = ret + TAB + 'r_stream.write( (char*)&(%s), sizeof(%s) );\n' %( f['NAME'], f['NAME'] )
             elif f['TYPE'] == 'STRUCT':
                 ret = ret + TAB + '%s.write_binary( r_stream );\n' % ( f['NAME'] )
             elif f['TYPE'] == 'VECTOR':
                 ret = ret + TAB + 'uint32_t tmp_%s_size = %s.size();\n' % ( f['NAME'], f['NAME'] )
                 ret = ret + TAB + 'r_stream.write( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % ( f['NAME'], f['NAME'] )
-                if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
+                if self.basetypes.has_key( f['CONTAINED_TYPE'] ) or f['CONTAINED_TYPE'] == 'COMPLEX':
                     ret = ret + TAB + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
                     ret = ret + TAB + TAB + 'r_stream.write( (char*)&(%s[ii]), sizeof(%s[ii]));\n' % ( f['NAME'], f['NAME'] )
                     ret = ret + TAB + '}\n'
@@ -1113,6 +1219,14 @@ bar
                         print_decl = TAB + TAB + TAB + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << %s((*ii)) << "\\n";\n' % ( f['NAME'], b['STREAM_CAST'] )
                     else:
                         print_decl = TAB + TAB + TAB + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << (*ii) << "\\n";\n' % ( f['NAME'] )
+                elif f['CONTAINED_TYPE'] == 'COMPLEX':
+                    b = self.basetypes[ f['COMPLEX_TYPE'] ]
+                    iter_decl  = TAB + TAB + 'std::vector< std::complex< %s > >::iterator ii;\n' % ( b['C_TYPE'] )
+                    if b.has_key( 'STREAM_CAST' ):
+                        print_decl = TAB + TAB + TAB + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << %s((*ii)) << "\\n";\n' % ( f['NAME'], b['STREAM_CAST'] )
+                    else:
+                        print_decl = TAB + TAB + TAB + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << (*ii) << "\\n";\n' % ( f['NAME'] )
+                
                 elif f['CONTAINED_TYPE'] == 'STRUCT':
                     iter_decl = TAB + TAB + 'std::vector< %s >::iterator ii;\n' % ( f['STRUCT_TYPE'] )
                     print_decl = TAB + TAB + TAB + 'std::stringstream ss;\n'
@@ -1186,6 +1300,31 @@ bar
                     ret = ret + TAB +TAB + 'fields_found += count;\n'
                     ret = ret + TAB +TAB + '}\n'
                     ret = ret + TAB + '}\n'
+                elif f['CONTAINED_TYPE'] == 'COMPLEX':
+                    # 1. Get the prefix
+                    # 2. Go into a while loop incrementing count until no more keys 
+                    #       are found
+                    b = self.basetypes[ f['COMPLEX_TYPE'] ]
+                    ret = ret + TAB + '{\n'
+                    ret = ret + TAB + 'std::size_t count=0;\n'
+                    ret = ret + TAB + 'while( 1 )\n'
+                    ret = ret + TAB + '{\n'
+                    ret = ret + TAB +TAB + 'std::stringstream ss;\n'
+                    ret = ret + TAB +TAB + 'ss << r_prefix << "%s" << "[ " << count << " ]";\n' % ( f['NAME'] )
+                    ret = ret + TAB +TAB + 'param_iter = r_params.find( ss.str() );\n' 
+                    ret = ret + TAB +TAB + 'if ( param_iter == r_params.end() )\n'
+                    ret = ret + TAB +TAB + TAB + 'break;\n'
+                    ret = ret + TAB +TAB + 'else {\n'
+                    ret = ret + TAB +TAB + TAB + 'std::stringstream ss2( param_iter->second );\n'
+                    ret = ret + TAB +TAB +TAB + 'std::complex< %s > u;\n' % ( b[ 'C_TYPE' ] )
+                    ret = ret + TAB +TAB +TAB + 'ss2 >> u;\n'
+                    ret = ret + TAB +TAB +TAB + '%s.push_back(u);\n' % ( f['NAME'] ) 
+                    ret = ret + TAB +TAB +TAB + 'count++;\n'
+                    ret = ret + TAB +TAB + '}\n'
+                    ret = ret + TAB +TAB + 'fields_found += count;\n'
+                    ret = ret + TAB +TAB + '}\n'
+                    ret = ret + TAB + '}\n'
+
                 elif f['CONTAINED_TYPE'] == 'STRUCT':
                     ret = ret + TAB + '{\n'
                     ret = ret + TAB + 'std::size_t count=0;\n'
