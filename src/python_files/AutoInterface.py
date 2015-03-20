@@ -8,118 +8,6 @@ __author__="Brian Hone"
 
 import json, string, pprint, sys, os
 
-FIND_OCT="""
-# - Try to find a version of Octave and headers/library required by the 
-#   used compiler. It determines the right MEX-File extension and add 
-#   a macro to help the build of MEX-functions.
-#
-# This module defines: 
-#  OCTAVE_INCLUDE_DIR:         include path for mex.h, mexproto.h
-#  OCTAVE_OCTINTERP_LIBRARY:   path to the library octinterp
-#  OCTAVE_OCTAVE_LIBRARY:      path to the library octave
-#  OCTAVE_CRUFT_LIBRARY:       path to the library cruft
-#  OCTAVE_LIBRARIES:           required libraries: octinterp, octave, cruft
-#  OCTAVE_CREATE_MEX:          macro to build a MEX-file
-#
-# The macro OCTAVE_CREATE_MEX requires in this order:
-#  - function's name which will be called in Octave;
-#  - C/C++ source files;
-#  - third libraries required.
-
-# Copyright (c) 2009-2011 Arnaud Barr <arnaud.barre@gmail.com>
-# Redistribution and use is allowed according to the terms of the BSD license.
-# For details see the accompanying COPYING-CMAKE-SCRIPTS file.
-
-IF(OCTAVE_ROOT AND OCTAVE_INCLUDE_DIR AND OCTAVE_LIBRARIES)
-   # in cache already
-   SET(Octave_FIND_QUIETLY TRUE)
-ENDIF(OCTAVE_ROOT AND OCTAVE_INCLUDE_DIR AND OCTAVE_LIBRARIES)
-
-SET(OCTAVE_MEXFILE_EXT mex)
-
-IF(WIN32)
-  FILE(GLOB OCTAVE_PATHS "c:/Octave/*")
-  FIND_PATH(OCTAVE_ROOT "bin/octave.exe" ${OCTAVE_PATHS})
-  
-  FILE(GLOB OCTAVE_INCLUDE_PATHS "${OCTAVE_ROOT}/include/octave-*/octave")
-  FILE(GLOB OCTAVE_LIBRARIES_PATHS "${OCTAVE_ROOT}/lib/octave-*")
-
-  # LIBOCTINTERP, LIBOCTAVE, LIBCRUFT names
-  SET(LIBOCTINTERP "liboctinterp")
-  SET(LIBOCTAVE "liboctave")
-  SET(LIBCRUFT "libcruft")
-ELSE(WIN32)
-  # MEX files extension
-  IF(APPLE)
-    FILE(GLOB OCTAVE_PATHS "/Applications/Octave*")
-    FIND_PATH(OCTAVE_ROOT "Contents/Resources/bin/octave" ${OCTAVE_PATHS})
-
-    FILE(GLOB OCTAVE_INCLUDE_PATHS "${OCTAVE_ROOT}/Contents/Resources/include/octave-*/octave")
-    FILE(GLOB OCTAVE_LIBRARIES_PATHS "${OCTAVE_ROOT}/Contents/Resources/lib/octave-*")
-
-    SET(LIBOCTINTERP "liboctinterp.dylib")
-    SET(LIBOCTAVE "liboctave.dylib")
-    SET(LIBCRUFT "libcruft.dylib")
-  ELSE(APPLE)
-    SET(OCTAVE_ROOT "")
-    FILE(GLOB OCTAVE_LOCAL_PATHS "/usr/local/lib/octave-*")
-    FILE(GLOB OCTAVE_USR_PATHS "/usr/lib/octave/*" "/usr/lib64/octave/*")
-    FILE(GLOB OCTAVE_LOCAL_INC_PATHS "/usr/local/include/octave/*" )
-    FILE(GLOB OCTAVE_USR_INC_PATHS "/usr/include/octave-*/octave/")
-
-    MESSAGE( STATUS "octave local paths: " ${OCTAVE_LOCAL_PATHS} )
-    MESSAGE( STATUS "octave usr paths: " ${OCTAVE_USR_PATHS} )
-    MESSAGE( STATUS "octave local inc paths: " ${OCTAVE_LOCAL_INC_PATHS} )
-    MESSAGE( STATUS "octave usr inc paths: " ${OCTAVE_USR_INC_PATHS} )
-
-    SET (OCTAVE_INCLUDE_PATHS 
-      "/usr/local/include"
-      "/usr/local/include/octave"
-      "/usr/include"
-      "/usr/include/octave"
-      ${OCTAVE_LOCAL_INC_PATHS}
-      ${OCTAVE_USR_INC_PATHS})
-    SET (OCTAVE_LIBRARIES_PATHS
-      "/usr/local/lib"
-      "/usr/local/lib/octave"
-      ${OCTAVE_LOCAL_PATHS}
-      "/usr/lib"
-      "/usr/lib/octave"
-      ${OCTAVE_USR_PATHS})
-      
-    SET (LIBOCTINTERP "octinterp")
-    SET (LIBOCTAVE "octave")
-    SET (LIBCRUFT "cruft")
-  ENDIF(APPLE)
-ENDIF(WIN32)
-  
-FIND_LIBRARY(OCTAVE_OCTINTERP_LIBRARY
-    ${LIBOCTINTERP}
-    ${OCTAVE_LIBRARIES_PATHS} NO_DEFAULT_PATH
-    )
-FIND_LIBRARY(OCTAVE_OCTAVE_LIBRARY
-    ${LIBOCTAVE}
-    ${OCTAVE_LIBRARIES_PATHS} NO_DEFAULT_PATH
-    )
-FIND_LIBRARY(OCTAVE_CRUFT_LIBRARY
-    ${LIBCRUFT}
-    ${OCTAVE_LIBRARIES_PATHS} NO_DEFAULT_PATH
-    )
-FIND_PATH(OCTAVE_INCLUDE_DIR
-    "mex.h"
-    ${OCTAVE_INCLUDE_PATHS} NO_DEFAULT_PATH
-    )
-
-# This is common to UNIX and Win32:
-SET(OCTAVE_LIBRARIES
-  ${OCTAVE_OCTINTERP_LIBRARY}
-  ${OCTAVE_OCTAVE_LIBRARY}
-  ${OCTAVE_CRUFT_LIBRARY}  
-)
-
-INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(Octave DEFAULT_MSG OCTAVE_ROOT OCTAVE_INCLUDE_DIR OCTAVE_OCTINTERP_LIBRARY OCTAVE_OCTAVE_LIBRARY OCTAVE_CRUFT_LIBRARY)
-"""
 
 PROPS_PARSER_C="""
 #include "props_parser.h"
@@ -1451,18 +1339,8 @@ MESSAGE( STATUS "INC_DIR    = ${INC_DIR}" )
 OPTION( BUILD_OCT "Build octave mex?" False )
 OPTION( BUILD_MEX "Build MTLAB mex?" False )
 
-########### MATLAB STUFF #################
-SET( MATLAB_LIBDIR )
-SET( MEX_EXT )
-SET( MATLAB_INC_DIR )
 
-MESSAGE(  STATUS "MATLAB_LIBDIR  = ${MATLAB_LIBDIR}" )
-MESSAGE(  STATUS "MEX_EXT        = ${MEX_EXT}")
-MESSAGE(  STATUS "MATLAB_INC_DIR = ${MATLAB_INC_DIR}" )
-########### MATLAB STUFF #################
-
-
-INCLUDE_DIRECTORIES( ${INC_DIR} "mex" /usr/include/octave-3.4.3/octave/ )
+INCLUDE_DIRECTORIES( ${INC_DIR} "mex" ${MATLAB_INCLUDE_DIR} )
 
 ADD_LIBRARY( auto_interface_data SHARED ${C_FILES} )
 
@@ -1470,11 +1348,12 @@ ADD_LIBRARY( auto_interface_data SHARED ${C_FILES} )
 """
         ret = ret + "IF( BUILD_MEX )\n"
 
+        ret = ret + "    find_package( matlab )\n"
         ret = ret + """
 # FOR FILE IN MEX_MAT_SUPPORT AND MEXX_CLASS_DEF, set -fPIC
 SET_SOURCE_FILES_PROPERTIES( ${MEX_CLASS_DEF} ${MEX_MAT_SUPPORT} PROPERTIES COMPILE_FLAGS "-fPIC" )
 ADD_LIBRARY( auto_interface_mat_support SHARED ${MEX_MAT_SUPPORT} ${MEX_CLASS_DEF} mex/props_parser.cpp )
-SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPIC" )
+TARGET_LINK_LIBRARIES( auto_interface_mat_support ${MATLAB_LIBRARIES} )
 """
 
 
@@ -1485,7 +1364,7 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
             ret = ret + TAB + '# %s\n' % ( struct_name )
             ret = ret + TAB + 'SET_SOURCE_FILES_PROPERTIES( %s COMPILE_FLAGS "-I{MATLAB_PATH}/extern/include -fPIC" )\n' %( struct_name )
             ret = ret + TAB + 'ADD_LIBRARY( %s SHARED mex/%s_mex_impl.cpp )\n' %( struct_name, struct_name )
-            ret = ret + TAB + 'SET_TARGET_PROPERTIES( %s PROPERTIES PREFIX "" SUFFIX ".mexa64" LINK_FLAGS "-L${MATLAB_LIBDIR} -lmex -lmx" )\n' % ( struct_name )
+            ret = ret + TAB + 'SET_TARGET_PROPERTIES( %s PROPERTIES PREFIX "" SUFFIX ".mexmaci64" )\n' % ( struct_name )
             ret = ret + TAB + 'TARGET_LINK_LIBRARIES( %s auto_interface_mat_support )\n\n' % ( struct_name )
 
         ret = ret + "ENDIF( BUILD_MEX )\n\n"
@@ -1620,15 +1499,20 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
         for d in self.mex_dir, self.inc_dir, self.src_dir, self.cmake_dir, self.mat_dir:
             if not os.path.exists( d ):
                 os.mkdir(d)
-        find_oct_file = open( self.cmake_dir + '/Findoctave.cmake' , 'w' )
-        find_oct_file.write( FIND_OCT )
-        find_oct_file.close()
+
+        # ----------- path of script file
+        python_dir = os.path.dirname(os.path.realpath(__file__))
+        cmake_res_dir  = python_dir + '/../cmake_files'
+        import shutil
+        shutil.copy( cmake_res_dir + '/Findoctave.cmake', self.cmake_dir + '/Findoctave.cmake' )
+        shutil.copy( cmake_res_dir + '/Findmatlab.cmake', self.cmake_dir + '/Findmatlab.cmake' )
     # end create_directory_structure
 
 
 # end AutoGenerator
 
 if __name__ == "__main__":
+    # TODO: parse tools
     if len( sys.argv ) != 4:
         print USAGE
         sys.exit(1)
