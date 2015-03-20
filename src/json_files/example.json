@@ -85,7 +85,8 @@
                 { "NAME"  : "m_vector_of_doubles",
                   "TYPE"  : "VECTOR",
                   "CONTAINED_TYPE" : "DOUBLE",
-                  "DESCRIPTION" : "vector of doubles"
+                  "DESCRIPTION" : "vector of doubles",
+                  "DEFAULT_VALUE" : "1 2 3 4 5"
                 },
                 { "NAME" : "m_vector_of_complex_doubles",
                   "TYPE" : "VECTOR",

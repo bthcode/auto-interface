@@ -7,6 +7,7 @@
 #  MATLAB_MAT_LIBRARY:  path to libmat.lib # added
 #  MATLAB_ENG_LIBRARY: path to libeng.lib
 #  MATLAB_ROOT: path to Matlab's root directory
+#  MATLAB_MEX_EXTENSION: naming convention for mex files
 
 # This file is part of Gerardus
 #
@@ -131,6 +132,7 @@ ELSE(WIN32)
   IF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 
     SET(LIBRARY_EXTENSION .dylib)
+    SET(MATLAB_MEX_EXTENSION mexmaci64 )
 
     # If this is a Mac and the attempts to find MATLAB_ROOT have so far failed, 
     # we look in the applications folder
