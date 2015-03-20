@@ -287,59 +287,61 @@ bar
 
     def create_mex_impl( self, struct_name ):
         '''Creates the MEX implementation file'''
-        ret =       '#include "%s_class_def.h"\n' % ( struct_name )
-        ret = ret + '#include "%s_mat_support.h"\n' % ( struct_name )
-        ret = ret + '#include <mex.h>\n\n'
 
-        ret = ret + '\n\n//Now the big MEX function\n\n'
-        ret = ret + 'void  mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])'
-        ret = ret + '{\n'
-        ret = ret + T + 'int op_type;\n'
-        ret = ret + T + 'if ( nrhs < 1 )\n'
-        ret = ret + T + '{\n'
-        ret = ret + T + T + '// print error here\n'
-        ret = ret + T + T + 'return;\n'
-        ret = ret + T + '}\n'
-        ret = ret + T + 'op_type = * mxGetPr( prhs[0] );\n\n'
-        ret = ret + T + 'switch( op_type ) {\n'
-        ret = ret + T + 'case 0:\n'
-        ret = ret + T + T + 'init_%s( nlhs, plhs, nrhs, prhs );\n' % ( struct_name )
-        ret = ret + T + T + 'break;\n'
-        ret = ret + T + 'case 1:\n'
-        ret = ret + T + T + 'destroy_%s( nlhs, plhs, nrhs, prhs );\n' % ( struct_name )
-        ret = ret + T + T + 'break;\n'
-        ret = ret + T + 'case 2:\n'
-        ret = ret + T + T + 'write_props_%s( nlhs, plhs, nrhs, prhs );\n' % ( struct_name )
-        ret = ret + T + T + 'break;\n'
-        ret = ret + T + 'case 3:\n'
-        ret = ret + T + T + 'read_props_%s( nlhs, plhs, nrhs, prhs );\n' % ( struct_name )
-        ret = ret + T + T + 'break;\n'
-        ret = ret + T + 'case 4:\n'
-        ret = ret + T + T + 'write_binary_%s( nlhs, plhs, nrhs, prhs );\n' % ( struct_name )
-        ret = ret + T + T + 'break;\n'
-        ret = ret + T + 'case 5:\n'
-        ret = ret + T + T + 'read_binary_%s( nlhs, plhs, nrhs, prhs );\n' % ( struct_name )
-        ret = ret + T + T + 'break;\n'
-        ret = ret + T + 'case 6:\n'
-        ret = ret + T + T + 'set_defaults_%s( nlhs, plhs, nrhs, prhs );\n' % ( struct_name )
-        ret = ret + T + T + 'break;\n'
-        ret = ret + T + 'case 7:\n'
-        ret = ret + T + T + 'validate_%s( nlhs, plhs, nrhs, prhs );\n' % ( struct_name )
-        ret = ret + T + T + 'break;\n'
-        ret = ret + T + 'case 8:\n'
-        ret = ret + T + T + '%s_cpp_to_mat( nlhs, plhs, nrhs, prhs );\n' % ( struct_name )
-        ret = ret + T + T + 'break;\n'
-        ret = ret + T + 'case 9:\n'
-        ret = ret + T + T + '%s_mat_to_cpp( nlhs, plhs, nrhs, prhs );\n' % ( struct_name )
-        ret = ret + T + T + 'break;\n'
-        ret = ret + T + 'default:\n'
-        ret = ret + T + T + '// raise error and return\n'
-        ret = ret + T + T + 'break;\n'
-        ret = ret + T + '}\n'
-        ret = ret + '}\n'
+        ret = '''#include "{0}_class_def.h"
+#include "{0}_mat_support.h"
+#include <mex.h>
+
+//Now the big MEX function
+void  mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
+{{
+    int op_type;
+    if ( nrhs < 1 )
+    {{
+        // print error here
+        return;
+    }}
+    op_type = * mxGetPr( prhs[0] );
+    switch( op_type ) {{
+    case 0:
+        init_{0}( nlhs, plhs, nrhs, prhs );
+        break;
+    case 1:
+        destroy_{0}( nlhs, plhs, nrhs, prhs );
+        break;
+    case 2:
+        write_props_{0}( nlhs, plhs, nrhs, prhs );
+        break;
+    case 3:
+        read_props_{0}( nlhs, plhs, nrhs, prhs );
+        break;
+    case 4:
+        write_binary_{0}( nlhs, plhs, nrhs, prhs );
+        break;
+    case 5:
+        read_binary_{0}( nlhs, plhs, nrhs, prhs );
+        break;
+    case 6:
+        set_defaults_{0}( nlhs, plhs, nrhs, prhs );
+        break;
+    case 7:
+        validate_{0}( nlhs, plhs, nrhs, prhs );
+        break;
+    case 8:
+        {0}_cpp_to_mat( nlhs, plhs, nrhs, prhs );
+        break;
+    case 9:
+        {0}_mat_to_cpp( nlhs, plhs, nrhs, prhs );
+        break;
+    default:
+        // raise error and return
+        break;
+    }}
+}}
+'''.format( struct_name )
 
         return ret
-    # end create_mex
+    # end create_mex_impl
 
 
 ##################################################################################
@@ -351,69 +353,105 @@ bar
 
     def create_mat_support_header( self, struct_name ):
         '''Creates the MATLAB Support Header'''
-        ret =       '#ifndef %s_MAT_SUPPORT_H\n' % ( struct_name )
-        ret = ret + '#define %s_MAT_SUPPORT_H\n\n' % ( struct_name )
-        ret = ret + '#include "%s_class_def.h"\n' % ( struct_name )
-        ret = ret + '#include <mex.h>\n\n'
+
+        ret = '''#ifndef {0}_MAT_SUPPORT_H
+#define {0}_MAT_SUPPORT_H
+#include "{0}_class_def.h"
+#include <mex.h>
+'''.format( struct_name )
 
         for header in self.get_mat_dependencies_for_struct( struct_name ):
-            ret = ret + '#include "%s"\n' % ( header )
+            ret = ret + '#include "{0}"\n'.format( header )
         ret = ret + '\n'
 
         struct_def = self.structs[ struct_name ]
 
         if struct_def.has_key( "NAMESPACE" ):
             ret = ret + 'using %s::%s;\n\n' % ( struct_def['NAMESPACE'], struct_name )
+
         ### Define sub functions
-        ret = ret + '/**\n * @brief Copy data stored in p to new\'d mxArray\n */ \n'
-        ret = ret + 'mxArray * %s_to_mat( %s * p_%s );\n' % ( struct_name, struct_name, struct_name )
+        ret = ret + '''
+/**
+ * @brief Copy data stored in p to new\'d mxArray
+ */
+mxArray * {0}_to_mat( {0} * p_{0} );
 
-        ret = ret + '/**\n * @brief Copy mxArray to %s pointer\n */ \n' % ( struct_name )
-        ret = ret + 'void mat_to_%s( const mxArray * pMat, %s * p_%s, std::size_t nth_element );\n\n' % ( struct_name, struct_name, struct_name )
+/**
+ * @brief Copy mxArray to {0} pointer
+ */
+void mat_to_{0}( const mxArray * pMat, {0} * p_{0}, std::size_t nth_element );
 
-        ret = ret + '/**\n * @brief Get uint64_t matlab value from %s pointer\n */ \n' % ( struct_name )
-        ret = ret + 'mxArray * %s_pointer_to_mxArray( %s *p );\n\n' % ( struct_name, struct_name )
+/**
+ * @brief Get uint64_t matlab value from {0} pointer
+ */
+mxArray * {0}_pointer_to_mxArray( {0} *p );
 
-        ret = ret + '/**\n * @brief get pointer to %s from uint64_t stored in an mxArray\n */ \n' % ( struct_name )
-        ret = ret + '%s * %s_pointer_from_mxArray( const mxArray * );\n\n' % ( struct_name, struct_name )
+/**
+ * @brief get pointer to {0} from uint64_t stored in an mxArray
+ */
+{0} * {0}_pointer_from_mxArray( const mxArray * );
 
-        ret = ret + '/**\n * @brief new a %s and return a uint64_t handle to matlab\n */ \n' % ( struct_name )
-        ret = ret + 'void init_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);\n\n' % ( struct_name )
+/**
+ * @brief new a {0} and return a uint64_t handle to matlab
+ */
+void init_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
-        ret = ret + '/**\n * @brief Delete %s from pointer stored in matlab uint64_t\n */ \n' % ( struct_name )
-        ret = ret + 'void destroy_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);\n\n' % ( struct_name )
+/**
+ * @brief Delete {0} from pointer stored in matlab uint64_t
+ */
+void destroy_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
-        ret = ret + '/**\n * @brief Copy data stored in p to new\'d mxArray\n */ \n'
-        ret = ret + 'void write_props_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);\n\n' % (struct_name )
+/**
+ * @brief Copy data stored in p to new\'d mxArray
+ */
+void write_props_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
-        ret = ret + '/**\n * @brief Copy data stored in p to new\'d mxArray\n */ \n'
-        ret = ret + 'void read_props_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);\n\n' % ( struct_name )
+/**
+ *  @brief Copy data stored in p to new\'d mxArray
+ */ 
+void read_props_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
-        ret = ret + '/**\n * @brief Copy data stored in p to new\'d mxArray\n */ \n'
-        ret = ret + 'void write_binary_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);\n\n' % (struct_name )
+/**
+ * @brief Copy data stored in p to new\'d mxArray
+ */
+void write_binary_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
-        ret = ret + '/**\n * @brief Copy data stored in p to new\'d mxArray\n */ \n'
-        ret = ret + 'void read_binary_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);\n\n' % (struct_name )
+/**
+ * @brief Copy data stored in p to new\'d mxArray
+ */
+void read_binary_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
-        ret = ret + '/**\n * @brief Copy data stored in p to new\'d mxArray\n */ \n'
-        ret = ret + 'void set_defaults_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);\n\n' % ( struct_name )
+/**
+ * @brief Copy data stored in p to new\'d mxArray
+ */
+void set_defaults_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
-        ret = ret + '/**\n * @brief Copy data stored in p to new\'d mxArray\n */ \n'
-        ret = ret + 'void validate_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);\n\n' % (struct_name )
+/**
+ * @brief Copy data stored in p to new\'d mxArray
+ */
+void validate_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
-        ret = ret + '/**\n * @brief Copy data stored in p to new\'d mxArray\n */ \n'
-        ret = ret + 'void %s_cpp_to_mat( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);\n\n' % (struct_name )
+/**
+ * @brief Copy data stored in p to new\'d mxArray
+ */
+void {0}_cpp_to_mat( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
-        ret = ret + '/**\n * @brief Copy data stored in p to new\'d mxArray\n */ \n'
-        ret = ret + 'void %s_mat_to_cpp( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);\n\n' % (struct_name )
+/**
+ * @brief Copy data stored in p to new\'d mxArray
+ */ 
+void {0}_mat_to_cpp( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
-        ret = ret + '/**\n * @brief Do the actual data copy\n */\n'
-        ret = ret + 'void %s_to_mx_struct( %s * p_%s, mxArray * p_ret, std::size_t nth_element );\n\n' % ( struct_name, struct_name, struct_name )
+/**
+ * @brief Do the actual data copy
+ */
+void {0}_to_mx_struct( {0} * p_{0}, mxArray * p_ret, std::size_t nth_element );
 
-        ret = ret + '/**\n * @brief Allocate an mxArray for this data type\n */ \n'
-        ret = ret + 'mxArray * alloc_mx_array_for_%s( std::size_t n_elems );\n' % ( struct_name )
+/**
+ * @brief Allocate an mxArray for this data type
+ */ 
+mxArray * alloc_mx_array_for_{0}( std::size_t n_elems );
 
-        ret = ret + '#endif'
+#endif'''.format( struct_name )
 
         ### Define
         return ret
@@ -1643,7 +1681,6 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
     # end create_directory_structure
 
 
-# end AutoGenerator
 
 if __name__ == "__main__":
     # TODO: parse tools
