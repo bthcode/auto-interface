@@ -77,7 +77,7 @@
       },
    "BOOL" :
       {
-         "C_TYPE" : "bool",
+         "C_TYPE" : "int32_t",
          "DEFAULT_VALUE" : "0",
          "MAT_TYPE" : "mxUINT32_CLASS",
          "PY_TYPE" : "I"
