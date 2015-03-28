@@ -462,49 +462,63 @@ mxArray * alloc_mx_array_for_{0}( std::size_t n_elems );
 
     def create_mat_support_impl( self, struct_name ):
         '''Creates the MATLAB Support Implementation'''
-        ret =       '#include "%s_mat_support.h"\n' % (struct_name)
-        ret = ret + '#include "%s_class_def.h"\n' % ( struct_name )
-        ret = ret + '#include <fstream>\n'
-        ret = ret + '#include <string>\n'
-        ret = ret + '#include <string.h> // memcpy\n'
-        ret = ret + '#include <mex.h>\n\n'
+
+        ret = '''
+#include "{0}_mat_support.h"
+#include "{0}_class_def.h"
+#include <fstream>
+#include <string>
+#include <string.h>
+#include <mex.h>
+'''.format( struct_name )
 
         struct_def = self.structs[ struct_name ]
 
         if struct_def.has_key( "NAMESPACE" ):
-            ret = ret + 'using %s::%s;\n\n' % ( struct_def['NAMESPACE'], struct_name )
+            ret = ret + 'using {0}::{1};\n\n'.format( struct_def['NAMESPACE'], struct_name )
 
 
         ### 
         # Main driver function for going from c to matlab
         #
-        ret = ret + 'mxArray * %s_to_mat( %s * p_%s )\n{\n'  % ( struct_name, struct_name, struct_name )
-        ret = ret + T + '// Allocate a single mx struct to hold the data\n'
-        ret = ret + T + 'mxArray * p_ret = alloc_mx_array_for_%s( 1 );\n\n' % ( struct_name )
-        ret = ret + T + '// Copy data into that mxArray\n'
-        ret = ret + T + '%s_to_mx_struct( p_%s, p_ret, 0 );\n' % ( struct_name, struct_name )
-        ret = ret + T + 'return p_ret;\n'
-        ret = ret + '}\n\n'
+
+        ret = ret + '''
+mxArray * {0}_to_mat( {0} * p_{0} )
+{{  
+    // Allocate a single mx struct to hold the data
+    mxArray * p_ret = alloc_mx_array_for_{0}( 1 );
+    // Copy data into that mxArray
+    {0}_to_mx_struct( p_{0}, p_ret, 0 );
+    return p_ret;
+}}'''.format( struct_name )
 
 
         ### 
         # Allocate an mx array for this data type with n_elements
         #
-        ret = ret + 'mxArray * alloc_mx_array_for_%s( std::size_t n_elems )\n{\n' % ( struct_name )
-        # 1. allocate the big mxArray
-        ret = ret + T + 'const char * fields[] = { \n'
+        ret = ret + '''
+mxArray * alloc_mx_array_for_{0}( std::size_t n_elems )
+{{
+    //# 1. allocate the big mxArray
+    const char * fields[] = {{ 
+'''.format( struct_name )
+
         for f in struct_def['FIELDS'][:-1]:
             ret = ret + T + T + '"%s",\n' % ( f['NAME'] )
+
         # handle the last element differently to close the c array properly...
         ret = ret  + T + T  +'"%s" };\n\n' % ( struct_def['FIELDS'][-1]['NAME'] )
-        ret = ret + T + 'int ndim = 2;\n'
-        ret = ret + T + 'mwSize dims[2] = {1,n_elems};\n'
-        ret = ret + T + 'int number_of_fields = %s;\n' % ( len( struct_def['FIELDS'] ) )
-        ret = ret + T + 'mexPrintf("calling create struct array\\n");\n'
-        ret = ret + T + 'mxArray * p_ret = mxCreateStructArray( ndim, dims,\n'
-        ret = ret + '                                         number_of_fields, fields );\n'
-        ret = ret + T + 'return p_ret;\n'
-        ret = ret + '}\n\n'
+
+        ret = ret + '''
+int ndim = 2;
+mwSize dims[2] = {{1,n_elems}};
+int number_of_fields = {0};
+mexPrintf("calling create struct array\\n");
+mxArray * p_ret = mxCreateStructArray( ndim, dims,
+                                     number_of_fields, fields );
+return p_ret;
+}}
+'''.format( len( struct_def[ 'FIELDS' ] ) )
 
 
         ### 
@@ -550,7 +564,7 @@ mxArray * alloc_mx_array_for_{0}( std::size_t n_elems );
                 ret = ret + T + T + '%s * p_imag = ( %s * ) mxGetPi( p_tmp );\n' % ( c_type, c_type )
                 # 3. Copy c data to that pointer
                 ret = ret + T + T + 'p_real[0] = p_%s->%s.real();\n' % ( struct_name, f['NAME'] )
-                ret = ret + T + T + 'p_imag[0] = p_%s->%s.real();\n' % ( struct_name, f['NAME'] )
+                ret = ret + T + T + 'p_imag[0] = p_%s->%s.imag();\n' % ( struct_name, f['NAME'] )
                 # 4. Set the mat struct element's point to the numeric array
                 ret = ret + T + T + 'mxSetFieldByNumber (p_ret, nth_element, %s, p_tmp) ;\n' % ( count )
                 ret = ret + T + '}\n\n'
@@ -665,8 +679,9 @@ mxArray * alloc_mx_array_for_{0}( std::size_t n_elems );
                 ret = ret + T + T + 'mxArray * p_tmp = mxGetField (pMat, nth_element, "%s");\n' % ( f['NAME'] )
                 ret = ret + T + T + 'if ( p_tmp )\n'
                 ret = ret + T + T + '{\n'
-                ret = ret + T + T + T + '%s * ptr = ( %s * ) mxGetData( p_tmp );\n' % ( c_type, c_type )
-                ret = ret + T + T + T + 'memcpy( &(p_%s->%s), ptr, sizeof( %s ) );\n' % ( struct_name, f['NAME'], c_type )
+                ret = ret + T + T + T + 'p_{0}->{1} = mxGetScalar( p_tmp );\n'.format( struct_name, f['NAME'] )
+                #ret = ret + T + T + T + '%s * ptr = ( %s * ) mxGetData( p_tmp );\n' % ( c_type, c_type )
+                #ret = ret + T + T + T + 'memcpy( &(p_%s->%s), ptr, sizeof( %s ) );\n' % ( struct_name, f['NAME'], c_type )
                 ret = ret + T + T + '}\n'
                 ret = ret + T + '}\n\n'
             elif f['TYPE'] == "STRUCT":
@@ -985,6 +1000,135 @@ mxArray * alloc_mx_array_for_{0}( std::size_t n_elems );
 
         return ret
     # end create_mat_impl
+
+
+##################################################################################
+# Python Files
+##################################################################################
+
+# Class Defs
+    def create_py_class_def( self, struct_name ):
+
+        struct_def = self.structs[ struct_name ]
+        ret = '''class {0}:
+    def __init__(self):
+        self.set_defaults() 
+    # end __init__
+
+    
+    def write_binary(self):
+        pass
+    # end write_binary
+
+    def read_props(self):
+        pass
+    # end write_props
+
+    def validate(self):
+        pass
+    # end validate
+
+    def __repr__(self):
+        for key, val in sorted(vars(self).items()):
+            ret = ret + "{{0}}: {{1}}\\n".format( key, val )
+        return ret
+    # end __repr__
+
+    def set_defaults(self):
+'''.format( struct_name )
+
+        # set defaults
+        for f in struct_def['FIELDS']:
+            if self.basetypes.has_key( f['TYPE'] ):
+                if f.has_key('DEFAULT_VALUE'):
+                    ret = ret + T + T + "self.{0} = {1};\n".format( f['NAME'], f['DEFAULT_VALUE'] )
+                else:
+                    ret = ret + T + T +  "self.{0} = {1};\n".format( f['NAME'], b['DEFAULT_VALUE'] )
+            elif f['TYPE'] == 'STRUCT':
+                ret = ret + T + T + 'self.{0} = {1}()\n'.format( f['NAME'], f['STRUCT_TYPE'] )
+                ret = ret + T + T + 'self.{0}.set_defaults();\n'.format( f['NAME'] )
+            elif f['TYPE'] == 'VECTOR':
+                ret = ret + T + T + 'self.{0} = []\n'.format( f['NAME'] )
+        ret = ret + T + "# end set_defaults\n"
+
+        # read binary
+        # BTH HERE
+        ret = ret + T + "def read_binary( self, r_stream ):\n"
+        for f in struct_def['FIELDS']:
+            if self.basetypes.has_key( f['TYPE'] ):
+                print self.basetypes[ f['TYPE'] ]
+                pytype = self.basetypes[ f['TYPE'] ][ 'PY_TYPE' ]
+                ret = ret + T + """
+        struct_fmt = '={0}'
+        struct_len = struct.calcsize( struct_fmt )
+        struct_unpack = struct.Struct( struct_fmt ).unpack_from
+        data = r_stream.read( struct_len )
+        if len(data) != struct_len:
+            print( "Error 1" )
+            return
+        self.{1} = struct_unpack(data)[0]
+        print "type = {2}, size = {{0}}".format( struct_len )
+""".format( pytype, f['NAME'], self.basetypes[ f['TYPE'] ]['C_TYPE'] )
+            elif f['TYPE'] == 'COMPLEX':
+                pytype = self.basetypes[ f['COMPLEX_TYPE'] ]['PY_TYPE']
+                ret = ret + """
+        struct_fmt = '={0}{0}'
+        struct_len = struct.calcsize( struct_fmt )
+        struct_unpack = struct.Struct( struct_fmt ).unpack_from
+        data = r_stream.read( struct_len )
+        if not data:
+            print( "Error 1" )
+            return
+        r,i = struct_unpack(data)
+        self.{1} = r + 1j * i
+""".format( pytype, f['NAME'] )
+            elif f['TYPE'] == 'STRUCT':
+                ret = ret + T + T + 'self.{0}.read_binary( r_stream );\n'.format( f['NAME'] )
+            elif f['TYPE'] == 'VECTOR':
+                ret = ret + T + T + "self.{0} = []".format( f['NAME'] )
+                # TODO - this needs to be uint32_t
+                ret = ret + """
+        struct_fmt = '=i'
+        struct_len = struct.calcsize( struct_fmt )
+        struct_unpack = struct.Struct( struct_fmt ).unpack_from
+        data = r_stream.read( struct_len )
+        if not data:
+            print( "Error 1" )
+            return
+        num_elems = struct_unpack(data)
+"""
+                if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
+                    pytype = self.basetypes[ f['CONTAINED_TYPE'] ]['PY_TYPE'] 
+                    ret = ret + """
+        struct_fmt = '={{0}}'.format(num_elems) + '{0}'
+        struct_len = struct.calcsize( struct_fmt )
+        struct_unpack = struct.Struct( struct_fmt ).unpack_from
+        data = r_stream.read( struct_len )
+        if not data:
+            print( "Error 1" )
+            return
+        self.{1} = struct_unpack(data)
+""".format( pytype, f['NAME'] )
+
+                elif f['CONTAINED_TYPE'] == 'STRUCT':
+                    ret = ret + T + T + 'for idx in range( num_elems ):\n'
+                    ret = ret + T + T + T + 'tmp = {0}()\n'.format( f['STRUCT_TYPE'] )
+                    ret = ret + T + T + T + 'self.{0}.append( tmp )\n'.format( f['NAME'] )
+
+                elif f['CONTAINED_TYPE'] == 'COMPLEX':
+                    pytype = self.basetypes[ f['COMPLEX_TYPE'] ]['PY_TYPE']
+                    ret = ret + T + T + "struct_fmt = '{{0}}{0}{0}'.format( num_elems )\n".format( pytype )
+                    ret = ret + T + T + "len = struct.calcsize( struct_fmt )\n"
+                    ret = ret + T + T + "struct_unpack = struct.Struct( struct_fmt ).unpack_from\n"
+                    ret = ret + T + T + "data = r_stream.read( struct_len )\n"
+                    ret = ret + T + T + "arr = struct_unpack( data )\n"
+                    ret = ret + T + T + "for i in range( 0, num_elems-1, 2 ):\n"
+                    ret = ret + T + T + "    self.{0}.append( arr[i] + 1j*arr[i+1] )\n".format( f['NAME'] )
+        ret = ret + "# end class {0}".format(  struct_name )
+
+
+        return ret
+    # end create_class_def
 
 
 
@@ -1615,6 +1759,21 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
                 fOut.close()
     # end create_mat_files
 
+    def create_py_files( self ):
+        fOut = open( self.py_dir + os.sep + "interface.py", "w" )
+        fOut.write( """#!/usr/bin/env python
+
+import string
+import pprint
+import struct
+""" )
+        for struct_name, struct_def in self.structs.items():
+            ret = self.create_py_class_def( struct_name )
+            fOut.write( ret )
+            fOut.write( "\n\n" )
+        fOut.close()
+    # end create_py_files
+
 
 
     def create_struct_impls(self):
@@ -1669,7 +1828,8 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
         self.exec_dir = self.out_dir + os.sep + 'exec/'
         self.cmake_dir = self.out_dir + os.sep + 'cmake_local_modules'
         self.mat_dir = self.out_dir + os.sep + 'mat/'
-        for d in self.mex_dir, self.inc_dir, self.src_dir, self.exec_dir, self.cmake_dir, self.mat_dir:
+        self.py_dir  = self.out_dir + os.sep + 'python/'
+        for d in self.mex_dir, self.inc_dir, self.src_dir, self.exec_dir, self.cmake_dir, self.mat_dir, self.py_dir:
             if not os.path.exists( d ):
                 os.mkdir(d)
 
@@ -1696,3 +1856,4 @@ if __name__ == "__main__":
     A.create_struct_printers()
     A.create_struct_generators()
     A.create_mat_files() 
+    A.create_py_files()
