@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 __author__="Brian Hone"
 
 '''
@@ -14,39 +13,14 @@ Actual reading/writing is provided via io_support.py
 import json, string, pprint, sys, os
 import shutil
 from AutoInterface import AutoGenerator
+from Templates import py_class_template
 
 T="    "
-
-class_template = '''
-class {0}:
-    def __init__(self):
-        self.set_defaults() 
-    # end __init__
-
-    
-    def read_props(self):
-        pass
-    # end write_props
-
-    def validate(self):
-        pass
-    # end validate
-
-    def __repr__(self):
-        ret = ''
-        for key, val in sorted(vars(self).items()):
-            ret = ret + "{{0}}: {{1}}\\n".format( key, val )
-        return ret
-    # end __repr__
-
-    def set_defaults(self):
-'''
-
 
 
 def create_py_class_def( basetypes, structs, struct_name ):
     struct_def = structs[ struct_name ]
-    ret = class_template.format( struct_name )
+    ret = py_class_template.format( struct_name )
 
     # set defaults
     for f in struct_def['FIELDS']:
@@ -80,6 +54,7 @@ def create_py_class_def( basetypes, structs, struct_name ):
                 ret = ret + T + T + T + 'tmp = {0}()\n'.format( f['STRUCT_TYPE'] )
                 ret = ret + T + T + T + 'tmp.read_binary(r_stream)\n'
                 ret = ret + T + T + T + 'self.{0}.append( tmp )\n'.format( f['NAME'] )
+    ret = ret + T + "# end read_binary\n\n"
 
 
     # write binary
@@ -98,7 +73,8 @@ def create_py_class_def( basetypes, structs, struct_name ):
             elif f['CONTAINED_TYPE'] == 'STRUCT':
                 ret = ret + T + T + 'for idx in range( num_elems ):\n'
                 ret = ret + T + T + T + 'self.{0}[idx].write_binary(r_stream)\n'.format( f['NAME'] )
-    ret = ret + "# end class {0}".format(  struct_name )
+    ret = ret + T + "# end write_binary\n\n"
+    ret = ret + "# end class {0}\n\n".format(  struct_name )
 
 
     return ret
@@ -127,8 +103,6 @@ def generate_py( py_dir, basetypes, structs ):
         fOut.write( "\n\n" )
     fOut.close()
 # end create_py_files
-
-
 
 
 if __name__ == "__main__":
