@@ -4,82 +4,78 @@
          "C_TYPE" : "uint8_t",
          "DEFAULT_VALUE" : "0",
          "STREAM_CAST" : "int",
-         "MAT_TYPE" : "mxUINT8_CLASS",
-         "PY_TYPE" : "B"
+         "MAT_TYPE" : "mxUINT8_CLASS"
       },
    "UINT_16" :
       {
          "C_TYPE" : "uint16_t",
          "DEFAULT_VALUE" : "0",
          "STREAM_CAST" : "int",
-         "MAT_TYPE" : "mxUINT16_CLASS",
-         "PY_TYPE" : "H"
+         "MAT_TYPE" : "mxUINT16_CLASS"
       },
    "UINT_32" :
       {
          "C_TYPE" : "uint32_t",
          "DEFAULT_VALUE" : "0",
          "STREAM_CAST" : "long int",
-         "MAT_TYPE" : "mxUINT32_CLASS",
-         "PY_TYPE" : "I"
+         "MAT_TYPE" : "mxUINT32_CLASS"
       },
    "UINT_64" :
       {
          "C_TYPE" : "uint64_t",
          "DEFAULT_VALUE" : "0",
          "STREAM_CAST" : "long int",
-         "MAT_TYPE" : "mxUINT64_CLASS",
-         "PY_TYPE" : "Q"
+         "MAT_TYPE" : "mxUINT64_CLASS"
       },
    "INT_8" :
       {
          "C_TYPE" : "char",
          "STREAM_CAST" : "int",
          "DEFAULT_VALUE" : "0",
-         "MAT_TYPE" : "mxINT8_CLASS",
-         "PY_TYPE" : "b"
+         "MAT_TYPE" : "mxINT8_CLASS"
       },
    "INT_16" :
       {
          "C_TYPE" : "int16_t",
          "STREAM_CAST" : "int",
          "DEFAULT_VALUE" : "0",
-         "MAT_TYPE" : "mxINT16_CLASS",
-         "PY_TYPE" : "h"
+         "MAT_TYPE" : "mxINT16_CLASS"
       },
    "INT_32" :
       {
          "C_TYPE" : "int32_t",
          "DEFAULT_VALUE" : "0",
-         "MAT_TYPE" : "mxINT32_CLASS",
-         "PY_TYPE" : "i" 
+         "MAT_TYPE" : "mxINT32_CLASS"
       },
    "INT_64" :
       {
          "C_TYPE" : "int64_t",
          "DEFAULT_VALUE" : "0",
-         "MAT_TYPE" : "mxINT64_CLASS",
-         "PY_TYPE" : "q"
+         "MAT_TYPE" : "mxINT64_CLASS"
       },
    "SINGLE" :
       {
          "C_TYPE" : "float",
          "DEFAULT_VALUE" : "0.0",
-         "MAT_TYPE" : "mxSINGLE_CLASS",
-         "PY_TYPE" : "f"
+         "MAT_TYPE" : "mxSINGLE_CLASS"
       },
    "DOUBLE" :
       {
          "C_TYPE" : "double",
          "DEFAULT_VALUE" : "0",
-         "MAT_TYPE" : "mxDOUBLE_CLASS",
-         "PY_TYPE" : "d"
+         "MAT_TYPE" : "mxDOUBLE_CLASS"
       },
-   "BOOL" :
+    "COMPLEX_DOUBLE" :
       {
-         "C_TYPE" : "int32_t",
+         "C_TYPE" : "double complex",
          "DEFAULT_VALUE" : "0",
-         "MAT_TYPE" : "mxUINT32_CLASS",
-         "PY_TYPE" : "I"
+         "MAT_TYPE" : "mxDOUBLE_CLASS"
+      },
+     "COMPLEX_SINGLE" :
+      {
+         "C_TYPE" : "float complex",
+         "DEFAULT_VALUE" : "0",
+         "MAT_TYPE" : "mxDOUBLE_CLASS"
       }
+   
 }

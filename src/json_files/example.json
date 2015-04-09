@@ -62,15 +62,9 @@
                 "DESCRIPTION"  : "Test float",
                 "DEFAULT_VALUE" : "1",
                 "TYPE"         : "SINGLE" },
-              { "NAME"          : "m_bool",
-               "TYPE"          : "BOOL",
-               "DESCRIPTION"   : "Test of Bool",
-               "DEFAULT_VALUE" : "1",
-               "VALID_MIN"     : "0",
-               "VALID_MAX"     : "1" },
               { "NAME"         : "m_cmplx_double",
                 "DESCRIPTION"  : "Sample complex double",
-                "TYPE"         : "COMPLEX",
+                "TYPE"         : "COMPLEX_DOUBLE",
                 "COMPLEX_TYPE" : "DOUBLE" }
             ]
     },
@@ -90,7 +84,7 @@
                 },
                 { "NAME" : "m_vector_of_complex_doubles",
                   "TYPE" : "VECTOR",
-                  "CONTAINED_TYPE" : "COMPLEX",
+                  "CONTAINED_TYPE" : "COMPLEX_DOUBLE",
                   "COMPLEX_TYPE" : "DOUBLE",
                   "DESCRIPTION" : "vector of complex doubles"
                 }
