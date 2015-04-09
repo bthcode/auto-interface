@@ -101,7 +101,7 @@ def create_c_struct_header( basetypes, structs, struct_name ):
             sys.exit(1)
         ret = ret + T + "{0}  {1}; ///<{2}\n".format( c_decl, f['NAME'], f['DESCRIPTION'] )
         if f['TYPE'] == 'VECTOR':
-            ret = ret + T + "size_t n_elements_{0};\n".format( f['NAME'] )
+            ret = ret + T + "uint32_t n_elements_{0};\n".format( f['NAME'] )
 
 
     ret = ret + T + "size_t num_fields;\n"
@@ -153,8 +153,10 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
             ret = ret + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}));\n'.format(f['STRUCT_TYPE'], struct_name, f['NAME'])
             ret = ret + "\n"
         elif f['TYPE'] == 'VECTOR':
-            ret = ret + T + 'int32_t tmp_size;\n'
-            ret = ret + T + 'read_INT_32(r_stream,1,&{tmp_size);\n'
+            ret = ret + T + "uint32_t n_elements_{0};\n".format( f['NAME'] )
+            ret = ret + T + 'read_INT_32(r_stream,1,&(n_elements_{0});\n'.format( f['NAME'] )
+            # convenience to save typing
+            ret = ret + T + 'uint32_t tmp_size = n_elements_{0};\n'.format( f['NAME'] )
             if basetypes.has_key( f['CONTAINED_TYPE'] ):
                 ctype = basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
                 # ALLOC SPACE
@@ -171,6 +173,25 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
                 ret = ret + T + T + 'read_binary_{0}( r_stream, p_{1}->{2}[ii]);\n'.format( f['STRUCT_TYPE'], struct_name, f['NAME'] )
                 ret = ret + T + '}\n\n'
     ret = ret + "}\n\n"
+
+    ### Read Binary 
+    ret = ret + "void write_binary_{0}( FILE * r_stream, {0} * p_{0} ){{\n".format( struct_name )
+    for f in struct_def['FIELDS']:
+        if basetypes.has_key( f['TYPE'] ):
+            ret = ret + T + 'write_{0}( r_stream, 1, &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
+        elif f['TYPE'] == 'STRUCT':
+            ret = ret + T + 'write_binary_{0}(r_stream, &(p_{1}->{2}));\n'.format(f['STRUCT_TYPE'], struct_name, f['NAME'])
+            ret = ret + "\n"
+        elif f['TYPE'] == 'VECTOR':
+            ret = ret + T + 'write_INT_32(r_stream,1,&(n_elements_{0}));\n'.format(f['NAME'])
+            if basetypes.has_key( f['CONTAINED_TYPE'] ):
+                ret = ret + T + 'write_{0}(r_stream,n_elements_{1},p_{2}->{1});\n'.format(f['CONTAINED_TYPE'],struct_name,f['NAME']) 
+            elif f['CONTAINED_TYPE'] == 'STRUCT':
+                ret = ret + T + 'for (int ii=0; ii<n_elements_{0}; ++ii )\n{{\n'.format(f['NAME'])
+                ret = ret + T + T + 'write_binary_{0}(r_stream, p_{1}->{2}[ii]);\n'.format(f['STRUCT_TYPE'], struct_name, f['NAME'])
+                ret = ret + T + '}\n\n'
+    ret = ret + "}\n\n"
+
 
     return ret
 # end create_c_struct_impl

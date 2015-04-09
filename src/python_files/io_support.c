@@ -37,7 +37,7 @@ void read_INT_16( FILE * p_in_file, int nElements, int16_t * p_ret )
 
 void read_INT_32( FILE * p_in_file, int nElements, int32_t * p_ret )
 {
-    fread( p_ret, sizeof(int16_t), nElements, p_in_file );
+    fread( p_ret, sizeof(int32_t), nElements, p_in_file );
 }
 
 void read_INT_64( FILE * p_in_file, int nElements, int64_t * p_ret )
@@ -102,7 +102,7 @@ void write_INT_16( FILE * p_out_file, int nElements, int16_t * p_val )
 
 void write_INT_32( FILE * p_out_file, int nElements, int32_t * p_val )
 {
-    fwrite( p_val, sizeof(int16_t), nElements, p_out_file );
+    fwrite( p_val, sizeof(int32_t), nElements, p_out_file );
 }
 
 void write_INT_64( FILE * p_out_file, int nElements, int64_t * p_val )
