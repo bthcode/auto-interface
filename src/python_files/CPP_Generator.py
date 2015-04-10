@@ -102,8 +102,12 @@ def create_struct_header( basetypes, structs, struct_name ):
         elif f['TYPE'] == 'VECTOR':
             if f['CONTAINED_TYPE'] == 'STRUCT':
                 c_decl = 'std::vector< %s >' % ( f['STRUCT_TYPE'] )
-            elif basetypes.has_key( f['CONTAINED_TYPE'] ):
-                c_decl = 'std::vector< %s >' % ( basetypes[ f['CONTAINED_TYPE'] ][ 'C_TYPE' ] )
+            elif basetypes.has_key(f['CONTAINED_TYPE']):
+                basetype = basetypes[f['CONTAINED_TYPE']]
+                if basetype.has_key('CPP_TYPE'):
+                    c_decl = 'std::vector< {0} >'.format(basetype['CPP_TYPE'])
+                else:
+                    c_decl = 'std::vector< {0} >'.format(basetype['C_TYPE'])
             else:
                 print 'ERROR - vector with unknown type or no CONTAINED_TYPE key'
                 sys.exit(1)
@@ -214,11 +218,14 @@ def create_struct_impl( basetypes, structs, struct_name ):
                     ctype = basetypes[ f['CONTAINED_TYPE'] ]['CPP_TYPE']
                 else:
                     ctype = basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
-                ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
-                ret = ret + T + T + '%s tmp_%s;\n' % ( ctype, ctype )
-                ret = ret + T + T + 'r_stream.read( (char*)&(tmp_%s), sizeof(tmp_%s));\n' % ( ctype, ctype )
-                ret = ret + T + T + '%s.push_back( tmp_%s );\n' % ( f['NAME'], ctype )
-                ret = ret + T + '}\n'
+                #input.read(reinterpret_cast<char*>(&myvector[0]), myvector.size() * sizeof(T));
+                ret = ret + T + '{0}.resize( tmp_{0}_size );\n'.format( f['NAME'] )
+                ret = ret + T + 'r_stream.read( reinterpret_cast<char*>(&{0}[0]), tmp_{0}_size * sizeof({1}));\n'.format(f['NAME'],ctype)
+                #ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
+                #ret = ret + T + T + '%s tmp_%s;\n' % ( ctype, ctype )
+                #ret = ret + T + T + 'r_stream.read( (char*)&(tmp_%s), sizeof(tmp_%s));\n' % ( ctype, ctype )
+                #ret = ret + T + T + '%s.push_back( tmp_%s );\n' % ( f['NAME'], ctype )
+                #ret = ret + T + '}\n'
             elif f['CONTAINED_TYPE'] == 'STRUCT':
                 ctype = f['STRUCT_TYPE']
                 ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
@@ -269,18 +276,21 @@ def create_struct_impl( basetypes, structs, struct_name ):
         elif f['TYPE'] == 'VECTOR':
             if basetypes.has_key( f['CONTAINED_TYPE'] ):
                 b = basetypes[ f['CONTAINED_TYPE'] ]
-                iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % ( b['C_TYPE'] )
+                if b.has_key('CPP_TYPE'):
+                    iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % ( b['CPP_TYPE'] )
+                else:
+                    iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % ( b['C_TYPE'] )
                 if b.has_key( 'STREAM_CAST' ):
                     print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << %s((*ii)) << "\\n";\n' % ( f['NAME'], b['STREAM_CAST'] )
                 else:
                     print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << (*ii) << "\\n";\n' % ( f['NAME'] )
-            elif f['CONTAINED_TYPE'] == 'COMPLEX':
-                b = basetypes[ f['COMPLEX_TYPE'] ]
-                iter_decl  = T + T + 'std::vector< std::complex< %s > >::iterator ii;\n' % ( b['C_TYPE'] )
-                if b.has_key( 'STREAM_CAST' ):
-                    print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << %s((*ii)) << "\\n";\n' % ( f['NAME'], b['STREAM_CAST'] )
-                else:
-                    print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << (*ii) << "\\n";\n' % ( f['NAME'] )
+            #elif f['CONTAINED_TYPE'] == 'COMPLEX':
+            #    b = basetypes[ f['COMPLEX_TYPE'] ]
+            #    iter_decl  = T + T + 'std::vector< std::complex< %s > >::iterator ii;\n' % ( b['C_TYPE'] )
+            #    if b.has_key( 'STREAM_CAST' ):
+            #        print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << %s((*ii)) << "\\n";\n' % ( f['NAME'], b['STREAM_CAST'] )
+            #    else:
+            #        print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << (*ii) << "\\n";\n' % ( f['NAME'] )
             
             elif f['CONTAINED_TYPE'] == 'STRUCT':
                 iter_decl = T + T + 'std::vector< %s >::iterator ii;\n' % ( f['STRUCT_TYPE'] )
@@ -347,7 +357,10 @@ def create_struct_impl( basetypes, structs, struct_name ):
                     ret = ret + T +T +T + 'ss2 >> u;\n'
                     ret = ret + T +T +T + '%s.push_back(%s( u ));\n' % ( f['NAME'], b['STREAM_CAST' ] )
                 else:
-                    ret = ret + T +T +T + '%s u;\n' % ( b[ 'C_TYPE' ] )
+                    if b.has_key( 'CPP_TYPE' ):
+                        ret = ret + T +T +T + '%s u;\n' % (b['CPP_TYPE'])
+                    else:
+                        ret = ret + T +T +T + '%s u;\n' % (b['C_TYPE'])
                     ret = ret + T +T +T + 'ss2 >> u;\n'
                     ret = ret + T +T +T + '%s.push_back(u);\n' % ( f['NAME'] ) 
                 ret = ret + T +T +T + 'count++;\n'
@@ -355,30 +368,30 @@ def create_struct_impl( basetypes, structs, struct_name ):
                 ret = ret + T +T + 'fields_found += count;\n'
                 ret = ret + T +T + '}\n'
                 ret = ret + T + '}\n'
-            elif f['CONTAINED_TYPE'] == 'COMPLEX':
-                # 1. Get the prefix
-                # 2. Go into a while loop incrementing count until no more keys 
-                #       are found
-                b = basetypes[ f['COMPLEX_TYPE'] ]
-                ret = ret + T + '{\n'
-                ret = ret + T + 'std::size_t count=0;\n'
-                ret = ret + T + 'while( 1 )\n'
-                ret = ret + T + '{\n'
-                ret = ret + T +T + 'std::stringstream ss;\n'
-                ret = ret + T +T + 'ss << r_prefix << "%s" << "[ " << count << " ]";\n' % ( f['NAME'] )
-                ret = ret + T +T + 'param_iter = r_params.find( ss.str() );\n' 
-                ret = ret + T +T + 'if ( param_iter == r_params.end() )\n'
-                ret = ret + T +T + T + 'break;\n'
-                ret = ret + T +T + 'else {\n'
-                ret = ret + T +T + T + 'std::stringstream ss2( param_iter->second );\n'
-                ret = ret + T +T +T + 'std::complex< %s > u;\n' % ( b[ 'C_TYPE' ] )
-                ret = ret + T +T +T + 'ss2 >> u;\n'
-                ret = ret + T +T +T + '%s.push_back(u);\n' % ( f['NAME'] ) 
-                ret = ret + T +T +T + 'count++;\n'
-                ret = ret + T +T + '}\n'
-                ret = ret + T +T + 'fields_found += count;\n'
-                ret = ret + T +T + '}\n'
-                ret = ret + T + '}\n'
+            #elif f['CONTAINED_TYPE'] == 'COMPLEX':
+            #    # 1. Get the prefix
+            #    # 2. Go into a while loop incrementing count until no more keys 
+            #    #       are found
+            #    b = basetypes[ f['COMPLEX_TYPE'] ]
+            #    ret = ret + T + '{\n'
+            #    ret = ret + T + 'std::size_t count=0;\n'
+            #    ret = ret + T + 'while( 1 )\n'
+            #    ret = ret + T + '{\n'
+            #    ret = ret + T +T + 'std::stringstream ss;\n'
+            #    ret = ret + T +T + 'ss << r_prefix << "%s" << "[ " << count << " ]";\n' % ( f['NAME'] )
+            #    ret = ret + T +T + 'param_iter = r_params.find( ss.str() );\n' 
+            #    ret = ret + T +T + 'if ( param_iter == r_params.end() )\n'
+            #    ret = ret + T +T + T + 'break;\n'
+            #    ret = ret + T +T + 'else {\n'
+            #    ret = ret + T +T + T + 'std::stringstream ss2( param_iter->second );\n'
+            #    ret = ret + T +T +T + 'std::complex< %s > u;\n' % ( b[ 'C_TYPE' ] )
+            #    ret = ret + T +T +T + 'ss2 >> u;\n'
+            #    ret = ret + T +T +T + '%s.push_back(u);\n' % ( f['NAME'] ) 
+            #    ret = ret + T +T +T + 'count++;\n'
+            #    ret = ret + T +T + '}\n'
+            #    ret = ret + T +T + 'fields_found += count;\n'
+            #    ret = ret + T +T + '}\n'
+            #    ret = ret + T + '}\n'
 
             elif f['CONTAINED_TYPE'] == 'STRUCT':
                 ret = ret + T + '{\n'
