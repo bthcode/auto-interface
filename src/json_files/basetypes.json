@@ -29,7 +29,7 @@
       },
    "INT_8" :
       {
-         "C_TYPE" : "char",
+         "C_TYPE" : "int8_t",
          "STREAM_CAST" : "int",
          "DEFAULT_VALUE" : "0",
          "MAT_TYPE" : "mxINT8_CLASS"
@@ -68,14 +68,17 @@
     "COMPLEX_DOUBLE" :
       {
          "C_TYPE" : "double complex",
+         "CPP_TYPE" : "std::complex< double >",
          "DEFAULT_VALUE" : "0",
          "MAT_TYPE" : "mxDOUBLE_CLASS"
       },
      "COMPLEX_SINGLE" :
       {
          "C_TYPE" : "float complex",
+         "CPP_TYPE" : "std::complex< float >",
          "DEFAULT_VALUE" : "0",
          "MAT_TYPE" : "mxDOUBLE_CLASS"
       }
+    
    
 }

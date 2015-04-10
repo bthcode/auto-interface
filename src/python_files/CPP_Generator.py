@@ -37,7 +37,7 @@ stock_includes = \
 #include <vector>
 #include <fstream>
 #include <sstream>
-#include <props_parser.h>
+#include "props_parser.h"
 
 '''
 
@@ -85,14 +85,18 @@ def create_struct_header( basetypes, structs, struct_name ):
     ret = ret + 'class {0}\n{{\n'.format( struct_name )
     ret = ret + T + 'public :\n'
     ret = ret + T + '{0}();\n'.format( struct_name )
-    ret = ret + T + '~{0}();\n'.format( struct_name ) 
+    ret = ret + T + '~{0}(){{}};\n'.format( struct_name ) 
 
 
     ### Member Data
     ret = ret + '\n\n    // Member Fields\n\n'
     for f in struct_def['FIELDS']:
         if basetypes.has_key( f['TYPE'] ):
-            c_decl = basetypes[ f['TYPE'] ]['C_TYPE']
+            basetype = basetypes[f['TYPE']]
+            if basetype.has_key( 'CPP_TYPE' ):
+                c_decl = basetype['CPP_TYPE']
+            else:
+                c_decl = basetypes[ f['TYPE'] ]['C_TYPE']
         elif f['TYPE'] == 'STRUCT':
             c_decl = '%s' % ( f['STRUCT_TYPE'] )
         elif f['TYPE'] == 'VECTOR':
@@ -100,13 +104,9 @@ def create_struct_header( basetypes, structs, struct_name ):
                 c_decl = 'std::vector< %s >' % ( f['STRUCT_TYPE'] )
             elif basetypes.has_key( f['CONTAINED_TYPE'] ):
                 c_decl = 'std::vector< %s >' % ( basetypes[ f['CONTAINED_TYPE'] ][ 'C_TYPE' ] )
-            elif f['CONTAINED_TYPE'] == 'COMPLEX':
-                c_decl = 'std::vector< std::complex< %s > >' % ( basetypes[ f['COMPLEX_TYPE' ] ][ 'C_TYPE' ] )
             else:
                 print 'ERROR - vector with unknown type or no CONTAINED_TYPE key'
                 sys.exit(1)
-        elif f['TYPE'] == 'COMPLEX':
-            c_decl = 'std::complex< %s >' % ( basetypes[ f['COMPLEX_TYPE' ] ][ 'C_TYPE' ] )
         else:
             print 'ERROR - vector with no TYPE'
             sys.exit(1)
@@ -200,7 +200,7 @@ def create_struct_impl( basetypes, structs, struct_name ):
     ### Read Binary
     ret = ret + "void %s::read_binary( std::ifstream& r_stream ){\n\n" % ( struct_name )
     for f in struct_def['FIELDS']:
-        if basetypes.has_key( f['TYPE'] ) or f['TYPE'] == 'COMPLEX':
+        if basetypes.has_key(f['TYPE']):
             ret = ret + T + 'r_stream.read( (char*)&(%s), sizeof(%s) );\n' %( f['NAME'], f['NAME'] )
         elif f['TYPE'] == 'STRUCT':
             ret = ret + T + '%s.read_binary( r_stream );\n' % ( f['NAME'] )
@@ -208,7 +208,12 @@ def create_struct_impl( basetypes, structs, struct_name ):
             ret = ret + T + 'uint32_t tmp_%s_size;\n' % ( f['NAME'] )
             ret = ret + T + 'r_stream.read( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % ( f['NAME'], f['NAME'] )
             if basetypes.has_key( f['CONTAINED_TYPE'] ):
-                ctype = basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
+                # TODO: replace for loop with one big read  
+                basetype = basetypes[f['CONTAINED_TYPE']]
+                if basetype.has_key('CPP_TYPE'):
+                    ctype = basetypes[ f['CONTAINED_TYPE'] ]['CPP_TYPE']
+                else:
+                    ctype = basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
                 ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
                 ret = ret + T + T + '%s tmp_%s;\n' % ( ctype, ctype )
                 ret = ret + T + T + 'r_stream.read( (char*)&(tmp_%s), sizeof(tmp_%s));\n' % ( ctype, ctype )
@@ -221,27 +226,20 @@ def create_struct_impl( basetypes, structs, struct_name ):
                 ret = ret + T + T + 'tmp_%s.read_binary( r_stream );\n' % ( ctype )
                 ret = ret + T + T + '%s.push_back( tmp_%s );\n' % ( f['NAME'], ctype )
                 ret = ret + T + '}\n'
-            elif f['CONTAINED_TYPE'] == 'COMPLEX':
-                ctype = 'std::complex< %s >' % basetypes[f['COMPLEX_TYPE']]['C_TYPE']
-                ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
-                ret = ret + T + T + '%s tmp_cmplx;\n' % ( ctype )
-                ret = ret + T + T + 'r_stream.read( (char*)&(tmp_cmplx), sizeof(tmp_cmplx));\n' 
-                ret = ret + T + T + '%s.push_back( tmp_cmplx );\n' % ( f['NAME'] )
-                ret = ret + T + '}\n'
     ret = ret + "}\n\n"
 
 
     ### Write Binary
     ret = ret + "void %s::write_binary( std::ofstream& r_stream ){\n\n" % ( struct_name )
     for f in struct_def['FIELDS']:
-        if basetypes.has_key( f['TYPE'] ) or f['TYPE'] == 'COMPLEX':
+        if basetypes.has_key(f['TYPE']):
             ret = ret + T + 'r_stream.write( (char*)&(%s), sizeof(%s) );\n' %( f['NAME'], f['NAME'] )
         elif f['TYPE'] == 'STRUCT':
             ret = ret + T + '%s.write_binary( r_stream );\n' % ( f['NAME'] )
         elif f['TYPE'] == 'VECTOR':
             ret = ret + T + 'uint32_t tmp_%s_size = %s.size();\n' % ( f['NAME'], f['NAME'] )
             ret = ret + T + 'r_stream.write( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % ( f['NAME'], f['NAME'] )
-            if basetypes.has_key( f['CONTAINED_TYPE'] ) or f['CONTAINED_TYPE'] == 'COMPLEX':
+            if basetypes.has_key(f['CONTAINED_TYPE']):
                 ret = ret + T + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
                 ret = ret + T + T + 'r_stream.write( (char*)&(%s[ii]), sizeof(%s[ii]));\n' % ( f['NAME'], f['NAME'] )
                 ret = ret + T + '}\n'
@@ -506,15 +504,16 @@ def generate_CPP( c_files_res_dir, cpp_src_dir, cpp_inc_dir, basetypes, structs 
 
 
 if __name__ == "__main__":
-    # TODO: parse tools
-    if len( sys.argv ) != 4:
-        print USAGE
-        sys.exit(1)
-    json_basetypes = sys.argv[1]
-    json_file = sys.argv[2]
-    out_dir = sys.argv[3]
-    cpp_res_dir = sys.argv[3]
-    A = AutoGenerator( json_basetypes, json_file, out_dir  )
+    import argparse 
+    parser = argparse.ArgumentParser( 'AutoInterface Python Generator' )
+    parser.add_argument( 'json_basetypes_file' )
+    parser.add_argument( 'json_structures_file' )
+    parser.add_argument( 'res_dir' )
+    parser.add_argument( 'inc_dir' )
+    parser.add_argument( 'src_dir' )
+    args = parser.parse_args()
+
+    A = AutoGenerator( args.json_basetypes_file, args.json_structures_file, "")
     basetypes = A.basetypes
     structs   = A.structs
-    generate_CPP( cpp_res_dir, "cpp", "cpp", basetypes, structs )
+    generate_CPP( args.res_dir, args.src_dir, args.inc_dir, basetypes, structs )

@@ -40,6 +40,7 @@ header_template = '''
 #include <stdint.h>
 #include <stdio.h>
 #include <complex.h>
+#include <string.h>
 '''
 
 funcs_template = '''
@@ -83,10 +84,10 @@ def create_c_struct_header( basetypes, structs, struct_name ):
         if basetypes.has_key( f['TYPE'] ):
             c_decl = basetypes[ f['TYPE'] ]['C_TYPE']
         elif f['TYPE'] == 'STRUCT':
-            c_decl = 'struct %s' % ( f['STRUCT_TYPE'] )
+            c_decl = '%s' % ( f['STRUCT_TYPE'] )
         elif f['TYPE'] == 'VECTOR':
             if f['CONTAINED_TYPE'] == 'STRUCT':
-                c_decl = 'struct {0} **'.format( f['STRUCT_TYPE'] )
+                c_decl = '{0} **'.format( f['STRUCT_TYPE'] )
             elif basetypes.has_key( f['CONTAINED_TYPE'] ):
                 c_decl = '{0} *'.format( basetypes[ f['CONTAINED_TYPE'] ][ 'C_TYPE' ] )
             elif f['CONTAINED_TYPE'] == 'COMPLEX':
@@ -101,7 +102,7 @@ def create_c_struct_header( basetypes, structs, struct_name ):
             sys.exit(1)
         ret = ret + T + "{0}  {1}; ///<{2}\n".format( c_decl, f['NAME'], f['DESCRIPTION'] )
         if f['TYPE'] == 'VECTOR':
-            ret = ret + T + "uint32_t n_elements_{0};\n".format( f['NAME'] )
+            ret = ret + T + "int32_t n_elements_{0};\n".format( f['NAME'] )
 
 
     ret = ret + T + "size_t num_fields;\n"
@@ -124,28 +125,29 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
     ret = ret + '#include "io_support.h"\n'
 
     ### Allocate
-    ret = ret + 'void alloc_{0} ( {0} * p_{0} )\n{{\n'.format( struct_name )
-    ret = ret + T + 'p_{0} = ({0} *) malloc( 1 * sizeof({0}) );\n'.format( struct_name )
+    ret = ret + 'void alloc_{0} ( {0} * p_{0} )\n{{\n'.format(struct_name)
+    ret = ret + T + 'p_{0} = ({0} *) malloc( 1 * sizeof({0}) );\n'.format(struct_name)
     ret = ret + '}\n'
 
     ### De-allocate
-    ret = ret + 'void dealloc_{0}( {0} * p_{0} ){{\n'.format( struct_name )
+    ret = ret + 'void dealloc_{0}( {0} * p_{0} ){{\n'.format(struct_name)
     ret = ret + T + '// Deallocate Allocated Fields\n'
     for f in struct_def['FIELDS']:
         if f['TYPE'] == 'VECTOR':
             if f['CONTAINED_TYPE'] == 'STRUCT':
-                ret = ret + T +  '\nfor (size_t ii=0; ii<n_elements_{0}; ii++ )\n{{\n'.format( f['NAME'] )
-                ret = ret + T + T + 'dealloc_{0}( {1}[ii] );\n'.format( f['STRUCT_TYPE'], f['NAME'] )
+                ret = ret + T + 'for (size_t ii=0; ii<p_{0}->n_elements_{1}; ii++ )\n'.format(struct_name,f['NAME'])
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'dealloc_{0}( p_{1}->{2}[ii] );\n'.format(f['STRUCT_TYPE'],struct_name,f['NAME'])
                 ret = ret + T + '}\n'
-            else:
-                ret = ret + T + 'free({0});\n'.format( f['NAME'] )
-    ret = ret + T + '// Deallocate {0} pointer\n'.format( struct_name )
-    ret = ret + T + 'free(p_{0});\n'.format( struct_name );
-    ret = ret + T + 'p_{0} = 0x0;\n'.format( struct_name );
+            ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 ){{free( p_{0}->{1} );}}\n'.format(struct_name,f['NAME'])
+            ret = ret + T + 'p_{0}->n_elements_{1} = 0;\n'.format(struct_name,f['NAME'])
+            ret = ret + T + 'p_{0}->{1} = 0x0;\n'.format(struct_name,f['NAME'])
+        if f['TYPE'] == 'STRUCT':
+            ret = ret + T + 'dealloc_{0}( &(p_{1}->{2}) );\n'.format(f['STRUCT_TYPE'],struct_name,f['NAME'])
     ret = ret + "}\n\n"
 
     ### Read Binary 
-    ret = ret + "void read_binary_{0}( FILE * r_stream, {0} * p_{0} ){{\n".format( struct_name )
+    ret = ret + "void read_binary_{0}( FILE * r_stream, {0} * p_{0} ){{\n".format(struct_name)
     for f in struct_def['FIELDS']:
         if basetypes.has_key( f['TYPE'] ):
             ret = ret + T + 'read_{0}( r_stream, 1, &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
@@ -153,29 +155,30 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
             ret = ret + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}));\n'.format(f['STRUCT_TYPE'], struct_name, f['NAME'])
             ret = ret + "\n"
         elif f['TYPE'] == 'VECTOR':
-            ret = ret + T + "uint32_t n_elements_{0};\n".format( f['NAME'] )
-            ret = ret + T + 'read_INT_32(r_stream,1,&(n_elements_{0});\n'.format( f['NAME'] )
-            # convenience to save typing
-            ret = ret + T + 'uint32_t tmp_size = n_elements_{0};\n'.format( f['NAME'] )
+            ret = ret + T + "int32_t n_elements_{0};\n".format(f['NAME'])
+            ret = ret + T + 'read_INT_32(r_stream,1,&(n_elements_{0}));\n'.format(f['NAME'])
+            ret = ret + T + 'p_{0}->n_elements_{1} = n_elements_{1};\n'.format(struct_name,f['NAME'])
             if basetypes.has_key( f['CONTAINED_TYPE'] ):
                 ctype = basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
                 # ALLOC SPACE
-                ret = ret + T + 'p_{0}->{1} = ({2}*) malloc( tmp_{1}_size * sizeof({2}) );\n'.format( struct_name, f['NAME'], ctype );
-                ret = ret + T + 'read_{0}( r_stream, tmp_size, p_{1}->{2});\n'.format(f['CONTAINED_TYPE'],struct_name,f['NAME'])
+                ret = ret + T + 'p_{0}->{1} = ({2}*) malloc(n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
+                ret = ret + T + 'read_{0}(r_stream, n_elements_{2}, p_{1}->{2});\n'.format(f['CONTAINED_TYPE'],struct_name,f['NAME'])
                 ret = ret + "\n"
             elif f['CONTAINED_TYPE'] == 'STRUCT':
                 ctype = f['STRUCT_TYPE']
                 # Allocate space for pointers
-                ret = ret + T + 'p_{0}->{1} = ({2}**) malloc( tmp_{1}_size * sizeof({2} *) );\n'.format( struct_name, f['NAME'], ctype );
-                ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_{0}_size; ii++ ) {{\n'.format( f['NAME'] )
+                ret = ret + T + 'p_{0}->{1} = ({2}**) malloc(n_elements_{1} * sizeof({2} *));\n'.format(struct_name,f['NAME'],ctype);
+                ret = ret + T + 'for (int32_t ii=0; ii < p_{0}->n_elements_{1}; ii++) {{\n'.format(struct_name,f['NAME'])
                 ret = ret + "\n"
                 # For each pointer, call read binary
-                ret = ret + T + T + 'read_binary_{0}( r_stream, p_{1}->{2}[ii]);\n'.format( f['STRUCT_TYPE'], struct_name, f['NAME'] )
+                ret = ret + T + T + '{0} * x = ({0}*) malloc( sizeof({0}) );\n'.format(f['STRUCT_TYPE'])
+                ret = ret + T + T + 'read_binary_{0}(r_stream, x );\n'.format(f['STRUCT_TYPE'])
+                ret = ret + T + T + 'p_{0}->{1}[ii] = x;\n'.format(struct_name,f['NAME'])
                 ret = ret + T + '}\n\n'
     ret = ret + "}\n\n"
 
-    ### Read Binary 
-    ret = ret + "void write_binary_{0}( FILE * r_stream, {0} * p_{0} ){{\n".format( struct_name )
+    ### Write Binary 
+    ret = ret + "void write_binary_{0}( FILE * r_stream, {0} * p_{0} ){{\n".format(struct_name)
     for f in struct_def['FIELDS']:
         if basetypes.has_key( f['TYPE'] ):
             ret = ret + T + 'write_{0}( r_stream, 1, &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
@@ -183,11 +186,11 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
             ret = ret + T + 'write_binary_{0}(r_stream, &(p_{1}->{2}));\n'.format(f['STRUCT_TYPE'], struct_name, f['NAME'])
             ret = ret + "\n"
         elif f['TYPE'] == 'VECTOR':
-            ret = ret + T + 'write_INT_32(r_stream,1,&(n_elements_{0}));\n'.format(f['NAME'])
+            ret = ret + T + 'write_INT_32(r_stream,1,&(p_{0}->n_elements_{1}));\n'.format(struct_name,f['NAME'])
             if basetypes.has_key( f['CONTAINED_TYPE'] ):
-                ret = ret + T + 'write_{0}(r_stream,n_elements_{1},p_{2}->{1});\n'.format(f['CONTAINED_TYPE'],struct_name,f['NAME']) 
+                ret = ret + T + 'write_{0}(r_stream,p_{1}->n_elements_{2},p_{1}->{2});\n'.format(f['CONTAINED_TYPE'],struct_name,f['NAME']) 
             elif f['CONTAINED_TYPE'] == 'STRUCT':
-                ret = ret + T + 'for (int ii=0; ii<n_elements_{0}; ++ii )\n{{\n'.format(f['NAME'])
+                ret = ret + T + 'for (int ii=0; ii< p_{0}->n_elements_{1}; ++ii )\n{{\n'.format(struct_name,f['NAME'])
                 ret = ret + T + T + 'write_binary_{0}(r_stream, p_{1}->{2}[ii]);\n'.format(f['STRUCT_TYPE'], struct_name, f['NAME'])
                 ret = ret + T + '}\n\n'
     ret = ret + "}\n\n"
