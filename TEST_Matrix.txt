@@ -1,0 +1,41 @@
+Python:
+======
+
+  - read/write basic types           _x_
+  - read/write write vector types    _x_
+  - read/write vectors of structs    _x_
+
+C:                                    C    Py   CPP
+=                                    ===   ===  ===
+  - read/write basic types           _x_   _x_  _x_
+  - read/write write vector types    _x_   _x_
+  - read/write vectors of structs    _x_   _x_  _x_
+  - read/write substructs            _x_   _x_
+  - valgrind                         ___   
+
+    TODO:
+      - init, set array pointers to 0x0
+      - write props
+      - read and print utils
+      - add allocators for vectors
+      - valgrind
+        
+
+CPP:
+===
+  - read/write basic types           _x_
+  - read/write vector types          ___
+  - read/write vector of structs     _x_
+  - valgrind                         ___
+
+    TODO:
+      - fix props parser code wrt complex
+      - props parser flat vectors to flat string
+      - vector reads w/o for loop
+
+MAT:
+===
+
+  - read/write basic types           ___
+  - read/write vector types          ___
+  - read/write vector of structs     ___
