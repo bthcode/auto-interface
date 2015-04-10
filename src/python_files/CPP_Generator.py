@@ -465,17 +465,19 @@ def create_struct_impl( basetypes, structs, struct_name ):
 #
 ##################################################################################
 
-def generate_CPP( c_files_res_dir, cpp_src_dir, cpp_inc_dir, basetypes, structs ):
+def generate_CPP( cpp_src_dir, cpp_inc_dir, basetypes, structs ):
     if not os.path.exists( cpp_src_dir ):
         os.mkdir(cpp_src_dir)
     if not os.path.exists( cpp_inc_dir ):
         os.mkdir(cpp_inc_dir)
 
+    python_repo_dir = os.path.dirname(os.path.realpath(__file__))
+
     # utils
-    shutil.copy( c_files_res_dir + os.sep + 'props_parser.cpp', 
+    shutil.copy( python_repo_dir + os.sep + 'props_parser.cpp', 
                  cpp_src_dir + os.sep + 'props_parser.cpp' )
 
-    shutil.copy( c_files_res_dir + os.sep + 'props_parser.h', 
+    shutil.copy( python_repo_dir + os.sep + 'props_parser.h', 
                  cpp_inc_dir + os.sep + 'props_parser.h' )
 
     # headers
@@ -508,7 +510,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser( 'AutoInterface Python Generator' )
     parser.add_argument( 'json_basetypes_file' )
     parser.add_argument( 'json_structures_file' )
-    parser.add_argument( 'res_dir' )
     parser.add_argument( 'inc_dir' )
     parser.add_argument( 'src_dir' )
     args = parser.parse_args()
@@ -516,4 +517,4 @@ if __name__ == "__main__":
     A = AutoGenerator( args.json_basetypes_file, args.json_structures_file, "")
     basetypes = A.basetypes
     structs   = A.structs
-    generate_CPP( args.res_dir, args.src_dir, args.inc_dir, basetypes, structs )
+    generate_CPP( args.src_dir, args.inc_dir, basetypes, structs )
