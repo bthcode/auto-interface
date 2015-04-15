@@ -161,8 +161,20 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
 # end create_c_struct_impl
 
 def create_set_defaults(basetypes,structs,struct_name):
-    ret = 'function [ ret ] = set_defaults_{0}()\n'.format( struct_name )
-    ret = ret + T + 'ret = 0;\n'
+    ret = 'function [ out ] = set_defaults_{0}()\n'.format( struct_name )
+    # set defaults
+    struct_def = structs[struct_name]
+    for f in struct_def['FIELDS']:
+        if basetypes.has_key( f['TYPE'] ):
+            if f.has_key('DEFAULT_VALUE'):
+                ret = ret + T + T + "out.{0} = {1};\n".format(f['NAME'], f['DEFAULT_VALUE'])
+            else:
+                ret = ret + T + T +  "out.{0} = {1};\n".format(f['NAME'], basetypes[f['TYPE']]['DEFAULT_VALUE'])
+        elif f['TYPE'] == 'STRUCT':
+            ret = ret + T + T + 'out.{0} = set_defaults_{1}();\n'.format(f['NAME'],f['STRUCT_TYPE'])
+        elif f['TYPE'] == 'VECTOR':
+            ret = ret + T + T + 'out.{0} = [];\n'.format(f['NAME'])
+
     ret = ret + 'end\n'
 
     return ret
