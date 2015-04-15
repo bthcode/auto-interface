@@ -65,6 +65,7 @@
               { "NAME"         : "m_cmplx_double",
                 "DESCRIPTION"  : "Sample complex double",
                 "TYPE"         : "COMPLEX_DOUBLE",
+                "DEFAULT_VALUE" : "1+1j",
                 "COMPLEX_TYPE" : "DOUBLE" }
             ]
     },

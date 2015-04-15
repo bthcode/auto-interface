@@ -167,9 +167,9 @@ def create_set_defaults(basetypes,structs,struct_name):
     for f in struct_def['FIELDS']:
         if basetypes.has_key( f['TYPE'] ):
             if f.has_key('DEFAULT_VALUE'):
-                ret = ret + T + T + "out.{0} = {1};\n".format(f['NAME'], f['DEFAULT_VALUE'])
+                ret = ret + T + T + "out.{0} = {1}({2});\n".format(f['NAME'], basetypes[f['TYPE']]['MAT_TYPE'], f['DEFAULT_VALUE'])
             else:
-                ret = ret + T + T +  "out.{0} = {1};\n".format(f['NAME'], basetypes[f['TYPE']]['DEFAULT_VALUE'])
+                ret = ret + T + T +  "out.{0} = {1}({2});\n".format(f['NAME'], basetypes[f['TYPE']]['MAT_TYPE'],  basetypes[f['TYPE']]['DEFAULT_VALUE'])
         elif f['TYPE'] == 'STRUCT':
             ret = ret + T + T + 'out.{0} = set_defaults_{1}();\n'.format(f['NAME'],f['STRUCT_TYPE'])
         elif f['TYPE'] == 'VECTOR':
