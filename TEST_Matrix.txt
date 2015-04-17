@@ -32,6 +32,7 @@ CPP:
       - fix props parser code wrt complex
       - props parser flat vectors to flat string
       - vector reads w/o for loop
+      - put python files and c_support in same dir for simplicity
 
 MAT:
 ===
