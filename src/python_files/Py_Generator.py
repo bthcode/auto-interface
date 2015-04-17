@@ -25,15 +25,48 @@ def create_py_class_def( basetypes, structs, struct_name ):
     # set defaults
     for f in struct_def['FIELDS']:
         if basetypes.has_key( f['TYPE'] ):
+            basetype = basetypes[ f['TYPE'] ]
             if f.has_key('DEFAULT_VALUE'):
-                ret = ret + T + T + "self.{0} = {1};\n".format( f['NAME'], f['DEFAULT_VALUE'] )
+                def_val = f['DEFAULT_VALUE']
             else:
-                ret = ret + T + T +  "self.{0} = {1};\n".format( f['NAME'], basetypes[f['TYPE']]['DEFAULT_VALUE'] )
+                def_val = basetype['DEFAULT_VALUE']
+
+            if basetype.has_key( 'COMPLEX' ):
+                # TODO: handle the case when this is set wrong by the user
+                ret = ret + T + T + "self.{0} = {1} + {2}j;\n".format(f['NAME'], def_val[0],def_val[1])
+            else:
+                ret = ret + T + T + "self.{0} = {1};\n".format(f['NAME'], def_val)
         elif f['TYPE'] == 'STRUCT':
-            ret = ret + T + T + 'self.{0} = {1}()\n'.format( f['NAME'], f['STRUCT_TYPE'] )
-            ret = ret + T + T + 'self.{0}.set_defaults();\n'.format( f['NAME'] )
+            ret = ret + T + T + 'self.{0} = {1}()\n'.format(f['NAME'], f['STRUCT_TYPE'])
+            ret = ret + T + T + 'self.{0}.set_defaults();\n'.format(f['NAME'])
         elif f['TYPE'] == 'VECTOR':
-            ret = ret + T + T + 'self.{0} = []\n'.format( f['NAME'] )
+            # If a default vaulue, try to set it
+            if f.has_key( 'DEFAULT_VALUE' ):
+                if basetypes.has_key(f['CONTAINED_TYPE']):
+                    basetype = basetypes[f['CONTAINED_TYPE']]
+                    def_val = f['DEFAULT_VALUE']
+                    # COMPLEX
+                    if basetype.has_key('COMPLEX'):
+                        def_str = ''
+                        for idx in range(0,len(def_val),2):
+                            def_str = def_str + '{0} + {1}j,'.format(def_val[idx],def_val[idx+1])
+                    # Not COMPLEX
+                    else:
+                        def_str = ''
+                        for idx in range(len(def_val)):
+                            def_str = def_str + '{0},'.format(def_val[idx])
+                    # remove trailing whitespace and comma
+                    def_str = def_str.rstrip()
+                    if def_str[-1] == ',':  
+                        def_str = def_str[:-1]
+                    # set the value
+                    ret = ret + T + T + 'self.{0} = [ {1} ]\n'.format(f['NAME'],def_str)
+                elif f['CONTAINED_TYPE'] == 'STRUCT':
+                    ret = ret + T + T + 'self.{0} = []\n'.format( f['NAME'] )
+            # No default value, just set the element
+            else:
+                ret = ret + T + T + 'self.{0} = []\n'.format(f['NAME'])
+                # vector of struct default setting not suppported
     ret = ret + T + "# end set_defaults\n"
 
     # read binary

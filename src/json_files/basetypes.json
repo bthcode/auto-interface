@@ -2,7 +2,7 @@
    "UINT_8" : 
       {
          "C_TYPE" : "uint8_t",
-         "DEFAULT_VALUE" : "0",
+         "DEFAULT_VALUE" : 0,
          "STREAM_CAST" : "int",
          "MEX_TYPE" : "mxUINT8_CLASS",
          "MAT_TYPE" : "uint8"
@@ -10,7 +10,7 @@
    "UINT_16" :
       {
          "C_TYPE" : "uint16_t",
-         "DEFAULT_VALUE" : "0",
+         "DEFAULT_VALUE" : 0,
          "STREAM_CAST" : "int",
          "MEX_TYPE" : "mxUINT16_CLASS",
          "MAT_TYPE" : "uint16"
@@ -18,7 +18,7 @@
    "UINT_32" :
       {
          "C_TYPE" : "uint32_t",
-         "DEFAULT_VALUE" : "0",
+         "DEFAULT_VALUE" : 0,
          "STREAM_CAST" : "long int",
          "MEX_TYPE" : "mxUINT32_CLASS",
          "MAT_TYPE" : "uint32"
@@ -26,7 +26,7 @@
    "UINT_64" :
       {
          "C_TYPE" : "uint64_t",
-         "DEFAULT_VALUE" : "0",
+         "DEFAULT_VALUE" : 0,
          "STREAM_CAST" : "long int",
          "MEX_TYPE" : "mxUINT64_CLASS",
          "MAT_TYPE" : "uint64"
@@ -35,7 +35,7 @@
       {
          "C_TYPE" : "int8_t",
          "STREAM_CAST" : "int",
-         "DEFAULT_VALUE" : "0",
+         "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT8_CLASS",
          "MAT_TYPE" : "int8"
       },
@@ -43,35 +43,35 @@
       {
          "C_TYPE" : "int16_t",
          "STREAM_CAST" : "int",
-         "DEFAULT_VALUE" : "0",
+         "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT16_CLASS",
          "MAT_TYPE" : "int16"
       },
    "INT_32" :
       {
          "C_TYPE" : "int32_t",
-         "DEFAULT_VALUE" : "0",
+         "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT32_CLASS",
          "MAT_TYPE" : "int32"
       },
    "INT_64" :
       {
          "C_TYPE" : "int64_t",
-         "DEFAULT_VALUE" : "0",
+         "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT64_CLASS",
          "MAT_TYPE" : "int64"
       },
    "SINGLE" :
       {
          "C_TYPE" : "float",
-         "DEFAULT_VALUE" : "0.0",
+         "DEFAULT_VALUE" : 1.0,
          "MEX_TYPE" : "mxSINGLE_CLASS",
          "MAT_TYPE" : "single"
       },
    "DOUBLE" :
       {
          "C_TYPE" : "double",
-         "DEFAULT_VALUE" : "0",
+         "DEFAULT_VALUE" : 0.0,
          "MEX_TYPE" : "mxDOUBLE_CLASS",
          "MAT_TYPE" : "double"
       },
@@ -79,17 +79,19 @@
       {
          "C_TYPE" : "double complex",
          "CPP_TYPE" : "std::complex< double >",
-         "DEFAULT_VALUE" : "0",
+         "DEFAULT_VALUE" : [0,0],
          "MEX_TYPE" : "mxDOUBLE_CLASS",
-         "MAT_TYPE" : "double"
+         "MAT_TYPE" : "double",
+         "COMPLEX" : "TRUE"
       },
      "COMPLEX_SINGLE" :
       {
          "C_TYPE" : "float complex",
          "CPP_TYPE" : "std::complex< float >",
-         "DEFAULT_VALUE" : "0",
+         "DEFAULT_VALUE" : [0,0],
          "MEX_TYPE" : "mxDOUBLE_CLASS",
-         "MAT_TYPE" : "single"
+         "MAT_TYPE" : "single",
+         "COMPLEX" : "TRUE"
       }
     
    
