@@ -166,15 +166,44 @@ def create_set_defaults(basetypes,structs,struct_name):
     struct_def = structs[struct_name]
     for f in struct_def['FIELDS']:
         if basetypes.has_key( f['TYPE'] ):
+            basetype = basetypes[f['TYPE']]
+            mat_type = basetype['MAT_TYPE']
+            # get default value 
             if f.has_key('DEFAULT_VALUE'):
-                ret = ret + T + T + "out.{0} = {1}({2});\n".format(f['NAME'], basetypes[f['TYPE']]['MAT_TYPE'], f['DEFAULT_VALUE'])
+                def_val = f['DEFAULT_VALUE']
             else:
-                ret = ret + T + T +  "out.{0} = {1}({2});\n".format(f['NAME'], basetypes[f['TYPE']]['MAT_TYPE'],  basetypes[f['TYPE']]['DEFAULT_VALUE'])
+                def_val = basetype['DEFAULT_VALUE']
+            # format the default value
+            if basetype.has_key( 'COMPLEX' ):
+                val = '{0} + {1}i'.format(def_val[0],def_val[1])
+            else:
+                val = '{0}'.format(def_val)
+            # set the default value
+            ret = ret + T + T + "out.{0} = {1}({2});\n".format(f['NAME'],mat_type,val);
         elif f['TYPE'] == 'STRUCT':
             ret = ret + T + T + 'out.{0} = set_defaults_{1}();\n'.format(f['NAME'],f['STRUCT_TYPE'])
         elif f['TYPE'] == 'VECTOR':
-            ret = ret + T + T + 'out.{0} = [];\n'.format(f['NAME'])
-
+            if f.has_key( 'DEFAULT_VALUE' ):
+                if basetypes.has_key(f['CONTAINED_TYPE']):
+                    basetype = basetypes[f['CONTAINED_TYPE']]
+                    def_val = f['DEFAULT_VALUE']
+                    # COMPLEX
+                    if basetype.has_key('COMPLEX'):
+                        def_str = ''
+                        for idx in range(0,len(def_val),2):
+                            def_str = def_str + '{0} + {1}i '.format(def_val[idx],def_val[idx+1])
+                    # Not COMPLEX
+                    else:
+                        def_str = ''
+                        for idx in range(len(def_val)):
+                            def_str = def_str + '{0} '.format(def_val[idx])
+                    # set the value
+                    ret = ret + T + T + 'out.{0} = [ {1} ];\n'.format(f['NAME'],def_str)
+                elif f['CONTAINED_TYPE'] == 'STRUCT':
+                    ret = ret + T + T + 'out.{0} = [];\n'.format( f['NAME'] )
+            # No default value, just set the element
+            else:
+                ret = ret + T + T + 'out.{0} = [];\n'.format(f['NAME'])
     ret = ret + 'end\n'
 
     return ret
