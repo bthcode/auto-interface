@@ -72,7 +72,6 @@ def create_set_defaults(basetypes,structs,struct_name):
 
 def create_read_binary(basetypes,structs,struct_name):
     ret = 'function [ struct_in ] = read_binary_{0}( file_handle )\n'.format(struct_name)
-    ret = ret + T + 'success = 1;\n'
     struct_def = structs[struct_name]
     for f in struct_def['FIELDS']:
         if basetypes.has_key(f['TYPE']):
@@ -86,7 +85,7 @@ def create_read_binary(basetypes,structs,struct_name):
             ret = ret + T + 'struct_in.{0} = read_binary_{1}( file_handle );\n'.format(f['NAME'],f['STRUCT_TYPE']) 
         elif f['TYPE'] == 'VECTOR':
             # get number of elements
-            ret = ret + T + T + "num_elems = fread(file_handle,1,'uint32');\n"
+            ret = ret + T + T + "num_elems = fread(file_handle,1,'int32');\n"
             # now read in that many types
             if basetypes.has_key(f['CONTAINED_TYPE']):
                 b = basetypes[f['CONTAINED_TYPE']]
@@ -96,17 +95,55 @@ def create_read_binary(basetypes,structs,struct_name):
                 else:
                     ret = ret + T + "struct_in.{0} = fread( file_handle, num_elems, '{1}' );\n".format(f['NAME'],b['MAT_TYPE'])
             elif f['CONTAINED_TYPE'] == 'STRUCT':
+                # in the case of a vector of structs, 
+                #  we need to declare the vector using the struct 
+                #  (hence the if i==1 below)
                 ret = ret + T + 'struct_in.{0} = [];\n'.format(f['NAME'])
                 ret = ret + T + 'for i=1:num_elems\n'   
-                ret = ret + T + T + 'struct_in.{0}(end+1)=read_binary_{1}(file_handle);\n'.format(f['NAME'],f['STRUCT_TYPE'])
+                ret = ret + T + T + 'tmp=read_binary_{0}(file_handle);\n'.format(f['STRUCT_TYPE'])
+                ret = ret + T + T + 'if i==1\n'
+                ret = ret + T + T + T + 'struct_in.{0} = [tmp];\n'.format(f['NAME'])
+                ret = ret + T + T + 'else\n'
+                ret = ret + T + T + T + 'struct_in.{0}(end+1)=tmp;\n'.format(f['NAME'])
+                ret = ret + T + T + 'end\n'
                 ret = ret + T + 'end\n'
     ret = ret + 'end\n'
     return ret
 # end create_read_binary
 
 def create_write_binary(basetypes,structs,struct_name):
-    ret = 'function [ success ] = write_binary_{0}( file_handle )\n'.format(struct_name)
+    ret = 'function [ success ] = write_binary_{0}(file_handle,struct_out)\n'.format(struct_name)
     ret = ret + T + 'success = 0;\n'
+    struct_def = structs[struct_name]
+    for f in struct_def['FIELDS']:
+        if basetypes.has_key(f['TYPE']):
+            b = basetypes[f['TYPE']]
+            if b.has_key('COMPLEX'):
+                ret = ret + T + "fwrite(file_handle,real(struct_out.{0}),'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
+                ret = ret + T + "fwrite(file_handle,imag(struct_out.{0}),'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
+            else:
+                ret = ret + T + "fwrite(file_handle,struct_out.{0},'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
+        elif f['TYPE'] == 'STRUCT':
+            ret = ret + T + 'write_binary_{0}(file_handle,struct_out.{1});\n'.format(f['STRUCT_TYPE'],f['NAME']) 
+        elif f['TYPE'] == 'VECTOR':
+            # get number of elements
+            ret = ret + T + "num_elems=length(struct_out.{0});\n".format(f['NAME'])
+            ret = ret + T + "fwrite(file_handle,num_elems,'int32');\n"
+            # now read in that many types
+            if basetypes.has_key(f['CONTAINED_TYPE']):
+                b = basetypes[f['CONTAINED_TYPE']]
+                if b.has_key('COMPLEX'):
+                    # flatten the complex data, then write
+                    ret = ret + T + 'tmp=zeros(num_elems*2,1);\n'
+                    ret = ret + T + 'tmp(1:2:end-1)=real(struct_out.{0});\n'.format(f['NAME'])
+                    ret = ret + T + 'tmp(2:2:end)=imag(struct_out.{0});\n'.format(f['NAME'])
+                    ret = ret + T + "fwrite(file_handle,tmp,'{0}');\n".format(b['MAT_TYPE'])
+                else:
+                    ret = ret + T + "fwrite(file_handle,struct_out.{0},'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
+            elif f['CONTAINED_TYPE'] == 'STRUCT':
+                ret = ret + T + 'for i=1:num_elems\n'   
+                ret = ret + T + T + 'write_binary_{0}(file_handle,struct_out.{1}(i));\n'.format(f['STRUCT_TYPE'],f['NAME'])
+                ret = ret + T + 'end\n'
     ret = ret + 'end\n'
     return ret
 # end create_write_binary
