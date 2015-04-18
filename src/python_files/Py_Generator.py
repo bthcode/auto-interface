@@ -24,8 +24,8 @@ def create_py_class_def( basetypes, structs, struct_name ):
 
     # set defaults
     for f in struct_def['FIELDS']:
-        if basetypes.has_key( f['TYPE'] ):
-            basetype = basetypes[ f['TYPE'] ]
+        if basetypes.has_key(f['TYPE']):
+            basetype = basetypes[f['TYPE']]
             if f.has_key('DEFAULT_VALUE'):
                 def_val = f['DEFAULT_VALUE']
             else:
@@ -91,11 +91,15 @@ def create_py_class_def( basetypes, structs, struct_name ):
 
 
     # write binary
-    ret = ret + T + "def write_binary( self, r_stream ):\n"
+    ret = ret + T + "def write_binary( self, r_stream, typecheck=False ):\n"
     for f in struct_def['FIELDS']:
         if basetypes.has_key( f['TYPE'] ):
             ret = ret + T + T + 'io.write_{0}( r_stream, self.{1} )\n'.format(f['TYPE'], f['NAME'])
         elif f['TYPE'] == 'STRUCT':
+            ret = ret + T + T + 'if typecheck:\n'
+            ret = ret + T + T + T + 'if self.{0}.__class__ != {1}:\n'.format(f['NAME'],f['STRUCT_TYPE'])
+            ret = ret + T + T + T + T + 'print ("ERROR: {0} should be type {1}, but is {{0}}".format(self.{0}.__class__.__name__))\n'.format(f['NAME'],f['STRUCT_TYPE'])
+            ret = ret + T + T + T + T + 'return\n'
             ret = ret + T + T + 'self.{0}.write_binary(r_stream);\n'.format(f['NAME'])
         elif f['TYPE'] == 'VECTOR':
             # TODO - this needs to be uint32_t
@@ -105,6 +109,10 @@ def create_py_class_def( basetypes, structs, struct_name ):
                 ret = ret + T + T + 'io.write_{0}( r_stream, self.{1}, nElements=num_elems )\n'.format(f['CONTAINED_TYPE'],f['NAME'])
             elif f['CONTAINED_TYPE'] == 'STRUCT':
                 ret = ret + T + T + 'for idx in range( num_elems ):\n'
+                ret = ret + T + T + T + 'if typecheck:\n'
+                ret = ret + T + T + T + T + 'if self.{0}[idx].__class__ != {1}:\n'.format(f['NAME'],f['STRUCT_TYPE'])
+                ret = ret + T + T + T + T + T + 'print ("ERROR: {0}[{{0}}] should be type {1}, but is {{1}}".format(idx,self.{0}[idx].__class__.__name__))\n'.format(f['NAME'],f['STRUCT_TYPE'])
+                ret = ret + T + T + T + T + T + 'return\n'
                 ret = ret + T + T + T + 'self.{0}[idx].write_binary(r_stream)\n'.format( f['NAME'] )
     ret = ret + T + "# end write_binary\n\n"
     ret = ret + "# end class {0}\n\n".format(  struct_name )
