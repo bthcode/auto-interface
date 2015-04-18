@@ -208,73 +208,7 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
 ##################################################################################
 
 
-    # TODO remove or rewrite
-    def create_struct_impls(self):
-        '''Creates all structure and matlab support cpp files'''
 
-        python_dir = os.path.dirname(os.path.realpath(__file__))
-        c_files_res_dir  = python_dir + os.sep + '..' + os.sep + 'c_files'
-
-        shutil.copy( c_files_res_dir + os.sep + 'props_parser.cpp', 
-                     self.src_dir + os.sep + 'props_parser.cpp' )
-
-        shutil.copy( c_files_res_dir + os.sep + 'props_parser.h', 
-                     self.src_dir + os.sep + 'props_parser.h' )
-
-        # TODO: why am I copying this twice?
-        shutil.copy( c_files_res_dir + os.sep + 'props_parser.h', 
-                     self.mex_dir + os.sep + 'props_parser.h' )
-
-        shutil.copy( c_files_res_dir + os.sep + 'props_parser.cpp', 
-                     self.mex_dir + os.sep + 'props_parser.cpp' )
-
-        fOut = open( self.out_dir + os.sep + "CMakeLists.txt", "w" )
-        fOut.write( self.create_cmake_lists() )
-        fOut.close()
-
-        for struct_name, struct_def in self.structs.items():
-            # write the class def twice - one to a general c area, one to a matlab
-            # support area, where it will be compiled with -fPIC
-            class_def = self.create_struct_impl( struct_name ) 
-            fOut = open( self.src_dir + os.sep + "%s_class_def.cpp" % ( struct_name), "w" )
-            fOut.write( class_def )
-            fOut = open( self.mex_dir + os.sep + "%s_class_def.cpp" % ( struct_name), "w" )
-            fOut.write( class_def )
-        for struct_name, struct_def in self.structs.items():
-            fOut = open( self.mex_dir + os.sep + "%s_mat_support.cpp" % ( struct_name), "w" )
-            fOut.write( self.create_mat_support_impl( struct_name ) )
-        for struct_name, struct_def in self.structs.items():
-            fOut = open( self.mex_dir + os.sep + "%s_mex_impl.cpp" % ( struct_name), "w" )
-            fOut.write( self.create_mex_impl( struct_name ) )
-        for struct_name, struct_def in self.structs.items():
-            fOut = open( self.mat_dir + os.sep + "%s_mex_test.m" % ( struct_name ), "w" )
-            fOut.write( self.create_mex_test( struct_name ) )
-    # end create_struct_impl
-
-    # TODO: remove or re-write
-    def create_directory_structure( self ):
-        '''Creates all the required sub directories'''
-        if not os.path.exists( self.out_dir ):
-            os.mkdir( self.out_dir )
-        self.mex_dir = self.out_dir + os.sep + 'mex/'
-        self.inc_dir = self.out_dir + os.sep + 'inc/' # CXX
-        self.src_dir = self.out_dir + os.sep + 'src/' # CXX
-        self.c_inc_dir = self.out_dir + os.sep + 'c_src/'
-        self.c_src_dir = self.out_dir + os.sep + 'c_src/'
-        self.exec_dir = self.out_dir + os.sep + 'exec/'
-        self.cmake_dir = self.out_dir + os.sep + 'cmake_local_modules'
-        self.mat_dir = self.out_dir + os.sep + 'mat/'
-        self.py_dir  = self.out_dir + os.sep + 'python/'
-        for d in self.mex_dir, self.inc_dir, self.src_dir, self.exec_dir, self.cmake_dir, self.mat_dir, self.py_dir, self.c_inc_dir, self.c_src_dir:
-            if not os.path.exists( d ):
-                os.mkdir(d)
-
-        # ----------- path of script file
-        python_dir = os.path.dirname(os.path.realpath(__file__))
-        cmake_res_dir  = python_dir + '/../cmake_files'
-        shutil.copy( cmake_res_dir + '/Findoctave.cmake', self.cmake_dir + '/Findoctave.cmake' )
-        shutil.copy( cmake_res_dir + '/Findmatlab.cmake', self.cmake_dir + '/Findmatlab.cmake' )
-    # end create_directory_structure
 
 
 # TODO: write a driver that generates complete project
