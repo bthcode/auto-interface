@@ -27,8 +27,6 @@ python src/python_files/MAT_Generator.py src/json_files/basetypes.json src/json_
 # What doesn't:
 
 - binary i/o for matlab
-- complex default setting
-- array default setting
 - fixed length arrays
 
 ###
@@ -37,3 +35,4 @@ python src/python_files/MAT_Generator.py src/json_files/basetypes.json src/json_
 - clean up AutoInterface class - has old cruft
 - decide whether to support c
 - ascii i/o support?
+- auto-generate a set of tests
