@@ -468,6 +468,47 @@ def create_struct_impl( basetypes, structs, struct_name ):
     return ret
 # end create_struct_impl
 
+def create_cmake_file( cpp_src_dir, cpp_inc_dir, basetypes, structs ):
+    print (cpp_src_dir)
+    print (cpp_inc_dir)
+    ret = """
+cmake_minimum_required(VERSION 2.8)
+
+PROJECT(AutoInterfaceOut)
+
+SET( CMAKE_VERBOSE_MAKEFILE ON )
+
+SET( CMAKE_INSTALL_PREFIX "./install" )
+
+SET( AUTOGEN_SRC_DIR  "{0}" )
+SET( AUTOGEN_INC_DIR  "{1}" )
+
+# Basic Library
+FILE( GLOB CPP_FILES "*_class_def.cpp" "props_parser.cpp"  )
+
+########### VERBOSE DEBUG ##########
+MESSAGE( STATUS "CPP_FILES:" )
+FOREACH( loop_var ${{CPP_FILES}} )
+    MESSAGE( STATUS "  ${{loop_var}}" )
+ENDFOREACH()
+########### VERBOSE DEBUG ##########
+
+ADD_LIBRARY( auto_interface_classes ${{CPP_FILES}} )
+
+# Sample executables
+""".format( cpp_src_dir, cpp_inc_dir )
+
+    for struct_name, struct_def in structs.items():
+        ret = ret + 'ADD_EXECUTABLE( print_{0} print_{0}.cpp )\n'.format(struct_name)
+        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} auto_interface_classes )\n\n'.format(struct_name) 
+
+        ret = ret + 'ADD_EXECUTABLE( generate_{0} generate_{0}.cpp )\n'.format(struct_name)
+        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} auto_interface_classes )\n\n'.format(struct_name) 
+
+    return ret
+
+# end create_cmake_file
+
 
 ##################################################################################
 #
@@ -510,6 +551,10 @@ def generate_CPP( cpp_src_dir, cpp_inc_dir, basetypes, structs ):
     for struct_name, struct_def in structs.items():
         fOut = open( cpp_src_dir + os.sep + "generate_%s.cpp" % (struct_name), "w" )
         fOut.write( create_struct_generator(basetypes,structs,struct_name)) 
+
+    cmake_txt = create_cmake_file( cpp_src_dir, cpp_inc_dir, basetypes, structs )
+    fOut = open( cpp_src_dir + os.sep + "CMakeLists.txt", "w" )
+    fOut.write( cmake_txt )
 
 
 # end generate_CPP
