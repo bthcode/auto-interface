@@ -4,7 +4,7 @@
            "NAME"       : "all_types",
            "TYPE"       : "STRUCT",
            "DESCRIPTION": "all field types",
-           "NAMESPACE"  : "blah",
+           "NAMESPACE"  : "example",
            "FIELDS"     : [ 
              { "NAME"          : "m_uint_8",
                "TYPE"          : "UINT_8",
@@ -27,33 +27,33 @@
               { "NAME"          : "m_uint_64",
                "TYPE"          : "UINT_64",
                "DESCRIPTION"   : "test uint 64",
-               "DEFAULT_VALUE" : "1",
-               "VALID_MIN"     : "0",
-               "VALID_MAX"     : "18446744073709551615" },
+               "DEFAULT_VALUE" : 1,
+               "VALID_MIN"     : 0,
+               "VALID_MAX"     : 18446744073709551615 },
               { "NAME"          : "m_int_8",
                "TYPE"          : "INT_8",
                "DESCRIPTION"   : "test int 8",
-               "DEFAULT_VALUE" : "1",
-               "VALID_MIN"     : "-127",
-               "VALID_MAX"     : "127" },
+               "DEFAULT_VALUE" : 1,
+               "VALID_MIN"     : -127,
+               "VALID_MAX"     : 127 },
               { "NAME"          : "m_int_16",
                "TYPE"          : "INT_16",
                "DESCRIPTION"   : "Test int 16",
-               "DEFAULT_VALUE" : "1",
-               "VALID_MIN"     : "-32767",
-               "VALID_MAX"     : "32767" },
+               "DEFAULT_VALUE" : 1,
+               "VALID_MIN"     : -32767,
+               "VALID_MAX"     : 32767 },
               { "NAME"          : "m_int_32",
                "TYPE"          : "INT_32",
                "DESCRIPTION"   : "test int 32",
-               "DEFAULT_VALUE" : "1",
-               "VALID_MIN"     : "-2147483647",
-               "VALID_MAX"     : "2147483647" },
+               "DEFAULT_VALUE" : 1,
+               "VALID_MIN"     : -2147483647,
+               "VALID_MAX"     : 2147483647 },
               { "NAME"          : "m_int_64",
                "TYPE"          : "INT_64",
                "DESCRIPTION"   : "Test int 64",
-               "DEFAULT_VALUE" : "1",
-               "VALID_MIN"     : "-9223372036854775807",
-               "VALID_MAX"     : "9223372036854775807" },
+               "DEFAULT_VALUE" : 1,
+               "VALID_MIN"     : -9223372036854775807,
+               "VALID_MAX"     : 9223372036854775807 },
               { "NAME"          : "m_double",
                "TYPE"          : "DOUBLE",
                "DESCRIPTION"   : "Test double",
@@ -66,141 +66,55 @@
                 "DESCRIPTION"  : "Sample complex double",
                 "TYPE"         : "COMPLEX_DOUBLE",
                 "DEFAULT_VALUE" : [ 1, 1 ],
-                "COMPLEX_TYPE" : "DOUBLE" }
-            ]
-    },
-
-   "vector_test" :
-        {
-            "NAME" : "vector_test",
-            "TYPE" : "STRUCT",
-            "DESCRIPTION" : "Test of vectors",
-            "NAMESPACE" : "blah",
-            "FIELDS" : [
-                { "NAME"  : "m_vector_of_doubles",
-                  "TYPE"  : "VECTOR",
-                  "CONTAINED_TYPE" : "DOUBLE",
-                  "DESCRIPTION" : "vector of doubles",
-                  "DEFAULT_VALUE" : [ 1,2,3,4,5 ]
-                },
-                { "NAME" : "m_vector_of_complex_doubles",
-                  "TYPE" : "VECTOR",
-                  "CONTAINED_TYPE" : "COMPLEX_DOUBLE",
-                  "COMPLEX_TYPE" : "DOUBLE",
-                  "DESCRIPTION" : "vector of complex doubles",
-                  "DEFAULT_VALUE" : [ 1,2,3,4,5,6 ]
-                },
-                { "NAME"  : "m_empty_vector",
-                  "TYPE"  : "VECTOR",
-                  "CONTAINED_TYPE" : "DOUBLE",
-                  "DESCRIPTION" : "vector of doubles"
-                }
-            ]
+                "COMPLEX_TYPE" : "DOUBLE" },
+              { "NAME"  : "m_vector_of_doubles",
+                "TYPE"  : "VECTOR",
+                "CONTAINED_TYPE" : "DOUBLE",
+                "DESCRIPTION" : "vector of doubles",
+                "DEFAULT_VALUE" : [ 1,2,3,4,5 ]
+              },
+              { "NAME" : "m_vector_of_complex_doubles",
+                "TYPE" : "VECTOR",
+                "CONTAINED_TYPE" : "COMPLEX_DOUBLE",
+                "COMPLEX_TYPE" : "DOUBLE",
+                "DESCRIPTION" : "vector of complex doubles",
+                "DEFAULT_VALUE" : [ 1,2,3,4,5,6 ]
+              },
+              { "NAME"  : "m_empty_vector",
+                "TYPE"  : "VECTOR",
+                "CONTAINED_TYPE" : "DOUBLE",
+                "DESCRIPTION" : "vector of doubles"
+              },
+              { "NAME"  : "m_substruct1",
+                "TYPE"  : "STRUCT",
+                "STRUCT_TYPE" : "substruct1",
+                "DESCRIPTION" : "holds a substructure"
+              },
+              { "NAME"  : "m_vector_of_structs",
+                "TYPE"  : "VECTOR",
+                "CONTAINED_TYPE" : "STRUCT",
+                "DESCRIPTION" : "vector of doubles",
+                "STRUCT_TYPE" : "substruct1"
+              } ]
+           
         },
 
-   "substruct" :
-        {
-            "NAME" : "substruct",
-            "TYPE" : "STRUCT",
-            "DESCRIPTION" : "Test of substructs",
-            "NAMESPACE" : "blah",
-            "FIELDS" : [
-                { "NAME"  : "m_substruct1",
-                  "TYPE"  : "STRUCT",
-                  "STRUCT_TYPE" : "substruct1",
-                  "DESCRIPTION" : "holds a substructure"
-                }
-            ]
-        },
    "substruct1" :
         {
-            "NAME" : "substruct1",
-            "TYPE" : "STRUCT",
-            "DESCRIPTION" : "substruct for substruct test",
-            "NAMESPACE" : "blah",
-            "FIELDS" : [
-                { "NAME"  : "m_one",
-                  "TYPE"  : "INT_8",
-                  "DEFAULT_VALUE" : "1",
-                  "DESCRIPTION" : "holds a byte"
-                },
-                { "NAME"  : "m_two",
-                  "TYPE"  : "DOUBLE",
-                  "DEFAULT_VALUE" : "1.1",
-                  "DESCRIPTION" : "holds a double"
-                }
-            ]
-        },
-
-
-
-    "vector_of_structs" :
-        {
-            "NAME" : "vector_of_structs",
-            "TYPE" : "STRUCT",
-            "DESCRIPTION" : "test vectors of structs",
-            "NAMESPACE" : "blah",
-            "FIELDS" : [
-                { "NAME"  : "m_vector_of_structs",
-                  "TYPE"  : "VECTOR",
-                  "CONTAINED_TYPE" : "STRUCT",
-                  "DESCRIPTION" : "vector of doubles",
-                  "STRUCT_TYPE" : "substruct1"
-                }
-            ]
-        },
- 
-    
-   "Foo" :
-        {
-           "NAME"       : "Foo",
+           "NAME"       : "substruct1",
            "TYPE"       : "STRUCT",
-           "DESCRIPTION": "Sample structure",
-           "NAMESPACE"  : "blah",
+           "DESCRIPTION": "sample substruct",
+           "NAMESPACE"  : "example",
            "FIELDS"     : [ 
-             { "NAME"          : "Foo_field_one",
-               "TYPE"          : "INT_32",
-               "DESCRIPTION"   : "The number one",
-               "DEFAULT_VALUE" : "1",
-               "VALID_MIN"     : "1",
-               "VALID_MAX"     : "1" },
-            { "NAME"           : "Foo_substruct_bar_one",
-              "TYPE"           : "STRUCT",
-              "DESCRIPTION"    : "Substruct bar",
-              "STRUCT_TYPE"    : "Bar" },
-            { "NAME"           : "Foo_substruct_bar_two",
-              "TYPE"           : "STRUCT",
-              "DESCRIPTION"    : "Substruct bar",
-              "STRUCT_TYPE"    : "Bar" },
-            { "NAME"           : "Foo_vector_of_bar",
-              "TYPE"           : "VECTOR",
-              "DESCRIPTION"    : "holds a bunch of data",
-              "CONTAINED_TYPE" : "STRUCT",
-              "STRUCT_TYPE"    : "Bar" },
-            { "NAME"           : "Foo_vector_of_bytes",
-              "TYPE"           : "VECTOR",
-              "DESCRIPTION"    : "holds a bunch of data",
-              "CONTAINED_TYPE" : "UINT_8"}
-            ]
-        },
-    "Bar" :
-        {
-            "NAME" : "Bar",
-            "TYPE" : "STRUCT",
-            "DESCRIPTION" : "Sample structure 2",
-            "NAMESPACE"  : "blah",
-            "FIELDS" : [
-              { "NAME"          : "Bar_field_one",
-               "TYPE"          : "UINT_8",
-               "DESCRIPTION"   : "The number one",
-               "DEFAULT_VALUE" : "1",
-               "VALID_MIN"     : "1",
-               "VALID_MAX"     : "1" },
-              { "NAME"         : "Bar_vector_of_doubles",
-                "TYPE"         : "VECTOR",
-                "DESCRIPTION"  : "sub-vector",
-                "CONTAINED_TYPE" : "DOUBLE" } ]
-           
+             { "NAME"   : "field_1",
+                "TYPE"  : "UINT_8",
+                "DESCRIPTION" : "sample field 1",
+                "DEFAULT_VALUE" : 3
+             },
+             { "NAME"   : "field_2",
+                "TYPE"  : "SINGLE",
+                "DESCRIPTION" : "sample field 2",
+                "DEFAULT_VALUE" : 1.625
+             } ]
         }
 }
-   
