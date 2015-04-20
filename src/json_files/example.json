@@ -62,7 +62,7 @@
                "VALID_MIN"     : -9223372036854775807,
                "VALID_MAX"     : 9223372036854775807 
               },
-              { "NAME"          : "m_double",
+              { "name"          : "m_double",
                "TYPE"          : "DOUBLE",
                "DESCRIPTION"   : "Test double",
                "DEFAULT_VALUE" : 1.0 
@@ -70,13 +70,12 @@
               { "NAME"         : "m_single",
                 "DESCRIPTION"  : "Test float",
                 "DEFAULT_VALUE" : 1.0,
-                "TYPE"         : "SINGLE" 
+                "type"         : "SINGLE" 
               },
               { "NAME"         : "m_cmplx_double",
                 "DESCRIPTION"  : "Sample complex double",
                 "TYPE"         : "COMPLEX_DOUBLE",
-                "DEFAULT_VALUE" : [ 1, 1 ],
-                "COMPLEX_TYPE" : "DOUBLE" 
+                "DEFAULT_VALUE" : [ 1, 1 ]
               },
               { "NAME"  : "m_vector_of_doubles",
                 "TYPE"  : "DOUBLE",
@@ -87,7 +86,6 @@
               { "NAME" : "m_vector_of_complex_doubles",
                 "LENGTH" : "VECTOR",
                 "TYPE" : "COMPLEX_DOUBLE",
-                "COMPLEX_TYPE" : "DOUBLE",
                 "DESCRIPTION" : "vector of complex doubles",
                 "DEFAULT_VALUE" : [ 1,2,3,4,5,6 ]
               },

@@ -37,12 +37,12 @@ class AutoGenerator:
         # go through keys, setting length
         for struct_name, struct_def in self.structs.items():
             for idx, f in enumerate(struct_def['FIELDS']):
+                # move keys to upperclass
+                for key,val in f.items():
+                    f[key.upper()] = val
                 # SET LENGTH 
                 if not f.has_key('LENGTH'):
                     f['LENGTH'] = 1
-                # DETERMINE if is basetype
-                if self.basetypes.has_key(f['TYPE']):
-                    f['IS_BASETYPE'] = True
                 # Determine if is struct
                 if self.structs.has_key(f['TYPE']):
                     f['IS_STRUCT'] = True
