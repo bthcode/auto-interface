@@ -1,8 +1,6 @@
 { 
    "all_types" :
         {
-           "NAME"       : "all_types",
-           "TYPE"       : "STRUCT",
            "DESCRIPTION": "all field types",
            "NAMESPACE"  : "example",
            "FIELDS"     : [ 
@@ -108,8 +106,6 @@
 
    "substruct1" :
         {
-           "NAME"       : "substruct1",
-           "TYPE"       : "STRUCT",
            "DESCRIPTION": "sample substruct",
            "NAMESPACE"  : "example",
            "FIELDS"     : [ 
