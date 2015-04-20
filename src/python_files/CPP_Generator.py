@@ -17,10 +17,8 @@ def get_dependencies_for_struct(structs, struct_name):
     includes = {} # insert into a map to force unique -- probably a better way
     struct_def = structs[ struct_name ]
     for field in struct_def['FIELDS']:
-        if field['TYPE'] == "STRUCT":
-            includes[ "%s_class_def.h" % ( field['STRUCT_TYPE'] ) ] = 1
-        elif  field['TYPE'] == 'VECTOR' and field['CONTAINED_TYPE'] == 'STRUCT':
-            includes[ "%s_class_def.h" % ( field['STRUCT_TYPE'] ) ] = 1
+        if field['IS_STRUCT']:
+            includes[ "%s_class_def.h" % ( field['TYPE'] ) ] = 1
     return includes.keys()
 # end get_dependencies_for_struct
 
@@ -91,25 +89,26 @@ def create_struct_header( basetypes, structs, struct_name ):
     ### Member Data
     ret = ret + '\n\n    // Member Fields\n\n'
     for f in struct_def['FIELDS']:
-        if basetypes.has_key( f['TYPE'] ):
-            basetype = basetypes[f['TYPE']]
-            if basetype.has_key( 'CPP_TYPE' ):
-                c_decl = basetype['CPP_TYPE']
-            else:
-                c_decl = basetypes[ f['TYPE'] ]['C_TYPE']
-        elif f['TYPE'] == 'STRUCT':
-            c_decl = '%s' % ( f['STRUCT_TYPE'] )
-        elif f['TYPE'] == 'VECTOR':
-            if f['CONTAINED_TYPE'] == 'STRUCT':
-                c_decl = 'std::vector< %s >' % ( f['STRUCT_TYPE'] )
-            elif basetypes.has_key(f['CONTAINED_TYPE']):
-                basetype = basetypes[f['CONTAINED_TYPE']]
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                basetype = basetypes[f['TYPE']]
+                if basetype.has_key( 'CPP_TYPE' ):
+                    c_decl = basetype['CPP_TYPE']
+                else:
+                    c_decl = basetypes[ f['TYPE'] ]['C_TYPE']
+            elif f['IS_STRUCT']:
+                c_decl = '%s' % ( f['TYPE'] )
+        elif f['LENGTH'] == 'VECTOR':
+            if f['IS_STRUCT']:
+                c_decl = 'std::vector< %s >' % ( f['TYPE'] )
+            elif f['IS_BASETYPE']:
+                basetype = basetypes[f['TYPE']]
                 if basetype.has_key('CPP_TYPE'):
                     c_decl = 'std::vector< {0} >'.format(basetype['CPP_TYPE'])
                 else:
                     c_decl = 'std::vector< {0} >'.format(basetype['C_TYPE'])
             else:
-                print 'ERROR - vector with unknown type or no CONTAINED_TYPE key'
+                print 'ERROR - vector with unknown type or no TYPE key'
                 sys.exit(1)
         else:
             print 'ERROR - vector with no TYPE'
@@ -187,109 +186,111 @@ def create_struct_printer( basetypes, structs, struct_name ):
     
 
 
-def create_struct_impl( basetypes, structs, struct_name ):
+def create_struct_impl(basetypes,structs,struct_name):
     '''Creates the Primary Structure CPP Implementation'''
 
-    struct_def = structs[ struct_name ]
+    struct_def = structs[struct_name]
 
-    ret = '#include "%s_class_def.h"\n\n' % ( struct_name )
+    ret = '#include "%s_class_def.h"\n\n' % (struct_name)
 
     ### Namespace
     if struct_def.has_key( 'NAMESPACE'  ):
-        ret = ret + '\nnamespace %s {\n\n' % ( struct_def[ 'NAMESPACE' ] )
+        ret = ret + '\nnamespace %s {\n\n' % (struct_def['NAMESPACE'])
 
     ### Constructor
-    ret = ret + '%s::%s() : num_fields(%s){}\n\n\n' % ( struct_name, struct_name, len( struct_def['FIELDS'] ) )
+    ret = ret + '%s::%s() : num_fields(%s){}\n\n\n' % (struct_name,struct_name,len(struct_def['FIELDS']))
 
     ### Read Binary
-    ret = ret + "void %s::read_binary( std::ifstream& r_stream ){\n\n" % ( struct_name )
+    ret = ret + "void %s::read_binary( std::ifstream& r_stream ){\n\n" % (struct_name)
     for f in struct_def['FIELDS']:
-        if basetypes.has_key(f['TYPE']):
-            ret = ret + T + 'r_stream.read( (char*)&(%s), sizeof(%s) );\n' %( f['NAME'], f['NAME'] )
-        elif f['TYPE'] == 'STRUCT':
-            ret = ret + T + '%s.read_binary( r_stream );\n' % ( f['NAME'] )
-        elif f['TYPE'] == 'VECTOR':
-            ret = ret + T + 'uint32_t tmp_%s_size;\n' % ( f['NAME'] )
-            ret = ret + T + 'r_stream.read( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % ( f['NAME'], f['NAME'] )
-            if basetypes.has_key( f['CONTAINED_TYPE'] ):
-                # TODO: replace for loop with one big read  
-                basetype = basetypes[f['CONTAINED_TYPE']]
+        if f['LENGTH']==1:
+            if f['IS_BASETYPE']:
+                ret = ret + T + 'r_stream.read( (char*)&(%s), sizeof(%s) );\n' %(f['NAME'],f['NAME'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + '%s.read_binary( r_stream );\n' % (f['NAME'])
+        elif f['LENGTH'] == 'VECTOR':
+            ret = ret + T + 'uint32_t tmp_%s_size;\n' % (f['NAME'])
+            ret = ret + T + 'r_stream.read( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % (f['NAME'],f['NAME'])
+            if f['IS_BASETYPE']:
+                basetype = basetypes[f['TYPE']]
                 if basetype.has_key('CPP_TYPE'):
-                    ctype = basetypes[ f['CONTAINED_TYPE'] ]['CPP_TYPE']
+                    ctype = basetype['CPP_TYPE']
                 else:
-                    ctype = basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
-                ret = ret + T + '{0}.resize( tmp_{0}_size );\n'.format( f['NAME'] )
+                    ctype = basetype['C_TYPE']
+                ret = ret + T + '{0}.resize( tmp_{0}_size );\n'.format(f['NAME'])
                 ret = ret + T + 'r_stream.read( reinterpret_cast<char*>(&{0}[0]), tmp_{0}_size * sizeof({1}));\n'.format(f['NAME'],ctype)
-            elif f['CONTAINED_TYPE'] == 'STRUCT':
-                ctype = f['STRUCT_TYPE']
-                ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
-                ret = ret + T + T + '%s tmp_%s;\n' % ( ctype, ctype )
-                ret = ret + T + T + 'tmp_%s.read_binary( r_stream );\n' % ( ctype )
-                ret = ret + T + T + '%s.push_back( tmp_%s );\n' % ( f['NAME'], ctype )
+            elif f['IS_STRUCT']:
+                ctype = f['TYPE']
+                ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % (f['NAME'])
+                ret = ret + T + T + '%s tmp_%s;\n' % (ctype,ctype)
+                ret = ret + T + T + 'tmp_%s.read_binary( r_stream );\n' % (ctype)
+                ret = ret + T + T + '%s.push_back( tmp_%s );\n' % (f['NAME'],ctype)
                 ret = ret + T + '}\n'
     ret = ret + "}\n\n"
 
 
     ### Write Binary
-    ret = ret + "void %s::write_binary( std::ofstream& r_stream ){\n\n" % ( struct_name )
+    ret = ret + "void %s::write_binary( std::ofstream& r_stream ){\n\n" % (struct_name)
     for f in struct_def['FIELDS']:
-        if basetypes.has_key(f['TYPE']):
-            ret = ret + T + 'r_stream.write( (char*)&(%s), sizeof(%s) );\n' %( f['NAME'], f['NAME'] )
-        elif f['TYPE'] == 'STRUCT':
-            ret = ret + T + '%s.write_binary( r_stream );\n' % ( f['NAME'] )
-        elif f['TYPE'] == 'VECTOR':
-            ret = ret + T + 'uint32_t tmp_%s_size = %s.size();\n' % ( f['NAME'], f['NAME'] )
-            ret = ret + T + 'r_stream.write( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % ( f['NAME'], f['NAME'] )
-            if basetypes.has_key(f['CONTAINED_TYPE']):
-                ret = ret + T + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
-                ret = ret + T + T + 'r_stream.write( (char*)&(%s[ii]), sizeof(%s[ii]));\n' % ( f['NAME'], f['NAME'] )
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                ret = ret + T + 'r_stream.write( (char*)&(%s), sizeof(%s) );\n' %(f['NAME'],f['NAME'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + '%s.write_binary( r_stream );\n' % (f['NAME'])
+        elif f['LENGTH'] == 'VECTOR':
+            ret = ret + T + 'uint32_t tmp_%s_size = %s.size();\n' % (f['NAME'],f['NAME'])
+            ret = ret + T + 'r_stream.write( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % (f['NAME'],f['NAME'])
+            if f['IS_BASETYPE']:
+                ret = ret + T + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % (f['NAME'])
+                ret = ret + T + T + 'r_stream.write( (char*)&(%s[ii]), sizeof(%s[ii]));\n' % (f['NAME'],f['NAME'])
                 ret = ret + T + '}\n'
-            elif f['CONTAINED_TYPE'] == 'STRUCT':
-                ret = ret + T + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
-                ret = ret + T + T + '%s[ii].write_binary( r_stream );\n' % ( f['NAME'] )
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % (f['NAME'])
+                ret = ret + T + T + '%s[ii].write_binary( r_stream );\n' % (f['NAME'])
                 ret = ret + T + '}\n'
     ret = ret + "}\n\n"
 
 
 
     ### Write Props
-    ret = ret + "void %s::write_props( std::ostream& r_stream, std::string& r_prefix ){\n\n" % ( struct_name )
+    ret = ret + "void %s::write_props( std::ostream& r_stream, std::string& r_prefix ){\n\n" % (struct_name)
     ret = ret + T + "std::string tmp;\n"
     for f in struct_def['FIELDS']:
-        if basetypes.has_key( f['TYPE'] ):
-            b = basetypes[ f['TYPE'] ]
-            if b.has_key('STREAM_CAST'):
-                c_print = T + 'r_stream << r_prefix << "%s = " << (%s)(%s) << "\\n";\n' % ( f['NAME'], b['STREAM_CAST'], f['NAME'] )
-            else:
-                c_print = T + 'r_stream << r_prefix << "%s = " << %s << "\\n";\n' % ( f['NAME'], f['NAME'] )
-            ret = ret + c_print
-        elif f['TYPE'] == 'STRUCT':
-            ret = ret + T + 'tmp = r_prefix + "%s.";\n' % ( f['NAME'] )
-            c_print = T + '%s.write_props( r_stream, tmp );\n' % ( f['NAME'] )
-            ret = ret + c_print
-        elif f['TYPE'] == 'VECTOR':
-            if basetypes.has_key( f['CONTAINED_TYPE'] ):
-                b = basetypes[ f['CONTAINED_TYPE'] ]
+        if f['LENGTH']==1:
+            if f['IS_BASETYPE']:
+                b = basetypes[ f['TYPE'] ]
+                if b.has_key('STREAM_CAST'):
+                    c_print = T + 'r_stream << r_prefix << "%s = " << (%s)(%s) << "\\n";\n' % (f['NAME'],b['STREAM_CAST'],f['NAME'])
+                else:
+                    c_print = T + 'r_stream << r_prefix << "%s = " << %s << "\\n";\n' % (f['NAME'],f['NAME'])
+                ret = ret + c_print
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'tmp = r_prefix + "%s.";\n' % (f['NAME'])
+                c_print = T + '%s.write_props( r_stream, tmp );\n' % (f['NAME'])
+                ret = ret + c_print
+        elif f['LENGTH'] == 'VECTOR':
+            if f['IS_BASETYPE']:
+                b = basetypes[ f['TYPE'] ]
                 if b.has_key('CPP_TYPE'):
-                    iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % ( b['CPP_TYPE'] )
+                    iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % (b['CPP_TYPE'])
                 else:
-                    iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % ( b['C_TYPE'] )
-                if b.has_key( 'STREAM_CAST' ):
-                    print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << %s((*ii)) << "\\n";\n' % ( f['NAME'], b['STREAM_CAST'] )
+                    iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % (b['C_TYPE'])
+                if b.has_key('STREAM_CAST'):
+                    print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << %s((*ii)) << "\\n";\n' % (f['NAME'],b['STREAM_CAST'])
                 else:
-                    print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << (*ii) << "\\n";\n' % ( f['NAME'] )
+                    print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << (*ii) << "\\n";\n' % (f['NAME'])
             
-            elif f['CONTAINED_TYPE'] == 'STRUCT':
-                iter_decl = T + T + 'std::vector< %s >::iterator ii;\n' % ( f['STRUCT_TYPE'] )
+            elif f['IS_STRUCT']:
+                iter_decl = T + T + 'std::vector< %s >::iterator ii;\n' % (f['TYPE'])
                 print_decl = T + T + T + 'std::stringstream ss;\n'
-                print_decl = print_decl + T + T + T + 'ss << r_prefix << "%s[ " << count << " ].";\n' % ( f['NAME'] )
+                print_decl = print_decl + T + T + T + 'ss << r_prefix << "%s[ " << count << " ].";\n' % (f['NAME'])
                 print_decl = print_decl + T + T + T + 'std::string tmp( ss.str() );\n'
                 print_decl = print_decl + T + T + T + 'ii->write_props( r_stream, tmp );\n'
             
             ret = ret + T + '{\n'
             ret = ret + iter_decl
             ret = ret + T + T +  'std::size_t count = 0;\n'
-            ret = ret + T + T +  'for ( ii = %s.begin(); ii != %s.end(); ii++ )\n' %( f['NAME'], f['NAME'] )
+            ret = ret + T + T +  'for ( ii = %s.begin(); ii != %s.end(); ii++ )\n' %(f['NAME'],f['NAME'])
             ret = ret + T + T +  '{\n'
             ret = ret + print_decl
             ret = ret + T + T +T +   'count++;\n'
@@ -298,53 +299,54 @@ def create_struct_impl( basetypes, structs, struct_name ):
     ret = ret + "}\n\n"
 
     ### Read Props From Params
-    ret = ret + "std::size_t %s::read_props( std::map< std::string, std::string>& r_params, std::string& r_prefix ){\n\n" % ( struct_name )
+    ret = ret + "std::size_t %s::read_props( std::map< std::string, std::string>& r_params, std::string& r_prefix ){\n\n" % (struct_name)
     ret = ret + T + 'std::string key;\n'
     ret = ret + T + 'std::map< std::string, std::string >::iterator param_iter;\n'
     ret = ret + T + 'std::size_t fields_found=0;\n'
 
     for f in struct_def['FIELDS']:
-        if basetypes.has_key( f['TYPE'] ):
-            b = basetypes[ f['TYPE'] ]
-            ret = ret + T + 'key = r_prefix + "%s";\n\n' % ( f['NAME'] )
-            ret = ret + T + 'param_iter = r_params.find( key );\n'
-            ret = ret + T + 'if ( param_iter != r_params.end() )\n'
-            ret = ret + T + '{\n'
-            ret = ret + T +T +  'std::stringstream ss( param_iter->second );\n'
-            if b.has_key('STREAM_CAST'):
-                ret = ret + T +T +  '%s u;\n' % ( b[ 'STREAM_CAST' ] )
-                ret = ret + T +T +  'ss >> u;\n'
-                ret = ret + T +T +  '%s = (%s)( u );\n' % ( f['NAME'], b['STREAM_CAST' ] )
-            else:
-                ret = ret + T +T +  'ss >> %s;\n' % ( f['NAME'] )
-            ret = ret + T +T +  'fields_found++;\n'
-            ret = ret + T + '}\n'
-        elif f['TYPE'] == 'STRUCT':
-            ret = ret + T + 'key = r_prefix + "%s.";\n' % ( f['NAME'] )
-            ret = ret + T + 'fields_found += %s.read_props( r_params, key );\n' % ( f['NAME'] )
-        elif f['TYPE'] == 'VECTOR':
-            if basetypes.has_key( f['CONTAINED_TYPE'] ):
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                b = basetypes[f['TYPE']]
+                ret = ret + T + 'key = r_prefix + "%s";\n\n' % (f['NAME'])
+                ret = ret + T + 'param_iter = r_params.find( key );\n'
+                ret = ret + T + 'if ( param_iter != r_params.end() )\n'
+                ret = ret + T + '{\n'
+                ret = ret + T +T +  'std::stringstream ss( param_iter->second );\n'
+                if b.has_key('STREAM_CAST'):
+                    ret = ret + T +T +  '%s u;\n' % (b['STREAM_CAST'])
+                    ret = ret + T +T +  'ss >> u;\n'
+                    ret = ret + T +T +  '%s = (%s)( u );\n' % (f['NAME'],b['STREAM_CAST'])
+                else:
+                    ret = ret + T +T +  'ss >> %s;\n' % (f['NAME'])
+                ret = ret + T +T +  'fields_found++;\n'
+                ret = ret + T + '}\n'
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'key = r_prefix + "%s.";\n' % (f['NAME'])
+                ret = ret + T + 'fields_found += %s.read_props( r_params, key );\n' % (f['NAME'])
+        elif f['LENGTH'] == 'VECTOR':
+            if f['IS_BASETYPE']:
                 # 1. Get the prefix
                 # 2. Go into a while loop incrementing count until no more keys 
                 #       are found
-                b = basetypes[ f['CONTAINED_TYPE'] ]
+                b = basetypes[f['TYPE']]
                 ret = ret + T + '{\n'
                 ret = ret + T + 'std::size_t count=0;\n'
                 ret = ret + T + 'while( 1 )\n'
                 ret = ret + T + '{\n'
                 ret = ret + T +T + 'std::stringstream ss;\n'
-                ret = ret + T +T + 'ss << r_prefix << "%s" << "[ " << count << " ]";\n' % ( f['NAME'] )
+                ret = ret + T +T + 'ss << r_prefix << "%s" << "[ " << count << " ]";\n' % (f['NAME'])
                 ret = ret + T +T + 'param_iter = r_params.find( ss.str() );\n' 
                 ret = ret + T +T + 'if ( param_iter == r_params.end() )\n'
                 ret = ret + T +T + T + 'break;\n'
                 ret = ret + T +T + 'else {\n'
                 ret = ret + T +T + T + 'std::stringstream ss2( param_iter->second );\n'
                 if b.has_key( 'STREAM_CAST' ):
-                    ret = ret + T +T +T + '%s u;\n' % ( b[ 'STREAM_CAST' ] )
+                    ret = ret + T +T +T + '%s u;\n' % (b['STREAM_CAST'])
                     ret = ret + T +T +T + 'ss2 >> u;\n'
-                    ret = ret + T +T +T + '%s.push_back(%s( u ));\n' % ( f['NAME'], b['STREAM_CAST' ] )
+                    ret = ret + T +T +T + '%s.push_back(%s( u ));\n' % (f['NAME'],b['STREAM_CAST'])
                 else:
-                    if b.has_key( 'CPP_TYPE' ):
+                    if b.has_key('CPP_TYPE'):
                         ret = ret + T +T +T + '%s u;\n' % (b['CPP_TYPE'])
                     else:
                         ret = ret + T +T +T + '%s u;\n' % (b['C_TYPE'])
@@ -355,18 +357,18 @@ def create_struct_impl( basetypes, structs, struct_name ):
                 ret = ret + T +T + 'fields_found += count;\n'
                 ret = ret + T +T + '}\n'
                 ret = ret + T + '}\n'
-            elif f['CONTAINED_TYPE'] == 'STRUCT':
+            elif f['IS_STRUCT']:
                 ret = ret + T + '{\n'
                 ret = ret + T + 'std::size_t count=0;\n'
                 ret = ret + T + 'while( 1 )\n'
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'std::stringstream ss;\n'
                 ret = ret + T + T + 'ss << r_prefix << "%s" << "[ " << count << " ].";\n' % ( f['NAME'] )
-                ret = ret + T + T + '%s tmp_%s;\n' % ( f[ 'STRUCT_TYPE' ], f['STRUCT_TYPE' ] )
-                ret = ret + T + T + 'tmp_%s.set_defaults();\n' % ( f['STRUCT_TYPE'] )
+                ret = ret + T + T + '%s tmp_%s;\n' % (f['TYPE'],f['TYPE'])
+                ret = ret + T + T + 'tmp_%s.set_defaults();\n' % (f['TYPE'])
                 ret = ret + T + T + 'std::string s ( ss.str() );\n'
-                ret = ret + T + T + 'if ( tmp_%s.read_props( r_params, s )) {\n' % ( f['STRUCT_TYPE'] )
-                ret = ret + T + T + T + '%s.push_back( tmp_%s );\n' % ( f['NAME'], f['STRUCT_TYPE' ] )
+                ret = ret + T + T + 'if ( tmp_%s.read_props( r_params, s )) {\n' % (f['TYPE'])
+                ret = ret + T + T + T + '%s.push_back( tmp_%s );\n' % (f['NAME'],f['TYPE'])
                 ret = ret + T + T + '}\n'
                 ret = ret + T + T +  'else { break; }\n'
                 ret = ret + T + T + T + 'count++;\n'
@@ -379,7 +381,7 @@ def create_struct_impl( basetypes, structs, struct_name ):
 
 
     ### Read Props From Stream
-    ret = ret + "void %s::read_props( std::istream& r_in_stream, std::string& r_prefix ){\n\n" % ( struct_name )
+    ret = ret + "void %s::read_props( std::istream& r_in_stream, std::string& r_prefix ){\n\n" % (struct_name)
     ret = ret + T + 'std::map< std::string, std::string > params;\n\n'
     ret = ret + T + 'parse_param_stream( r_in_stream, params );\n\n' 
     ret = ret + T + 'std::string key;\n'
@@ -387,33 +389,34 @@ def create_struct_impl( basetypes, structs, struct_name ):
     ret = ret + "}\n\n"
 
     ### Defaults
-    ret = ret + "void %s::set_defaults( ){\n\n" % ( struct_name )
+    ret = ret + "void %s::set_defaults( ){\n\n" % (struct_name)
     for f in struct_def['FIELDS']:
-        if basetypes.has_key( f['TYPE'] ):
-            b = basetypes[ f['TYPE'] ]
-            # get default value
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                b = basetypes[ f['TYPE'] ]
+                # get default value
+                if f.has_key('DEFAULT_VALUE'):
+                    def_val = f['DEFAULT_VALUE']
+                else:
+                    def_val = b['DEFAULT_VALUE']
+                # format for complex or not
+                if b['IS_COMPLEX']:
+                    val = '{0}({1},{2})'.format(b['CPP_TYPE'],def_val[0],def_val[1])
+                else:
+                    val = '{0}'.format(def_val)
+                # set default value
+                ret = ret + T + '{0} = {1};\n'.format(f['NAME'],val)
+            elif f['IS_STRUCT']:
+                ret = ret + T + '%s.set_defaults( );\n' % ( f['NAME'] )
+        elif f['LENGTH'] == 'VECTOR':
             if f.has_key('DEFAULT_VALUE'):
-                def_val = f['DEFAULT_VALUE']
-            else:
-                def_val = b['DEFAULT_VALUE']
-            # format for complex or not
-            if b.has_key( 'COMPLEX' ):
-                val = '{0}({1},{2})'.format(b['CPP_TYPE'],def_val[0],def_val[1])
-            else:
-                val = '{0}'.format(def_val)
-            # set default value
-            ret = ret + T + '{0} = {1};\n'.format(f['NAME'],val)
-        elif f['TYPE'] == 'STRUCT':
-            ret = ret + T + '%s.set_defaults( );\n' % ( f['NAME'] )
-        elif f['TYPE'] == 'VECTOR':
-            if f.has_key('DEFAULT_VALUE'):
-                if basetypes.has_key(f['CONTAINED_TYPE']):
-                    b = basetypes[f['CONTAINED_TYPE']]
+                if f['IS_BASETYPE']:
+                    b = basetypes[f['TYPE']]
                     # get default value
                     if f.has_key('DEFAULT_VALUE'):
                         def_val = f['DEFAULT_VALUE']
                     # format for complex or not
-                    if b.has_key( 'COMPLEX' ):
+                    if b['IS_COMPLEX']:
                         num_elements = len(def_val)/2
                         ret = ret + T + '{0}.resize({1});\n'.format(f['NAME'],num_elements)
                         counter=0
@@ -432,10 +435,10 @@ def create_struct_impl( basetypes, structs, struct_name ):
                             ret = ret + T + '{0}[{1}] = {2};\n'.format(f['NAME'],counter,def_val[idx])
                             counter = counter+1
 
-                elif f['CONTAINED_TYPE'] == 'STRUCT':
+                elif f['IS_STRUCT']:
                     pass
                 else:
-                    print ("Unknown vector type: {0}".format(f['CONTAINED_TYPE']))
+                    print ("Unknown vector type: {0}".format(f['TYPE']))
             else:
                 ret = ret + T + '{0}.resize(0);\n'.format(f['NAME'])
     ret = ret + "}\n\n"
@@ -444,20 +447,21 @@ def create_struct_impl( basetypes, structs, struct_name ):
     ret = ret + "int %s::validate( std::string& err_msg ){\n\n" % ( struct_name )
     ret = ret + T + "int num_errs=0;\n"
     for f in struct_def['FIELDS']:
-        if basetypes.has_key( f['TYPE'] ):
-            b = basetypes[ f['TYPE'] ]
-            if f.has_key('VALID_MIN'):
-                ret = ret + T + "if ( %s < %s ) {\n" % ( f['NAME'], f['VALID_MIN'] )
-                ret = ret + T + T + 'err_msg +=  "Failed field: %s is less than %s\\n";\n' % ( f['NAME'], f['VALID_MIN'])
-                ret = ret + T + T + 'num_errs++;\n'
-                ret = ret + T + '}\n'
-            if f.has_key('VALID_MAX'):
-                ret = ret + T + "if ( %s > %s ) {\n" % ( f['NAME'], f['VALID_MAX'] )
-                ret = ret + T + T + 'err_msg +=  "Failed field: %s is greater than %s\\n";\n' % ( f['NAME'], f['VALID_MAX'])
-                ret = ret + T + T + 'num_errs++;\n'
-                ret = ret + T + '}\n'
-        elif f['TYPE'] == 'STRUCT':
-            ret = ret + T + 'num_errs += %s.validate( err_msg );\n' % ( f['NAME'] )
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                b = basetypes[ f['TYPE'] ]
+                if f.has_key('VALID_MIN'):
+                    ret = ret + T + "if ( %s < %s ) {\n" % ( f['NAME'], f['VALID_MIN'] )
+                    ret = ret + T + T + 'err_msg +=  "Failed field: %s is less than %s\\n";\n' % ( f['NAME'], f['VALID_MIN'])
+                    ret = ret + T + T + 'num_errs++;\n'
+                    ret = ret + T + '}\n'
+                if f.has_key('VALID_MAX'):
+                    ret = ret + T + "if ( %s > %s ) {\n" % ( f['NAME'], f['VALID_MAX'] )
+                    ret = ret + T + T + 'err_msg +=  "Failed field: %s is greater than %s\\n";\n' % ( f['NAME'], f['VALID_MAX'])
+                    ret = ret + T + T + 'num_errs++;\n'
+                    ret = ret + T + '}\n'
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'num_errs += %s.validate( err_msg );\n' % ( f['NAME'] )
     ret = ret + T + 'return num_errs;\n';
     ret = ret + "}\n\n"
 
@@ -569,7 +573,7 @@ if __name__ == "__main__":
     parser.add_argument( 'src_dir' )
     args = parser.parse_args()
 
-    A = AutoGenerator( args.json_basetypes_file, args.json_structures_file, "")
+    A = AutoGenerator( args.json_basetypes_file, args.json_structures_file)
     basetypes = A.basetypes
     structs   = A.structs
     generate_CPP( args.src_dir, args.inc_dir, basetypes, structs )

@@ -24,29 +24,30 @@ def create_py_class_def( basetypes, structs, struct_name ):
 
     # set defaults
     for f in struct_def['FIELDS']:
-        if basetypes.has_key(f['TYPE']):
-            basetype = basetypes[f['TYPE']]
-            if f.has_key('DEFAULT_VALUE'):
-                def_val = f['DEFAULT_VALUE']
-            else:
-                def_val = basetype['DEFAULT_VALUE']
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                basetype = basetypes[f['TYPE']]
+                if f.has_key('DEFAULT_VALUE'):
+                    def_val = f['DEFAULT_VALUE']
+                else:
+                    def_val = basetype['DEFAULT_VALUE']
 
-            if basetype.has_key( 'COMPLEX' ):
-                # TODO: handle the case when this is set wrong by the user
-                ret = ret + T + T + "self.{0} = {1} + {2}j;\n".format(f['NAME'], def_val[0],def_val[1])
-            else:
-                ret = ret + T + T + "self.{0} = {1};\n".format(f['NAME'], def_val)
-        elif f['TYPE'] == 'STRUCT':
-            ret = ret + T + T + 'self.{0} = {1}()\n'.format(f['NAME'], f['STRUCT_TYPE'])
-            ret = ret + T + T + 'self.{0}.set_defaults();\n'.format(f['NAME'])
-        elif f['TYPE'] == 'VECTOR':
+                if basetype['IS_COMPLEX']:
+                    # TODO: handle the case when this is set wrong by the user
+                    ret = ret + T + T + "self.{0} = {1} + {2}j;\n".format(f['NAME'], def_val[0],def_val[1])
+                else:
+                    ret = ret + T + T + "self.{0} = {1};\n".format(f['NAME'], def_val)
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'self.{0} = {1}()\n'.format(f['NAME'], f['TYPE'])
+                ret = ret + T + T + 'self.{0}.set_defaults();\n'.format(f['NAME'])
+        elif f['LENGTH'] == 'VECTOR':
             # If a default vaulue, try to set it
             if f.has_key( 'DEFAULT_VALUE' ):
-                if basetypes.has_key(f['CONTAINED_TYPE']):
-                    basetype = basetypes[f['CONTAINED_TYPE']]
+                if f['IS_BASETYPE']:
+                    basetype = basetypes[f['TYPE']]
                     def_val = f['DEFAULT_VALUE']
                     # COMPLEX
-                    if basetype.has_key('COMPLEX'):
+                    if basetype['IS_COMPLEX']:
                         def_str = ''
                         for idx in range(0,len(def_val),2):
                             def_str = def_str + '{0} + {1}j,'.format(def_val[idx],def_val[idx+1])
@@ -61,7 +62,7 @@ def create_py_class_def( basetypes, structs, struct_name ):
                         def_str = def_str[:-1]
                     # set the value
                     ret = ret + T + T + 'self.{0} = [ {1} ]\n'.format(f['NAME'],def_str)
-                elif f['CONTAINED_TYPE'] == 'STRUCT':
+                elif f['IS_STRUCT']:
                     ret = ret + T + T + 'self.{0} = []\n'.format( f['NAME'] )
             # No default value, just set the element
             else:
@@ -72,19 +73,20 @@ def create_py_class_def( basetypes, structs, struct_name ):
     # read binary
     ret = ret + T + "def read_binary( self, r_stream ):\n"
     for f in struct_def['FIELDS']:
-        if basetypes.has_key( f['TYPE'] ):
-            ret = ret + T + T + 'self.{0} = io.read_{1}( r_stream )\n'.format(f['NAME'], f['TYPE'])
-        elif f['TYPE'] == 'STRUCT':
-            ret = ret + T + T + 'self.{0}.read_binary( r_stream );\n'.format( f['NAME'] )
-        elif f['TYPE'] == 'VECTOR':
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                ret = ret + T + T + 'self.{0} = io.read_{1}( r_stream )\n'.format(f['NAME'], f['TYPE'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'self.{0}.read_binary( r_stream );\n'.format( f['NAME'] )
+        elif f['LENGTH'] == 'VECTOR':
             ret = ret + T + T + "self.{0} = []\n".format( f['NAME'] )
             # TODO - this needs to be uint32_t
             ret = ret + T + T + "num_elems = io.read_INT_32( r_stream )\n"
-            if basetypes.has_key( f['CONTAINED_TYPE'] ):
-                ret = ret + T + T + 'self.{0} = io.read_{1}( r_stream, nElements=num_elems )\n'.format(f['NAME'], f['CONTAINED_TYPE'])
-            elif f['CONTAINED_TYPE'] == 'STRUCT':
+            if f['IS_BASETYPE']:
+                ret = ret + T + T + 'self.{0} = io.read_{1}( r_stream, nElements=num_elems )\n'.format(f['NAME'], f['TYPE'])
+            elif f['IS_STRUCT']:
                 ret = ret + T + T + 'for idx in range( num_elems ):\n'
-                ret = ret + T + T + T + 'tmp = {0}()\n'.format( f['STRUCT_TYPE'] )
+                ret = ret + T + T + T + 'tmp = {0}()\n'.format( f['TYPE'] )
                 ret = ret + T + T + T + 'tmp.read_binary(r_stream)\n'
                 ret = ret + T + T + T + 'self.{0}.append( tmp )\n'.format( f['NAME'] )
     ret = ret + T + "# end read_binary\n\n"
@@ -93,25 +95,26 @@ def create_py_class_def( basetypes, structs, struct_name ):
     # write binary
     ret = ret + T + "def write_binary( self, r_stream, typecheck=False ):\n"
     for f in struct_def['FIELDS']:
-        if basetypes.has_key( f['TYPE'] ):
-            ret = ret + T + T + 'io.write_{0}( r_stream, self.{1} )\n'.format(f['TYPE'], f['NAME'])
-        elif f['TYPE'] == 'STRUCT':
-            ret = ret + T + T + 'if typecheck:\n'
-            ret = ret + T + T + T + 'if self.{0}.__class__ != {1}:\n'.format(f['NAME'],f['STRUCT_TYPE'])
-            ret = ret + T + T + T + T + 'print ("ERROR: {0} should be type {1}, but is {{0}}".format(self.{0}.__class__.__name__))\n'.format(f['NAME'],f['STRUCT_TYPE'])
-            ret = ret + T + T + T + T + 'return\n'
-            ret = ret + T + T + 'self.{0}.write_binary(r_stream);\n'.format(f['NAME'])
-        elif f['TYPE'] == 'VECTOR':
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                ret = ret + T + T + 'io.write_{0}( r_stream, self.{1} )\n'.format(f['TYPE'], f['NAME'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'if typecheck:\n'
+                ret = ret + T + T + T + 'if self.{0}.__class__ != {1}:\n'.format(f['NAME'],f['TYPE'])
+                ret = ret + T + T + T + T + 'print ("ERROR: {0} should be type {1}, but is {{0}}".format(self.{0}.__class__.__name__))\n'.format(f['NAME'],f['TYPE'])
+                ret = ret + T + T + T + T + 'return\n'
+                ret = ret + T + T + 'self.{0}.write_binary(r_stream);\n'.format(f['NAME'])
+        elif f['LENGTH'] == 'VECTOR':
             # TODO - this needs to be uint32_t
             ret = ret + T + T + "num_elems = len( self.{0} )\n".format(f['NAME'])
             ret = ret + T + T + "io.write_INT_32( r_stream, num_elems )\n"
-            if basetypes.has_key( f['CONTAINED_TYPE'] ):
-                ret = ret + T + T + 'io.write_{0}( r_stream, self.{1}, nElements=num_elems )\n'.format(f['CONTAINED_TYPE'],f['NAME'])
-            elif f['CONTAINED_TYPE'] == 'STRUCT':
+            if f['IS_BASETYPE']:
+                ret = ret + T + T + 'io.write_{0}( r_stream, self.{1}, nElements=num_elems )\n'.format(f['TYPE'],f['NAME'])
+            elif f['IS_STRUCT']:
                 ret = ret + T + T + 'for idx in range( num_elems ):\n'
                 ret = ret + T + T + T + 'if typecheck:\n'
-                ret = ret + T + T + T + T + 'if self.{0}[idx].__class__ != {1}:\n'.format(f['NAME'],f['STRUCT_TYPE'])
-                ret = ret + T + T + T + T + T + 'print ("ERROR: {0}[{{0}}] should be type {1}, but is {{1}}".format(idx,self.{0}[idx].__class__.__name__))\n'.format(f['NAME'],f['STRUCT_TYPE'])
+                ret = ret + T + T + T + T + 'if self.{0}[idx].__class__ != {1}:\n'.format(f['NAME'],f['TYPE'])
+                ret = ret + T + T + T + T + T + 'print ("ERROR: {0}[{{0}}] should be type {1}, but is {{1}}".format(idx,self.{0}[idx].__class__.__name__))\n'.format(f['NAME'],f['TYPE'])
                 ret = ret + T + T + T + T + T + 'return\n'
                 ret = ret + T + T + T + 'self.{0}[idx].write_binary(r_stream)\n'.format( f['NAME'] )
     ret = ret + T + "# end write_binary\n\n"
@@ -157,7 +160,7 @@ if __name__ == "__main__":
     json_basetypes = args.json_basetypes_file
     json_file = args.json_structures_file
     out_dir = args.output_directory
-    A = AutoGenerator( json_basetypes, json_file, out_dir  )
+    A = AutoGenerator( json_basetypes, json_file )
     basetypes = A.basetypes
     structs   = A.structs
     generate_py( out_dir, basetypes, structs )

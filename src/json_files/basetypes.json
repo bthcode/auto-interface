@@ -82,7 +82,7 @@
          "DEFAULT_VALUE" : [0,0],
          "MEX_TYPE" : "mxDOUBLE_CLASS",
          "MAT_TYPE" : "double",
-         "COMPLEX" : "TRUE"
+         "IS_COMPLEX" : "TRUE"
       },
      "COMPLEX_SINGLE" :
       {
@@ -91,7 +91,7 @@
          "DEFAULT_VALUE" : [0,0],
          "MEX_TYPE" : "mxDOUBLE_CLASS",
          "MAT_TYPE" : "single",
-         "COMPLEX" : "TRUE"
+         "IS_COMPLEX" : "TRUE"
       }
     
    
