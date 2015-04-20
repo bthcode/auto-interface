@@ -1,8 +1,7 @@
 {
     "sample" :
     {
-        "NAME" : "sample",
-        "TYPE" : "STRUCT",
+        "DESCRIPTION" : "Sample Struct",
         "FIELDS" : [
             {
                 "NAME" : "field_1",
