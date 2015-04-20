@@ -31,8 +31,6 @@ Syntax:
 - Each structure is defined as:
     - 'struct_name' : struct definition
 - A struct definition is:
-    - 'NAME' : string
-    - 'TYPE' : "STRUCT"
     - 'DESCRIPTION' : optional string
     - 'NAMESPACE' : optional string - used as a c++ namespace
     - 'FIELDS' : [ array of fields ]
@@ -93,8 +91,7 @@ Given the following Sample File:
 {
     "sample" :
     {
-        "NAME" : "sample",
-        "TYPE" : "STRUCT",
+        "DESCRIPTION" : "Sample Struct"
         "FIELDS" : [
             {
                 "NAME" : "field_1",

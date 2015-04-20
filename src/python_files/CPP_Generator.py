@@ -474,8 +474,6 @@ def create_struct_impl(basetypes,structs,struct_name):
 # end create_struct_impl
 
 def create_cmake_file( cpp_src_dir, cpp_inc_dir, basetypes, structs ):
-    print (cpp_src_dir)
-    print (cpp_inc_dir)
     ret = """
 cmake_minimum_required(VERSION 2.8)
 

@@ -28,11 +28,8 @@ python src/python_files/MAT_Generator.py src/json_files/basetypes.json src/json_
 ###
 # Other todos:
 
-- Docs
 - ascii i/o support? json i/o support?
    - flat vectors to flat output
 - auto-generate a set of tests
-- better test structure
-- build system for c
 - should default length be supported?
 - should fixed length arrays be supported?

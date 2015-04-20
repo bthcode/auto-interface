@@ -77,9 +77,9 @@ def create_py_class_def( basetypes, structs, struct_name ):
             if f['IS_BASETYPE']:
                 ret = ret + T + T + 'self.{0} = io.read_{1}( r_stream )\n'.format(f['NAME'], f['TYPE'])
             elif f['IS_STRUCT']:
-                ret = ret + T + T + 'self.{0}.read_binary( r_stream );\n'.format( f['NAME'] )
+                ret = ret + T + T + 'self.{0}.read_binary( r_stream );\n'.format(f['NAME'])
         elif f['LENGTH'] == 'VECTOR':
-            ret = ret + T + T + "self.{0} = []\n".format( f['NAME'] )
+            ret = ret + T + T + "self.{0} = []\n".format(f['NAME'])
             # TODO - this needs to be uint32_t
             ret = ret + T + T + "num_elems = io.read_INT_32( r_stream )\n"
             if f['IS_BASETYPE']:
@@ -88,7 +88,7 @@ def create_py_class_def( basetypes, structs, struct_name ):
                 ret = ret + T + T + 'for idx in range( num_elems ):\n'
                 ret = ret + T + T + T + 'tmp = {0}()\n'.format( f['TYPE'] )
                 ret = ret + T + T + T + 'tmp.read_binary(r_stream)\n'
-                ret = ret + T + T + T + 'self.{0}.append( tmp )\n'.format( f['NAME'] )
+                ret = ret + T + T + T + 'self.{0}.append( tmp )\n'.format(f['NAME'])
     ret = ret + T + "# end read_binary\n\n"
 
 
@@ -116,9 +116,9 @@ def create_py_class_def( basetypes, structs, struct_name ):
                 ret = ret + T + T + T + T + 'if self.{0}[idx].__class__ != {1}:\n'.format(f['NAME'],f['TYPE'])
                 ret = ret + T + T + T + T + T + 'print ("ERROR: {0}[{{0}}] should be type {1}, but is {{1}}".format(idx,self.{0}[idx].__class__.__name__))\n'.format(f['NAME'],f['TYPE'])
                 ret = ret + T + T + T + T + T + 'return\n'
-                ret = ret + T + T + T + 'self.{0}[idx].write_binary(r_stream)\n'.format( f['NAME'] )
+                ret = ret + T + T + T + 'self.{0}[idx].write_binary(r_stream)\n'.format(f['NAME'])
     ret = ret + T + "# end write_binary\n\n"
-    ret = ret + "# end class {0}\n\n".format(  struct_name )
+    ret = ret + "# end class {0}\n\n".format(struct_name)
 
 
     return ret
