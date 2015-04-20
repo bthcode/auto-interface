@@ -1,0 +1,17 @@
+{
+    "sample" :
+    {
+        "NAME" : "sample",
+        "TYPE" : "STRUCT",
+        "FIELDS" : [
+            {
+                "NAME" : "field_1",
+                "TYPE" : "UINT_8"
+            },
+            {
+                "NAME" : "field2",
+                "TYPE" : "SINGLE",
+                "LENGTH" : "VECTOR"
+            } ]
+    }
+}
