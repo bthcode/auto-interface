@@ -1,9 +1,6 @@
 #!/bin/bash
 
-# Auto Interface
-# ==============
-
-# Quick Start:
+See docs/README.rst for detailed documents
 
 ###################################
 # NOTE: CMAKE-IFICATION IN PROGRESS

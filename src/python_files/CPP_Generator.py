@@ -52,7 +52,8 @@ class_end = \
     void write_binary( std::ofstream& r_out_stream );
     void read_binary( std::ifstream& r_in_stream );
 
-};'''
+};
+'''
 
 
 

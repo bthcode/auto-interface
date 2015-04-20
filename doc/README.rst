@@ -103,7 +103,8 @@ Given the following Sample File:
             {
                 "NAME" : "field2",
                 "TYPE" : "SINGLE",
-                "LENGTH" : "VECTOR"
+                "LENGTH" : "VECTOR",
+                "DEFAULT_VALUE" : [1,2,3,4,5]
             } ]
     }
 }
@@ -120,7 +121,7 @@ The following python will be generated:
 
 class sample:
     def __init__(self):
-        self.set_defaults()
+        self.set_defaults() 
     # end __init__
 
     def __repr__(self):
@@ -132,7 +133,7 @@ class sample:
 
     def set_defaults(self):
         self.field_1 = 0;
-        self.field2 = []
+        self.field2 = [ 1,2,3,4,5 ]
     # end set_defaults
 
     def read_binary( self, r_stream ):
@@ -150,3 +151,4 @@ class sample:
     # end write_binary
 
 # end class sample
+
