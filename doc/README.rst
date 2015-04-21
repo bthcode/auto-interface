@@ -3,7 +3,7 @@ Auto-Interface Code Generator
 =============================
 
 ***********
-Quick Start:
+Quick Start
 ***********
 
 Generate python bindings::
@@ -31,7 +31,7 @@ Use the generated python to serialize and de-serialize objects::
     fclose(fin)
 
 ******
-Syntax:
+Syntax
 ******
 
 - Format is JSON
@@ -52,7 +52,7 @@ Syntax:
      - 'VALID_MAX' : optional
 
 **************
-Generated Code:
+Generated Code
 **************
 
 Code can be generated for CPP, Matlab or Python.  The following functions are currently supported:
@@ -74,7 +74,7 @@ Code can be generated for CPP, Matlab or Python.  The following functions are cu
     - set_defaults
 
 *********
-BASETYPES:
+BASETYPES
 *********
 
 ==============  ===================== =======  ====== ============
@@ -95,13 +95,13 @@ COMPLEX_DOUBLE  std::complex<double>  double   float  (16)Byte r,i
 ==============  ===================== =======  ====== ============
 
 ********************
-Serialization Format:
+Serialization Format
 ********************
 
 - Data is serialized as packed binary in native endian order
 
 *******
-EXAMPLE:
+Example
 *******
 
 Given the following Sample File::
