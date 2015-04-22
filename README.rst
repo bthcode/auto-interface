@@ -9,7 +9,9 @@ Quick Start
 Generate python bindings::
 
     # Generate Code
-    python src/python_files/Py_Generator.py src/json_files/basetypes.json src/json_files/example.json py 
+    python src/python_files/Py_Generator.py \
+           src/json_files/basetypes.json \
+           src/json_files/example.json py 
 
 Use the generated python to serialize and de-serialize objects::
 
@@ -29,6 +31,35 @@ Use the generated python to serialize and de-serialize objects::
     b = ii.all_types()
     b.read_binary(fin)
     fclose(fin)
+
+***************
+Sample Commands
+***************
+
+Generate CPP::
+    python src/python_files/CPP_Generator.py \
+           src/json_files/basetypes.json \
+           src/json_files/example.json cpp cpp
+
+Generate Python::
+    python src/python_files/Py_Generator.py \
+           src/json_files/basetypes.json \
+           src/json_files/example.json py 
+
+Generate Matlab::
+    python src/python_files/MAT_Generator.py \
+           src/json_files/basetypes.json \
+           src/json_files/example.json mat
+
+Generate Sphinx Docs::
+    python src/python_files/Doc_Generator.py \
+           src/json_files/basetypes.json \
+           src/json_files/example.json doc
+
+Test AutoInterface Class::
+    python src/python_files/AutoInterface.py \
+           src/json_files/basetypes.json \
+           src/json_files/example.json
 
 ******
 Syntax
@@ -130,7 +161,9 @@ Generate python code as follows::
 
 For example::
 
-    python src/python_files/Py_Generator.py src/json_files/basetypes.json src/json_files/sample.json py
+    python src/python_files/Py_Generator.py \
+       src/json_files/basetypes.json \ 
+       src/json_files/sample.json py
 
 The following python will be generated::
 

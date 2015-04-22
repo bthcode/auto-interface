@@ -1,0 +1,24 @@
+###
+# What Works:
+
+- basic types
+- structs
+- vectors
+- vector of structs
+- c++, python, matlab
+- binary i/o for C++, Python and Matlab
+
+###
+# What doesn't:
+
+- fixed length arrays
+- ascii i/o
+
+###
+# Other todos:
+
+- ascii i/o support? json i/o support?
+   - flat vectors to flat output
+- auto-generate a set of tests
+- should default length be supported?
+- should fixed length arrays be supported?
