@@ -1,6 +1,11 @@
 {
-    "sample" :
+    "PROJECT" : "SampleProject",
+    "VERSION" : "1.0.0",
+    "NAMESPACE" : "SP",
+    "DESCRIPTION" : "This is a project description",
+    "STRUCTURES" : [
     {
+        "NAME" : "sample",
         "DESCRIPTION" : "Sample Struct",
         "FIELDS" : [
             {
@@ -15,4 +20,6 @@
 
             } ]
     }
+
+    ]
 }

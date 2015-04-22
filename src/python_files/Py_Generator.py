@@ -53,6 +53,7 @@ def create_py_class_def( basetypes, structs, struct_name ):
                             def_str = def_str + '{0} + {1}j,'.format(def_val[idx],def_val[idx+1])
                     # Not COMPLEX
                     else:
+                        print f
                         def_str = ''
                         for idx in range(len(def_val)):
                             def_str = def_str + '{0},'.format(def_val[idx])

@@ -1,8 +1,12 @@
 { 
-   "all_types" :
+   "PROJECT" : "AutoGenExample",
+   "VERSION" : "1.0.0",
+   "NAMESPACE" : "Example",
+   "DESCRIPTION" : "This is an example auto gen project that includes all types",
+   "STRUCTURES" : [
         {
+           "NAME":"all_types",
            "DESCRIPTION": "all field types",
-           "NAMESPACE"  : "example",
            "FIELDS"     : [ 
               { "NAME"          : "m_uint_8",
                "TYPE"          : "UINT_8",
@@ -104,10 +108,9 @@
            
         },
 
-   "substruct1" :
         {
+           "NAME" : "substruct1",
            "DESCRIPTION": "sample substruct",
-           "NAMESPACE"  : "example",
            "FIELDS"     : [ 
              { "NAME"   : "field_1",
                 "TYPE"  : "UINT_8",
@@ -120,4 +123,5 @@
                 "DEFAULT_VALUE" : 1.625
              } ]
         }
+        ]
 }

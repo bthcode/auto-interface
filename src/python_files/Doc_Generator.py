@@ -59,7 +59,7 @@ def create_rst( basetypes, structs, struct_name ):
         lengths_length = max(len(lengths[-1]),lengths_length)
         descriptions.append(str(f['DESCRIPTION']))
         descriptions_length = max(len(descriptions[-1]),descriptions_length)
-        if f['IS_BASETYPE']:
+        if f['IS_BASETYPE'] and f['LENGTH']==1:
             defaults.append(str(f['DEFAULT_VALUE']))
         else:
             defaults.append('')
@@ -100,7 +100,7 @@ def create_rst( basetypes, structs, struct_name ):
 # end generate_rst
 
 
-def generate_docs( doc_dir, basetypes, structs, overwrite=True ):
+def generate_docs( project_name, project_version, project_description, doc_dir, basetypes, struct_order, structs, overwrite=True ):
     if overwrite:
         if os.path.exists( doc_dir ):
             shutil.rmtree( doc_dir )
@@ -111,12 +111,19 @@ def generate_docs( doc_dir, basetypes, structs, overwrite=True ):
 
     fOut = open( doc_dir + os.sep + 'generated.rst', 'w' )
     generated = '''
+###########################
+Project: {0}
+###########################
+
+Version: {1}
+Description: {2}
+
 ====================
-Generated Structures
+Generated Structures 
 ====================
 
-'''
-    for struct_name, struct_def in structs.items():
+'''.format( project_name, project_version, project_description )
+    for struct_name in struct_order: 
         generated = generated + create_rst( basetypes, structs, struct_name )
     fOut.write( generated )
     fOut.close()
@@ -137,4 +144,9 @@ if __name__ == "__main__":
     A = AutoGenerator( json_basetypes, json_file )
     basetypes = A.basetypes
     structs   = A.structs
-    generate_docs( out_dir, basetypes, structs, overwrite=True )
+    pname = A.project['PROJECT']
+    pdesc = A.project['DESCRIPTION']
+    pver  = A.project['VERSION']
+    struct_order = A.struct_order
+
+    generate_docs( pname, pdesc, pver, out_dir, basetypes, struct_order, structs, overwrite=True )

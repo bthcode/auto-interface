@@ -71,13 +71,15 @@ Syntax
 ******
 
 - Format is JSON
+- A Project is a set of key value pairs
+    - 'PROJECT' : optional string 
+    - 'VERSION' : optional string
+    - 'NAMESPACE' : optional string
+    - 'STRUCTURES' : required, array of structure defs
 - Each structure is defined as:
-    - 'struct_name' : struct definition
-- A struct definition is:
+    - 'NAME' : required struct name (no spaces)
     - 'DESCRIPTION' : optional string
-    - 'NAMESPACE' : optional string - used as a c++ namespace
     - 'FIELDS' : [ array of fields ]
-
 - A field is:
      - 'NAME' : string
      - 'TYPE' : basetype or struct name, see list of basetypes
@@ -142,10 +144,16 @@ Example
 
 Given the following Sample File::
 
+
     {
-        "sample" :
+        "PROJECT" : "SampleProject",
+        "VERSION" : "1.0.0",
+        "NAMESPACE" : "SP",
+        "DESCRIPTION" : "This is a project description",
+        "STRUCTURES" : [
         {
-            "DESCRIPTION" : "Sample Struct"
+            "NAME" : "sample",
+            "DESCRIPTION" : "Sample Struct",
             "FIELDS" : [
                 {
                     "NAME" : "field_1",
@@ -155,9 +163,12 @@ Given the following Sample File::
                     "NAME" : "field2",
                     "TYPE" : "SINGLE",
                     "LENGTH" : "VECTOR",
-                    "DEFAULT_VALUE" : [1,2,3,4,5]
+                    "DEFAULT_VALUE" : [ 1,2,3,4,5 ]
+
                 } ]
         }
+
+        ]
     }
 
 Generate python code as follows::
