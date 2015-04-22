@@ -49,6 +49,7 @@ Generate Python::
            src/json_files/example.json py 
 
 Generate Matlab::
+
     python src/python_files/MAT_Generator.py \
            src/json_files/basetypes.json \
            src/json_files/example.json mat
@@ -60,6 +61,7 @@ Generate Sphinx Docs::
            src/json_files/example.json doc
 
 Test AutoInterface Class::
+
     python src/python_files/AutoInterface.py \
            src/json_files/basetypes.json \
            src/json_files/example.json
