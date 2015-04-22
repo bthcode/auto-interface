@@ -54,6 +54,10 @@ class AutoGenerator:
                     print ("ERROR: Unknown Type: {0}".format(f['TYPE'])) 
                 if not f.has_key('DESCRIPTION'):
                     f['DESCRIPTION'] = ''
+
+                if f['IS_BASETYPE']:
+                    if not f.has_key('DEFAULT_VALUE'):
+                        f['DEFAULT_VALUE'] = self.basetypes[f['TYPE']]['DEFAULT_VALUE'] 
                 struct_def[idx] = f
                 # set missing types
                 # handle default values

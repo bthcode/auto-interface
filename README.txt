@@ -2,12 +2,20 @@
 
 See docs/README.rst for detailed documents
 
-###################################
-# NOTE: CMAKE-IFICATION IN PROGRESS
-###################################
+# Gen CPP:
 python src/python_files/CPP_Generator.py src/json_files/basetypes.json src/json_files/example.json cpp cpp
+
+# Gen Python:
 python src/python_files/Py_Generator.py src/json_files/basetypes.json src/json_files/example.json py 
+
+# Gen Matlab
 python src/python_files/MAT_Generator.py src/json_files/basetypes.json src/json_files/example.json mat
+
+# Gen Sphinx Docs
+python src/python_files/Doc_Generator.py src/json_files/basetypes.json src/json_files/example.json doc
+
+# See the defaulting that happens in the autogen class
+python src/python_files/AutoInterface.py src/json_files/basetypes.json src/json_files/example.json
 
 ###
 # What Works:

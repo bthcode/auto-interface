@@ -5,7 +5,8 @@
          "DEFAULT_VALUE" : 0,
          "STREAM_CAST" : "int",
          "MEX_TYPE" : "mxUINT8_CLASS",
-         "MAT_TYPE" : "uint8"
+         "MAT_TYPE" : "uint8",
+         "LENGTH" : 1
       },
    "UINT_16" :
       {
@@ -13,7 +14,8 @@
          "DEFAULT_VALUE" : 0,
          "STREAM_CAST" : "int",
          "MEX_TYPE" : "mxUINT16_CLASS",
-         "MAT_TYPE" : "uint16"
+         "MAT_TYPE" : "uint16",
+         "LENGTH" : 2
       },
    "UINT_32" :
       {
@@ -21,7 +23,8 @@
          "DEFAULT_VALUE" : 0,
          "STREAM_CAST" : "long int",
          "MEX_TYPE" : "mxUINT32_CLASS",
-         "MAT_TYPE" : "uint32"
+         "MAT_TYPE" : "uint32",
+         "LENGTH" : 4
       },
    "UINT_64" :
       {
@@ -29,7 +32,8 @@
          "DEFAULT_VALUE" : 0,
          "STREAM_CAST" : "long int",
          "MEX_TYPE" : "mxUINT64_CLASS",
-         "MAT_TYPE" : "uint64"
+         "MAT_TYPE" : "uint64",
+         "LENGTH" : 8
       },
    "INT_8" :
       {
@@ -37,7 +41,8 @@
          "STREAM_CAST" : "int",
          "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT8_CLASS",
-         "MAT_TYPE" : "int8"
+         "MAT_TYPE" : "int8",
+         "LENGTH" : 1
       },
    "INT_16" :
       {
@@ -45,35 +50,40 @@
          "STREAM_CAST" : "int",
          "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT16_CLASS",
-         "MAT_TYPE" : "int16"
+         "MAT_TYPE" : "int16",
+         "LENGTH" : 2
       },
    "INT_32" :
       {
          "C_TYPE" : "int32_t",
          "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT32_CLASS",
-         "MAT_TYPE" : "int32"
+         "MAT_TYPE" : "int32",
+         "LENGTH" : 4
       },
    "INT_64" :
       {
          "C_TYPE" : "int64_t",
          "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT64_CLASS",
-         "MAT_TYPE" : "int64"
+         "MAT_TYPE" : "int64",
+         "LENGTH" : 8
       },
    "SINGLE" :
       {
          "C_TYPE" : "float",
          "DEFAULT_VALUE" : 1.0,
          "MEX_TYPE" : "mxSINGLE_CLASS",
-         "MAT_TYPE" : "single"
+         "MAT_TYPE" : "single",
+         "LENGTH" : 4
       },
    "DOUBLE" :
       {
          "C_TYPE" : "double",
          "DEFAULT_VALUE" : 0.0,
          "MEX_TYPE" : "mxDOUBLE_CLASS",
-         "MAT_TYPE" : "double"
+         "MAT_TYPE" : "double",
+         "LENGTH" : 4
       },
     "COMPLEX_DOUBLE" :
       {
@@ -82,7 +92,8 @@
          "DEFAULT_VALUE" : [0,0],
          "MEX_TYPE" : "mxDOUBLE_CLASS",
          "MAT_TYPE" : "double",
-         "IS_COMPLEX" : "TRUE"
+         "IS_COMPLEX" : "TRUE",
+         "LENGTH" : 16
       },
      "COMPLEX_SINGLE" :
       {
@@ -91,7 +102,8 @@
          "DEFAULT_VALUE" : [0,0],
          "MEX_TYPE" : "mxDOUBLE_CLASS",
          "MAT_TYPE" : "single",
-         "IS_COMPLEX" : "TRUE"
+         "IS_COMPLEX" : "TRUE",
+         "LENGTH" : 8
       }
     
    
