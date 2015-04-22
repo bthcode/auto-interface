@@ -37,11 +37,13 @@ Sample Commands
 ***************
 
 Generate CPP::
+
     python src/python_files/CPP_Generator.py \
            src/json_files/basetypes.json \
            src/json_files/example.json cpp cpp
 
 Generate Python::
+
     python src/python_files/Py_Generator.py \
            src/json_files/basetypes.json \
            src/json_files/example.json py 
@@ -52,6 +54,7 @@ Generate Matlab::
            src/json_files/example.json mat
 
 Generate Sphinx Docs::
+
     python src/python_files/Doc_Generator.py \
            src/json_files/basetypes.json \
            src/json_files/example.json doc
@@ -162,8 +165,9 @@ Generate python code as follows::
 For example::
 
     python src/python_files/Py_Generator.py \
-       src/json_files/basetypes.json \ 
-       src/json_files/sample.json py
+           src/json_files/basetypes.json \ 
+           src/json_files/sample.json \
+           py
 
 The following python will be generated::
 
