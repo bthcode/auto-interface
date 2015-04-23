@@ -8,6 +8,13 @@ Place to store templates for AutoInteface system
 
 py_class_template = '''
 class {0}:
+    """
+    Auto Generated Class {0}
+    Methods:
+      __init__ : Sets defaults
+      read_binary( file_handle )
+      write_binary( file_handle )
+    """
     def __init__(self):
         self.set_defaults() 
     # end __init__
