@@ -54,12 +54,18 @@ def create_rst( basetypes, structs, struct_name ):
                 lengths.append(str(basetypes[f['TYPE']]['LENGTH']))
             else:
                 lengths.append('STRUCTURE')
+        elif f['IS_BASETYPE'] and type(f['LENGTH']) == int:
+            length = f['LENGTH']
+            width  = int(basetypes[f['TYPE']]['LENGTH'])
+            total  = length * width
+            lengths.append('{0} * {1} = {2}'.format( length,width,total ) )
+                                                    
         else:
             lengths.append('VARIABLE')
         lengths_length = max(len(lengths[-1]),lengths_length)
         descriptions.append(str(f['DESCRIPTION']))
         descriptions_length = max(len(descriptions[-1]),descriptions_length)
-        if f['IS_BASETYPE'] and f['LENGTH']==1:
+        if f['IS_BASETYPE'] and f['LENGTH']!='VECTOR':
             defaults.append(str(f['DEFAULT_VALUE']))
         else:
             defaults.append('')

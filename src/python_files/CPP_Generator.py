@@ -90,31 +90,31 @@ def create_struct_header( basetypes, structs, struct_name ):
     ### Member Data
     ret = ret + '\n\n    // Member Fields\n\n'
     for f in struct_def['FIELDS']:
-        if f['LENGTH'] == 1:
-            if f['IS_BASETYPE']:
-                basetype = basetypes[f['TYPE']]
-                if basetype.has_key( 'CPP_TYPE' ):
-                    c_decl = basetype['CPP_TYPE']
-                else:
-                    c_decl = basetypes[ f['TYPE'] ]['C_TYPE']
-            elif f['IS_STRUCT']:
-                c_decl = '%s' % ( f['TYPE'] )
-        elif f['LENGTH'] == 'VECTOR':
-            if f['IS_STRUCT']:
-                c_decl = 'std::vector< %s >' % ( f['TYPE'] )
-            elif f['IS_BASETYPE']:
-                basetype = basetypes[f['TYPE']]
-                if basetype.has_key('CPP_TYPE'):
-                    c_decl = 'std::vector< {0} >'.format(basetype['CPP_TYPE'])
-                else:
-                    c_decl = 'std::vector< {0} >'.format(basetype['C_TYPE'])
+        n_elements=''
+
+        # get c type
+        if f['IS_BASETYPE']:
+            basetype = basetypes[f['TYPE']]
+            if basetype.has_key( 'CPP_TYPE' ):
+                c_decl = basetype['CPP_TYPE']
             else:
-                print 'ERROR - vector with unknown type or no TYPE key'
-                sys.exit(1)
+                c_decl = basetypes[ f['TYPE'] ]['C_TYPE']
+        elif f['IS_STRUCT']:
+            c_decl = '%s' % ( f['TYPE'] )
+
+        # handle scalar v. array v. vector
+        if f['LENGTH'] == 1:
+            pass
+        elif f['LENGTH'] == 'VECTOR':
+            c_decl = 'std::vector< {0} >'.format( c_decl )
+        elif type(f['LENGTH']) == int:
+            n_elements ='[{0}]'.format(f['LENGTH'])
         else:
             print 'ERROR - vector with no TYPE'
             sys.exit(1)
-        ret = ret + T + "%s  %s; ///<%s\n" % ( c_decl, f['NAME'], f['DESCRIPTION'] )
+
+        # write declaration
+        ret = ret + T + "{0}  {1}{2}; ///<{3}\n".format( c_decl, f['NAME'], n_elements,f['DESCRIPTION'] )
 
     ret = ret + class_end
 
@@ -204,20 +204,31 @@ def create_struct_impl(basetypes,structs,struct_name):
     ### Read Binary
     ret = ret + "void %s::read_binary( std::ifstream& r_stream ){\n\n" % (struct_name)
     for f in struct_def['FIELDS']:
+        # get type
+        if f['IS_BASETYPE']:
+            basetype = basetypes[f['TYPE']]
+            if basetype.has_key('CPP_TYPE'):
+                ctype = basetype['CPP_TYPE']
+            else:
+                ctype = basetype['C_TYPE']
+   
         if f['LENGTH']==1:
             if f['IS_BASETYPE']:
                 ret = ret + T + 'r_stream.read( (char*)&(%s), sizeof(%s) );\n' %(f['NAME'],f['NAME'])
             elif f['IS_STRUCT']:
                 ret = ret + T + '%s.read_binary( r_stream );\n' % (f['NAME'])
+        elif type(f['LENGTH']) == int:
+            if f['IS_BASETYPE']:
+                ret = ret + T + 'r_stream.read( reinterpret_cast<char*>(&{0}[0]), {1} * sizeof({2}));\n'.format(f['NAME'],f['LENGTH'],ctype)
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'for ( uint32_t ii=0; ii < {0}; ii++ ) {{\n'.format(f['LENGTH'])
+                ret = ret + T + T + '{0}[ii].read_binary(r_stream);\n'.format(f['NAME'])
+                ret = ret + T + '}\n'
+
         elif f['LENGTH'] == 'VECTOR':
             ret = ret + T + 'uint32_t tmp_%s_size;\n' % (f['NAME'])
             ret = ret + T + 'r_stream.read( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % (f['NAME'],f['NAME'])
             if f['IS_BASETYPE']:
-                basetype = basetypes[f['TYPE']]
-                if basetype.has_key('CPP_TYPE'):
-                    ctype = basetype['CPP_TYPE']
-                else:
-                    ctype = basetype['C_TYPE']
                 ret = ret + T + '{0}.resize( tmp_{0}_size );\n'.format(f['NAME'])
                 ret = ret + T + 'r_stream.read( reinterpret_cast<char*>(&{0}[0]), tmp_{0}_size * sizeof({1}));\n'.format(f['NAME'],ctype)
             elif f['IS_STRUCT']:
@@ -238,9 +249,21 @@ def create_struct_impl(basetypes,structs,struct_name):
                 ret = ret + T + 'r_stream.write( (char*)&(%s), sizeof(%s) );\n' %(f['NAME'],f['NAME'])
             elif f['IS_STRUCT']:
                 ret = ret + T + '%s.write_binary( r_stream );\n' % (f['NAME'])
+        # TODO: duplicate code
+        elif type(f['LENGTH']) == int:
+            # TODO: this write should be faster
+            if f['IS_BASETYPE']:
+                ret = ret + T + 'for ( uint32_t ii=0; ii < {0}; ii++ ) {{\n'.format(f['LENGTH'])
+                ret = ret + T + T + 'r_stream.write( (char*)&(%s[ii]), sizeof(%s[ii]));\n' % (f['NAME'],f['NAME'])
+                ret = ret + T + '}\n'
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'for ( uint32_t ii=0; ii < {0}; ii++ ) {{\n'.format(f['LENGTH'])
+                ret = ret + T + T + '{0}[ii].write_binary( r_stream );\n'.format(f['NAME'])
+                ret = ret + T + '}\n'
         elif f['LENGTH'] == 'VECTOR':
             ret = ret + T + 'uint32_t tmp_%s_size = %s.size();\n' % (f['NAME'],f['NAME'])
             ret = ret + T + 'r_stream.write( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % (f['NAME'],f['NAME'])
+            # TODO: This write should be faster
             if f['IS_BASETYPE']:
                 ret = ret + T + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % (f['NAME'])
                 ret = ret + T + T + 'r_stream.write( (char*)&(%s[ii]), sizeof(%s[ii]));\n' % (f['NAME'],f['NAME'])
@@ -269,6 +292,27 @@ def create_struct_impl(basetypes,structs,struct_name):
                 ret = ret + T + 'tmp = r_prefix + "%s.";\n' % (f['NAME'])
                 c_print = T + '%s.write_props( r_stream, tmp );\n' % (f['NAME'])
                 ret = ret + c_print
+        elif type(f['LENGTH']) == int:
+            if f['IS_BASETYPE']:
+                b = basetypes[ f['TYPE'] ]
+                ret = ret + T + T +  'for ( std::size_t ii = 0; ii != {0}; ii++ )\n'.format(f['LENGTH'])
+                ret = ret + T + T +  '{\n'
+                if b.has_key('STREAM_CAST'):
+                    ret = ret + T + T + T + 'r_stream << r_prefix << "{0}[ " << ii << " ] = " << {1}({0}[ii]) << std::endl;\n'.format(f['NAME'],b['STREAM_CAST'])
+                else:
+                    ret = ret + T + T + T + 'r_stream << r_prefix << "{0}[ " << ii << " ] = " << {0}[ii] << "\\n";\n'.format(f['NAME'])
+                ret = ret + T + T +  '}\n'
+            elif f['IS_STRUCT']:
+                ret = ret + T + T +  'for ( std::size_t ii = 0; ii != {0}; ii++ )\n'.format(f['LENGTH'])
+                ret = ret + T + T +  '{\n'
+                # Build a prefix
+                ret = ret + T + T + T + 'std::stringstream ss;\n'
+                ret = ret + T + T + T + 'ss << r_prefix << "{0}[ " << ii << " ].";\n'.format(f['NAME'])
+                ret = ret + T + T + T + 'std::string tmp( ss.str() );\n'
+                # Use prefix to write props
+                ret = ret + T + T + T + '{0}[ii].write_props( r_stream, tmp );\n'.format(f['NAME'])
+                ret = ret + T + T +  '}\n'
+
         elif f['LENGTH'] == 'VECTOR':
             if f['IS_BASETYPE']:
                 b = basetypes[ f['TYPE'] ]
@@ -325,6 +369,9 @@ def create_struct_impl(basetypes,structs,struct_name):
             elif f['IS_STRUCT']:
                 ret = ret + T + 'key = r_prefix + "%s.";\n' % (f['NAME'])
                 ret = ret + T + 'fields_found += %s.read_props( r_params, key );\n' % (f['NAME'])
+        elif type( f['LENGTH'] ) == int:
+            # TODO
+            pass
         elif f['LENGTH'] == 'VECTOR':
             if f['IS_BASETYPE']:
                 # 1. Get the prefix
@@ -409,6 +456,37 @@ def create_struct_impl(basetypes,structs,struct_name):
                 ret = ret + T + '{0} = {1};\n'.format(f['NAME'],val)
             elif f['IS_STRUCT']:
                 ret = ret + T + '%s.set_defaults( );\n' % ( f['NAME'] )
+        elif type(f['LENGTH']) == int:
+            # TODO
+            if f.has_key('DEFAULT_VALUE'):
+                if f['IS_BASETYPE']:
+                    b = basetypes[f['TYPE']]
+                    # get default value
+                    if f.has_key('DEFAULT_VALUE'):
+                        def_val = f['DEFAULT_VALUE']
+                    # format for complex or not
+                    if b['IS_COMPLEX']:
+                        num_elements = len(def_val)/2
+                        counter=0
+                        for idx in range(0,len(def_val),2):
+                            ret = ret + T + '{0}[{1}] = {2}({3},{4});\n'.format(f['NAME'],
+                                                                                counter,
+                                                                                b['CPP_TYPE'],
+                                                                                def_val[idx],
+                                                                                def_val[idx+1])
+                            counter = counter+1
+                    else:
+                        num_elements = len(def_val)
+                        counter=0
+                        for idx in range(len(def_val)):
+                            ret = ret + T + '{0}[{1}] = {2};\n'.format(f['NAME'],counter,def_val[idx])
+                            counter = counter+1
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'for ( std::size_t ii=0; ii < {0}; ii++ )\n'.format( f['LENGTH'] )
+                ret = ret + T + '{\n'
+                ret = ret + T + T + '{0}[ii].set_defaults();\n'.format(f['NAME'])
+                ret = ret + T + '}\n'
+
         elif f['LENGTH'] == 'VECTOR':
             if f.has_key('DEFAULT_VALUE'):
                 if f['IS_BASETYPE']:

@@ -104,7 +104,20 @@
                 "TYPE"  : "substruct1",
                 "LENGTH" : "VECTOR",
                 "DESCRIPTION" : "vector of doubles"
-              } ]
+              },
+              { "NAME"  : "m_basetype_array",
+                "TYPE"  : "UINT_8",
+                "LENGTH" : 8,
+                "DESCRIPTION" : "fixed length basetype array",
+                "DEFAULT_VALUE" : [ 1,2,3,4,3,2,1,0 ]
+              },
+              { "NAME"  : "m_struct_array",
+                "TYPE"  : "substruct1",
+                "LENGTH" : 3,
+                "DESCRIPTION" : "fixed length struct array"
+              }
+
+             ]
            
         },
 

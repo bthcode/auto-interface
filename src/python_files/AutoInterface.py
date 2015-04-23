@@ -69,6 +69,13 @@ class AutoGenerator:
                 # SET LENGTH 
                 if not f.has_key('LENGTH'):
                     f['LENGTH'] = 1
+                else:
+                    if f['LENGTH'] != 'VECTOR':
+                        try:
+                            f['LENGTH'] = int(f['LENGTH'])
+                        except:
+                            f['LENGTH'] = 1
+                            print "ERROR: Bad length for field {0}".format(f['NAME'])
                 # Determine if is struct
                 if self.structs.has_key(f['TYPE']):
                     f['IS_STRUCT'] = True
@@ -81,9 +88,20 @@ class AutoGenerator:
                 if not f.has_key('DESCRIPTION'):
                     f['DESCRIPTION'] = ''
 
+                # Handle default value setting
                 if f['IS_BASETYPE'] and f['LENGTH'] == 1:
                     if not f.has_key('DEFAULT_VALUE'):
                         f['DEFAULT_VALUE'] = self.basetypes[f['TYPE']]['DEFAULT_VALUE'] 
+                elif f['IS_BASETYPE'] and type(f['LENGTH']) == int:
+                    # no value
+                    if not f.has_key('DEFAULT_VALUE'):
+                        f['DEFAULT_VALUE'] = [ self.basetypes[f['TYPE']]['DEFAULT_VALUE'] ] * f['LENGTH']
+                    # one value: repeat it
+                    elif len(f['DEFAULT_VALUE']) == 1:
+                        f['DEFAULT_VALUE'] = [ f['DEFAULT_VALUE'] ] * f['LENGTH']
+                    # only other ok value is default value is correct length
+                    elif len(f['DEFAULT_VALUE']) != f['LENGTH']:
+                        print ("Bad Default for {0}: {1}".format(f['NAME'], f['DEFAULT_VALUE']))
                 struct_def[idx] = f
                 # set missing types
                 # handle default values

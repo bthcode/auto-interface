@@ -40,7 +40,8 @@ def create_py_class_def( basetypes, structs, struct_name ):
             elif f['IS_STRUCT']:
                 ret = ret + T + T + 'self.{0} = {1}()\n'.format(f['NAME'], f['TYPE'])
                 ret = ret + T + T + 'self.{0}.set_defaults();\n'.format(f['NAME'])
-        elif f['LENGTH'] == 'VECTOR':
+            
+        elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
             # If a default vaulue, try to set it
             if f.has_key( 'DEFAULT_VALUE' ):
                 if f['IS_BASETYPE']:
@@ -63,8 +64,11 @@ def create_py_class_def( basetypes, structs, struct_name ):
                         def_str = def_str[:-1]
                     # set the value
                     ret = ret + T + T + 'self.{0} = [ {1} ]\n'.format(f['NAME'],def_str)
-                elif f['IS_STRUCT']:
-                    ret = ret + T + T + 'self.{0} = []\n'.format( f['NAME'] )
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'self.{0} = []\n'.format( f['NAME'] )
+                if type(f['LENGTH']) == int:
+                    ret = ret + T + T + 'for ii in range({0}):\n'.format(f['LENGTH'])
+                    ret = ret + T + T + T + 'self.{0}.append( {1}() )'.format(f['NAME'],f['TYPE'])
             # No default value, just set the element
             else:
                 ret = ret + T + T + 'self.{0} = []\n'.format(f['NAME'])
@@ -79,10 +83,13 @@ def create_py_class_def( basetypes, structs, struct_name ):
                 ret = ret + T + T + 'self.{0} = io.read_{1}( r_stream )\n'.format(f['NAME'], f['TYPE'])
             elif f['IS_STRUCT']:
                 ret = ret + T + T + 'self.{0}.read_binary( r_stream );\n'.format(f['NAME'])
-        elif f['LENGTH'] == 'VECTOR':
+        elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
             ret = ret + T + T + "self.{0} = []\n".format(f['NAME'])
             # TODO - this needs to be uint32_t
-            ret = ret + T + T + "num_elems = io.read_INT_32( r_stream )\n"
+            if f['LENGTH'] == 'VECTOR':
+                ret = ret + T + T + "num_elems = io.read_INT_32( r_stream )\n"
+            else: # fixed length, no num_elems
+                ret = ret + T + T + "num_elems = {0}\n".format(f['LENGTH'])
             if f['IS_BASETYPE']:
                 ret = ret + T + T + 'self.{0} = io.read_{1}( r_stream, nElements=num_elems )\n'.format(f['NAME'], f['TYPE'])
             elif f['IS_STRUCT']:
@@ -105,10 +112,13 @@ def create_py_class_def( basetypes, structs, struct_name ):
                 ret = ret + T + T + T + T + 'print ("ERROR: {0} should be type {1}, but is {{0}}".format(self.{0}.__class__.__name__))\n'.format(f['NAME'],f['TYPE'])
                 ret = ret + T + T + T + T + 'return\n'
                 ret = ret + T + T + 'self.{0}.write_binary(r_stream);\n'.format(f['NAME'])
-        elif f['LENGTH'] == 'VECTOR':
-            # TODO - this needs to be uint32_t
-            ret = ret + T + T + "num_elems = len( self.{0} )\n".format(f['NAME'])
-            ret = ret + T + T + "io.write_INT_32( r_stream, num_elems )\n"
+        elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
+            if f['LENGTH'] == 'VECTOR':
+                # TODO - this needs to be uint32_t
+                ret = ret + T + T + "num_elems = len( self.{0} )\n".format(f['NAME'])
+                ret = ret + T + T + "io.write_INT_32( r_stream, num_elems )\n"
+            else:
+                ret = ret + T + T + "num_elems = {0}\n".format(f['LENGTH'])
             if f['IS_BASETYPE']:
                 ret = ret + T + T + 'io.write_{0}( r_stream, self.{1}, nElements=num_elems )\n'.format(f['TYPE'],f['NAME'])
             elif f['IS_STRUCT']:

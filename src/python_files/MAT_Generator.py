@@ -43,7 +43,8 @@ def create_set_defaults(basetypes,structs,struct_name):
                 ret = ret + T + T + "out.{0} = {1}({2});\n".format(f['NAME'],mat_type,val);
             elif f['IS_STRUCT']:
                 ret = ret + T + T + 'out.{0} = set_defaults_{1}();\n'.format(f['NAME'],f['TYPE'])
-        elif f['LENGTH'] == 'VECTOR':
+        # type is basetype, length is vector or int
+        elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
             if f.has_key( 'DEFAULT_VALUE' ):
                 if f['IS_BASETYPE']:
                     basetype = basetypes[f['TYPE']]
@@ -60,8 +61,15 @@ def create_set_defaults(basetypes,structs,struct_name):
                             def_str = def_str + '{0} '.format(def_val[idx])
                     # set the value
                     ret = ret + T + T + 'out.{0} = [ {1} ];\n'.format(f['NAME'],def_str)
-                # No method for defaulting structs yet
-                elif f['IS_STRUCT']:
+            # type is struct, if vector, if fixed length, fill with defaults
+            elif f['IS_STRUCT']:
+                # No method for defaulting structs yet, unless they're fixed length
+                if type(f['LENGTH']) == int:
+                    ret = ret + T + T + 'out.{0} = [ set_defaults_{1}() ];\n'.format( f['NAME'],f['TYPE'] )
+                    ret = ret + T + T + 'for ii = 2:{0}\n'.format(f['LENGTH'])
+                    ret = ret + T + T + T + 'out.{0}(end+1) = set_defaults_{1}();\n'.format(f['NAME'],f['TYPE'])
+                    ret = ret + T + T + 'end\n'
+                else:
                     ret = ret + T + T + 'out.{0} = [];\n'.format( f['NAME'] )
             # No default value, just set the element
             else:
@@ -85,9 +93,12 @@ def create_read_binary(basetypes,structs,struct_name):
                     ret = ret + T + "struct_in.{0} = fread( file_handle, 1, '{1}' );\n".format(f['NAME'],b['MAT_TYPE'])
             elif f['IS_STRUCT']:
                 ret = ret + T + 'struct_in.{0} = read_binary_{1}( file_handle );\n'.format(f['NAME'],f['TYPE']) 
-        elif f['LENGTH'] == 'VECTOR':
-            # get number of elements
-            ret = ret + T + "num_elems = fread(file_handle,1,'int32');\n"
+        elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
+            if f['LENGTH'] == 'VECTOR':
+                # get number of elements
+                ret = ret + T + "num_elems = fread(file_handle,1,'int32');\n"
+            else:
+                ret = ret + T + "num_elems = {0};\n".format(f['LENGTH'])
             # now read in that many types
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
@@ -128,10 +139,13 @@ def create_write_binary(basetypes,structs,struct_name):
                     ret = ret + T + "fwrite(file_handle,struct_out.{0},'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
             elif f['IS_STRUCT']:
                 ret = ret + T + 'write_binary_{0}(file_handle,struct_out.{1});\n'.format(f['TYPE'],f['NAME']) 
-        elif f['LENGTH'] == 'VECTOR':
-            # get number of elements
-            ret = ret + T + "num_elems=length(struct_out.{0});\n".format(f['NAME'])
-            ret = ret + T + "fwrite(file_handle,num_elems,'int32');\n"
+        elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
+            if f['LENGTH'] == 'VECTOR':
+                # get number of elements
+                ret = ret + T + "num_elems=length(struct_out.{0});\n".format(f['NAME'])
+                ret = ret + T + "fwrite(file_handle,num_elems,'int32');\n"
+            else:
+                ret = ret + T + "num_elems={0};\n".format(f['LENGTH'])
             # now read in that many types
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
