@@ -156,7 +156,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
                 ret = ret + T + 'read_{0}( r_stream, 1, &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
-            elif f['IS_STRUCT'] == 'STRUCT':
+            elif f['IS_STRUCT']:
                 ret = ret + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}));\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + "\n"
         elif type(f['LENGTH']) == int:
