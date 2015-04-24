@@ -7,18 +7,28 @@
 - vector of structs
 - c++, python, matlab
 - binary i/o for C++, Python and Matlab
+- fixed length arrays
 
 ###
 # What doesn't:
 
-- fixed length arrays
 - ascii i/o
 
 ###
 # Other todos:
 
+- all types: handle empty vectors when reading and writing
+- combine c++ and c into single header/c file
+- combine c files by "namespace"
+- use "namespace" in python file names
+- cleanup default value handling
+- cleanup cpp_type handling
+- cleanup stream_type handling
+- io_support.c - add inlines
+- add "is_flat"?
+    - time full struct write compared to packed binary write
+- GPB support plan
 - ascii i/o support? json i/o support?
    - flat vectors to flat output
 - auto-generate a set of tests
 - should default length be supported?
-- should fixed length arrays be supported?
