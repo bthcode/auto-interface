@@ -30,10 +30,7 @@ def create_set_defaults(basetypes,structs,struct_name):
                 basetype = basetypes[f['TYPE']]
                 mat_type = basetype['MAT_TYPE']
                 # get default value 
-                if f.has_key('DEFAULT_VALUE'):
-                    def_val = f['DEFAULT_VALUE']
-                else:
-                    def_val = basetype['DEFAULT_VALUE']
+                def_val = f['DEFAULT_VALUE']
                 # format the default value
                 if basetype['IS_COMPLEX']:
                     val = '{0} + {1}i'.format(def_val[0],def_val[1])

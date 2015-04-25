@@ -66,6 +66,7 @@ class AutoGenerator:
                 # move keys to upperclass
                 for key,val in f.items():
                     f[key.upper()] = val
+
                 # SET LENGTH 
                 if not f.has_key('LENGTH'):
                     f['LENGTH'] = 1
@@ -76,6 +77,7 @@ class AutoGenerator:
                         except:
                             f['LENGTH'] = 1
                             print "ERROR: Bad length for field {0}".format(f['NAME'])
+
                 # Determine if is struct
                 if self.structs.has_key(f['TYPE']):
                     f['IS_STRUCT'] = True
@@ -87,6 +89,8 @@ class AutoGenerator:
                     print ("ERROR: Unknown Type: {0}".format(f['TYPE'])) 
                 if not f.has_key('DESCRIPTION'):
                     f['DESCRIPTION'] = ''
+
+                
 
                 # Handle default value setting
                 if f['IS_BASETYPE'] and f['LENGTH'] == 1:
@@ -118,6 +122,12 @@ class AutoGenerator:
                     basetype['IS_COMPLEX'] = True
                 else:
                     basetype['IS_COMPLEX'] = False
+
+            # Set CPP_TYPE and STREAM_TIME fields
+            if not basetype.has_key('CPP_TYPE'):
+                basetype['CPP_TYPE'] = basetype['C_TYPE']
+            if not basetype.has_key('STREAM_CAST'):
+                basetype['STREAM_CAST'] = basetype['CPP_TYPE']
             self.basetypes[base_name]=basetype
     # end preprocess
 

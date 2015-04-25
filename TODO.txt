@@ -26,9 +26,6 @@ _3_ Prettyify output code
 _2_ combine c++ and c into single header/c file
 _2_ combine c files by "namespace"
 _2_ use "namespace" in python file names
-_2_ cleanup default value handling
-_2_ cleanup cpp_type handling
-_2_ cleanup stream_type handling
 _3_ io_support.c - add inlines
 _3_ add "is_flat"?
     - time full struct write compared to packed binary write
@@ -37,3 +34,8 @@ _?_ ascii i/o support? json i/o support?
    - flat vectors to flat output
 _?_ auto-generate a set of tests
 _?_ should default length be supported?
+
+DONE:
+_x_ cleanup default value handling
+_x_ cleanup cpp_type handling
+_x_ cleanup stream_type handling

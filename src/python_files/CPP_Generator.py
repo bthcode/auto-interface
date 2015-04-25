@@ -95,10 +95,7 @@ def create_struct_header( basetypes, structs, struct_name ):
         # get c type
         if f['IS_BASETYPE']:
             basetype = basetypes[f['TYPE']]
-            if basetype.has_key( 'CPP_TYPE' ):
-                c_decl = basetype['CPP_TYPE']
-            else:
-                c_decl = basetypes[ f['TYPE'] ]['C_TYPE']
+            c_decl = basetype['CPP_TYPE']
         elif f['IS_STRUCT']:
             c_decl = '%s' % ( f['TYPE'] )
 
@@ -207,10 +204,7 @@ def create_struct_impl(basetypes,structs,struct_name):
         # get type
         if f['IS_BASETYPE']:
             basetype = basetypes[f['TYPE']]
-            if basetype.has_key('CPP_TYPE'):
-                ctype = basetype['CPP_TYPE']
-            else:
-                ctype = basetype['C_TYPE']
+            ctype = basetype['CPP_TYPE']
    
         if f['LENGTH']==1:
             if f['IS_BASETYPE']:
@@ -284,10 +278,7 @@ def create_struct_impl(basetypes,structs,struct_name):
         if f['LENGTH']==1:
             if f['IS_BASETYPE']:
                 b = basetypes[ f['TYPE'] ]
-                if b.has_key('STREAM_CAST'):
-                    c_print = T + 'r_stream << r_prefix << "%s = " << (%s)(%s) << "\\n";\n' % (f['NAME'],b['STREAM_CAST'],f['NAME'])
-                else:
-                    c_print = T + 'r_stream << r_prefix << "%s = " << %s << "\\n";\n' % (f['NAME'],f['NAME'])
+                c_print = T + 'r_stream << r_prefix << "%s = " << (%s)(%s) << "\\n";\n' % (f['NAME'],b['STREAM_CAST'],f['NAME'])
                 ret = ret + c_print
             elif f['IS_STRUCT']:
                 ret = ret + T + 'tmp = r_prefix + "%s.";\n' % (f['NAME'])
@@ -298,10 +289,7 @@ def create_struct_impl(basetypes,structs,struct_name):
                 b = basetypes[ f['TYPE'] ]
                 ret = ret + T + T +  'for ( std::size_t ii = 0; ii != {0}; ii++ )\n'.format(f['LENGTH'])
                 ret = ret + T + T +  '{\n'
-                if b.has_key('STREAM_CAST'):
-                    ret = ret + T + T + T + 'r_stream << r_prefix << "{0}[ " << ii << " ] = " << {1}({0}[ii]) << std::endl;\n'.format(f['NAME'],b['STREAM_CAST'])
-                else:
-                    ret = ret + T + T + T + 'r_stream << r_prefix << "{0}[ " << ii << " ] = " << {0}[ii] << "\\n";\n'.format(f['NAME'])
+                ret = ret + T + T + T + 'r_stream << r_prefix << "{0}[ " << ii << " ] = " << {1}({0}[ii]) << std::endl;\n'.format(f['NAME'],b['STREAM_CAST'])
                 ret = ret + T + T +  '}\n'
             elif f['IS_STRUCT']:
                 ret = ret + T + T +  'for ( std::size_t ii = 0; ii != {0}; ii++ )\n'.format(f['LENGTH'])
@@ -317,14 +305,8 @@ def create_struct_impl(basetypes,structs,struct_name):
         elif f['LENGTH'] == 'VECTOR':
             if f['IS_BASETYPE']:
                 b = basetypes[ f['TYPE'] ]
-                if b.has_key('CPP_TYPE'):
-                    iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % (b['CPP_TYPE'])
-                else:
-                    iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % (b['C_TYPE'])
-                if b.has_key('STREAM_CAST'):
-                    print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << %s((*ii)) << "\\n";\n' % (f['NAME'],b['STREAM_CAST'])
-                else:
-                    print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << (*ii) << "\\n";\n' % (f['NAME'])
+                iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % (b['CPP_TYPE'])
+                print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << %s((*ii)) << "\\n";\n' % (f['NAME'],b['STREAM_CAST'])
             
             elif f['IS_STRUCT']:
                 iter_decl = T + T + 'std::vector< %s >::iterator ii;\n' % (f['TYPE'])
@@ -359,12 +341,9 @@ def create_struct_impl(basetypes,structs,struct_name):
                 ret = ret + T + 'if ( param_iter != r_params.end() )\n'
                 ret = ret + T + '{\n'
                 ret = ret + T +T +  'std::stringstream ss( param_iter->second );\n'
-                if b.has_key('STREAM_CAST'):
-                    ret = ret + T +T +  '%s u;\n' % (b['STREAM_CAST'])
-                    ret = ret + T +T +  'ss >> u;\n'
-                    ret = ret + T +T +  '%s = (%s)( u );\n' % (f['NAME'],b['STREAM_CAST'])
-                else:
-                    ret = ret + T +T +  'ss >> %s;\n' % (f['NAME'])
+                ret = ret + T +T +  '%s u;\n' % (b['STREAM_CAST'])
+                ret = ret + T +T +  'ss >> u;\n'
+                ret = ret + T +T +  '%s = (%s)( u );\n' % (f['NAME'],b['STREAM_CAST'])
                 ret = ret + T +T +  'fields_found++;\n'
                 ret = ret + T + '}\n'
             elif f['IS_STRUCT']:
@@ -390,17 +369,9 @@ def create_struct_impl(basetypes,structs,struct_name):
                 ret = ret + T +T + T + 'break;\n'
                 ret = ret + T +T + 'else {\n'
                 ret = ret + T +T + T + 'std::stringstream ss2( param_iter->second );\n'
-                if b.has_key( 'STREAM_CAST' ):
-                    ret = ret + T +T +T + '%s u;\n' % (b['STREAM_CAST'])
-                    ret = ret + T +T +T + 'ss2 >> u;\n'
-                    ret = ret + T +T +T + '%s.push_back(%s( u ));\n' % (f['NAME'],b['STREAM_CAST'])
-                else:
-                    if b.has_key('CPP_TYPE'):
-                        ret = ret + T +T +T + '%s u;\n' % (b['CPP_TYPE'])
-                    else:
-                        ret = ret + T +T +T + '%s u;\n' % (b['C_TYPE'])
-                    ret = ret + T +T +T + 'ss2 >> u;\n'
-                    ret = ret + T +T +T + '%s.push_back(u);\n' % ( f['NAME'] ) 
+                ret = ret + T +T +T + '%s u;\n' % (b['STREAM_CAST'])
+                ret = ret + T +T +T + 'ss2 >> u;\n'
+                ret = ret + T +T +T + '%s.push_back(%s( u ));\n' % (f['NAME'],b['STREAM_CAST'])
                 ret = ret + T +T +T + 'count++;\n'
                 ret = ret + T +T + '}\n'
                 ret = ret + T +T + 'fields_found += count;\n'
@@ -444,10 +415,7 @@ def create_struct_impl(basetypes,structs,struct_name):
             if f['IS_BASETYPE']:
                 b = basetypes[ f['TYPE'] ]
                 # get default value
-                if f.has_key('DEFAULT_VALUE'):
-                    def_val = f['DEFAULT_VALUE']
-                else:
-                    def_val = b['DEFAULT_VALUE']
+                def_val = f['DEFAULT_VALUE']
                 # format for complex or not
                 if b['IS_COMPLEX']:
                     val = '{0}({1},{2})'.format(b['CPP_TYPE'],def_val[0],def_val[1])
@@ -459,29 +427,27 @@ def create_struct_impl(basetypes,structs,struct_name):
                 ret = ret + T + '%s.set_defaults( );\n' % ( f['NAME'] )
         elif type(f['LENGTH']) == int:
             # TODO
-            if f.has_key('DEFAULT_VALUE'):
-                if f['IS_BASETYPE']:
-                    b = basetypes[f['TYPE']]
-                    # get default value
-                    if f.has_key('DEFAULT_VALUE'):
-                        def_val = f['DEFAULT_VALUE']
-                    # format for complex or not
-                    if b['IS_COMPLEX']:
-                        num_elements = len(def_val)/2
-                        counter=0
-                        for idx in range(0,len(def_val),2):
-                            ret = ret + T + '{0}[{1}] = {2}({3},{4});\n'.format(f['NAME'],
-                                                                                counter,
-                                                                                b['CPP_TYPE'],
-                                                                                def_val[idx],
-                                                                                def_val[idx+1])
-                            counter = counter+1
-                    else:
-                        num_elements = len(def_val)
-                        counter=0
-                        for idx in range(len(def_val)):
-                            ret = ret + T + '{0}[{1}] = {2};\n'.format(f['NAME'],counter,def_val[idx])
-                            counter = counter+1
+            if f['IS_BASETYPE']:
+                b = basetypes[f['TYPE']]
+                # get default value
+                def_val = f['DEFAULT_VALUE']
+                # format for complex or not
+                if b['IS_COMPLEX']:
+                    num_elements = len(def_val)/2
+                    counter=0
+                    for idx in range(0,len(def_val),2):
+                        ret = ret + T + '{0}[{1}] = {2}({3},{4});\n'.format(f['NAME'],
+                                                                            counter,
+                                                                            b['CPP_TYPE'],
+                                                                            def_val[idx],
+                                                                            def_val[idx+1])
+                        counter = counter+1
+                else:
+                    num_elements = len(def_val)
+                    counter=0
+                    for idx in range(len(def_val)):
+                        ret = ret + T + '{0}[{1}] = {2};\n'.format(f['NAME'],counter,def_val[idx])
+                        counter = counter+1
             elif f['IS_STRUCT']:
                 ret = ret + T + 'for ( std::size_t ii=0; ii < {0}; ii++ )\n'.format( f['LENGTH'] )
                 ret = ret + T + '{\n'
