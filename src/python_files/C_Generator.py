@@ -174,13 +174,23 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
             if f['IS_BASETYPE']:
                 ctype = basetypes[f['TYPE']]['C_TYPE']
                 # ALLOC SPACE
-                ret = ret + T + 'p_{0}->{1} = ({2}*) malloc(n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
-                ret = ret + T + 'read_{0}(r_stream, n_elements_{2}, p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME'])
+                ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
+                ret = ret + T + T + 'read_{0}(r_stream, n_elements_{2}, p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME'])
+                ret = ret + T + '}\n'
+                ret = ret + T + 'else\n'
+                ret = ret + T + T + 'p_{0}->{1} = 0x0;\n'.format(struct_name,f['NAME'])
                 ret = ret + "\n"
             elif f['IS_STRUCT']:
                 ctype = f['TYPE']
                 # Allocate space for pointers
-                ret = ret + T + 'p_{0}->{1} = ({2}*) malloc(n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
+                ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
+                ret = ret + T + '}\n'
+                ret = ret + T + 'else\n'
+                ret = ret + T + T + 'p_{0}->{1} = 0x0;\n\n'.format(struct_name,f['NAME'])
                 ret = ret + T + 'for (int32_t ii=0; ii < p_{0}->n_elements_{1}; ii++) {{\n'.format(struct_name,f['NAME'])
                 ret = ret + "\n"
                 # For each pointer, call read binary
@@ -209,7 +219,8 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
         elif f['LENGTH'] == 'VECTOR':
             ret = ret + T + 'write_INT_32(r_stream,1,&(p_{0}->n_elements_{1}));\n'.format(struct_name,f['NAME'])
             if f['IS_BASETYPE']:
-                ret = ret + T + 'write_{0}(r_stream,p_{1}->n_elements_{2},p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME']) 
+                ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
+                ret = ret + T + T + 'write_{0}(r_stream,p_{1}->n_elements_{2},p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME']) 
             elif f['IS_STRUCT']:
                 ret = ret + T + 'for (int ii=0; ii< p_{0}->n_elements_{1}; ++ii )\n'.format(struct_name,f['NAME'])
                 ret = ret + T + '{\n'

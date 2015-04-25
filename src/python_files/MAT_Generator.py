@@ -99,27 +99,31 @@ def create_read_binary(basetypes,structs,struct_name):
                 ret = ret + T + "num_elems = fread(file_handle,1,'int32');\n"
             else:
                 ret = ret + T + "num_elems = {0};\n".format(f['LENGTH'])
+            ret = ret + T + 'if num_elems > 0\n'
             # now read in that many types
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
                 if b['IS_COMPLEX']:
-                    ret = ret + T + "tmp = fread( file_handle, num_elems*2, '{0}' );\n".format(b['MAT_TYPE'])
-                    ret = ret + T + "struct_in.{0} = complex(tmp(1:2:end-1), tmp(2:2:end));\n".format(f['NAME'])
+                    ret = ret + T + T + "tmp = fread( file_handle, num_elems*2, '{0}' );\n".format(b['MAT_TYPE'])
+                    ret = ret + T + T + "struct_in.{0} = complex(tmp(1:2:end-1), tmp(2:2:end));\n".format(f['NAME'])
                 else:
-                    ret = ret + T + "struct_in.{0} = fread( file_handle, num_elems, '{1}' );\n".format(f['NAME'],b['MAT_TYPE'])
+                    ret = ret + T + T + "struct_in.{0} = fread( file_handle, num_elems, '{1}' );\n".format(f['NAME'],b['MAT_TYPE'])
             elif f['IS_STRUCT']:
                 # in the case of a vector of structs, 
                 #  we need to declare the vector using the struct 
                 #  (hence the if i==1 below)
-                ret = ret + T + 'struct_in.{0} = [];\n'.format(f['NAME'])
-                ret = ret + T + 'for ii=1:num_elems\n'   
-                ret = ret + T + T + 'tmp=read_binary_{0}(file_handle);\n'.format(f['TYPE'])
-                ret = ret + T + T + 'if ii==1\n'
-                ret = ret + T + T + T + 'struct_in.{0} = [tmp];\n'.format(f['NAME'])
-                ret = ret + T + T + 'else\n'
-                ret = ret + T + T + T + 'struct_in.{0}(end+1)=tmp;\n'.format(f['NAME'])
+                ret = ret + T + T + 'struct_in.{0} = [];\n'.format(f['NAME'])
+                ret = ret + T + T + 'for ii=1:num_elems\n'   
+                ret = ret + T + T + T + 'tmp=read_binary_{0}(file_handle);\n'.format(f['TYPE'])
+                ret = ret + T + T + T + 'if ii==1\n'
+                ret = ret + T + T + T + T + 'struct_in.{0} = [tmp];\n'.format(f['NAME'])
+                ret = ret + T + T + T + 'else\n'
+                ret = ret + T + T + T + T + 'struct_in.{0}(end+1)=tmp;\n'.format(f['NAME'])
+                ret = ret + T + T + T + 'end\n'
                 ret = ret + T + T + 'end\n'
-                ret = ret + T + 'end\n'
+            ret = ret + T + 'else\n' # if num_elems > 0
+            ret = ret + T + T + 'struct_in.{0} = [];\n'.format(f['NAME'])
+            ret = ret + T + 'end\n'
     ret = ret + 'end\n'
     return ret
 # end create_read_binary
@@ -146,21 +150,23 @@ def create_write_binary(basetypes,structs,struct_name):
                 ret = ret + T + "fwrite(file_handle,num_elems,'int32');\n"
             else:
                 ret = ret + T + "num_elems={0};\n".format(f['LENGTH'])
+            ret = ret + T + 'if num_elems > 0\n'
             # now read in that many types
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
                 if b['IS_COMPLEX']:
                     # flatten the complex data, then write
-                    ret = ret + T + 'tmp=zeros(num_elems*2,1);\n'
-                    ret = ret + T + 'tmp(1:2:end-1)=real(struct_out.{0});\n'.format(f['NAME'])
-                    ret = ret + T + 'tmp(2:2:end)=imag(struct_out.{0});\n'.format(f['NAME'])
-                    ret = ret + T + "fwrite(file_handle,tmp,'{0}');\n".format(b['MAT_TYPE'])
+                    ret = ret + T + T + 'tmp=zeros(num_elems*2,1);\n'
+                    ret = ret + T + T + 'tmp(1:2:end-1)=real(struct_out.{0});\n'.format(f['NAME'])
+                    ret = ret + T + T + 'tmp(2:2:end)=imag(struct_out.{0});\n'.format(f['NAME'])
+                    ret = ret + T + T + "fwrite(file_handle,tmp,'{0}');\n".format(b['MAT_TYPE'])
                 else:
-                    ret = ret + T + "fwrite(file_handle,struct_out.{0},'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
+                    ret = ret + T + T + "fwrite(file_handle,struct_out.{0},'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
             elif f['IS_STRUCT']:
-                ret = ret + T + 'for ii=1:num_elems\n'   
-                ret = ret + T + T + 'write_binary_{0}(file_handle,struct_out.{1}(i));\n'.format(f['TYPE'],f['NAME'])
-                ret = ret + T + 'end\n'
+                ret = ret + T + T + 'for ii=1:num_elems\n'   
+                ret = ret + T + T + T + 'write_binary_{0}(file_handle,struct_out.{1}(ii));\n'.format(f['TYPE'],f['NAME'])
+                ret = ret + T + T + 'end\n'
+            ret = ret + T + 'end\n' # if num_elems > 0 
     ret = ret + 'end\n'
     return ret
 # end create_write_binary

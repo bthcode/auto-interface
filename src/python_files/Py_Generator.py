@@ -123,7 +123,10 @@ def create_py_class_def( basetypes, structs, struct_name ):
             else: # fixed length, no num_elems
                 ret = ret + T + T + "num_elems = {0}\n".format(f['LENGTH'])
             if f['IS_BASETYPE']:
-                ret = ret + T + T + 'self.{0} = io.read_{1}( r_stream, nElements=num_elems )\n'.format(f['NAME'], f['TYPE'])
+                ret = ret + T + T + 'if num_elems > 0:\n'
+                ret = ret + T + T + T + 'self.{0} = io.read_{1}( r_stream, nElements=num_elems )\n'.format(f['NAME'], f['TYPE'])
+                ret = ret + T + T + 'else:\n'
+                ret = ret + T + T + T + 'self.{0} = []\n'.format(f['NAME'])
             elif f['IS_STRUCT']:
                 ret = ret + T + T + 'for idx in range( num_elems ):\n'
                 ret = ret + T + T + T + 'tmp = {0}()\n'.format( f['TYPE'] )
@@ -160,7 +163,8 @@ def create_py_class_def( basetypes, structs, struct_name ):
             else:
                 ret = ret + T + T + "num_elems = {0}\n".format(f['LENGTH'])
             if f['IS_BASETYPE']:
-                ret = ret + T + T + 'io.write_{0}( r_stream, self.{1}, nElements=num_elems )\n'.format(f['TYPE'],f['NAME'])
+                ret = ret + T + T + 'if num_elems > 0:\n'
+                ret = ret + T + T + T + 'io.write_{0}( r_stream, self.{1}, nElements=num_elems )\n'.format(f['TYPE'],f['NAME'])
             elif f['IS_STRUCT']:
                 ret = ret + T + T + 'for idx in range( num_elems ):\n'
                 ret = ret + T + T + T + 'if typecheck:\n'

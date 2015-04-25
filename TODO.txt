@@ -17,18 +17,23 @@
 ###
 # Other todos:
 
-- all types: handle empty vectors when reading and writing
-- combine c++ and c into single header/c file
-- combine c files by "namespace"
-- use "namespace" in python file names
-- cleanup default value handling
-- cleanup cpp_type handling
-- cleanup stream_type handling
-- io_support.c - add inlines
-- add "is_flat"?
+_1_ all types: handle empty vectors when reading and writing  
+    _x_ C
+    _x_ C++
+    _x_ MATLAB
+    _x_ Python
+_3_ Prettyify output code
+_2_ combine c++ and c into single header/c file
+_2_ combine c files by "namespace"
+_2_ use "namespace" in python file names
+_2_ cleanup default value handling
+_2_ cleanup cpp_type handling
+_2_ cleanup stream_type handling
+_3_ io_support.c - add inlines
+_3_ add "is_flat"?
     - time full struct write compared to packed binary write
-- GPB support plan
-- ascii i/o support? json i/o support?
+_?_ GPB support plan
+_?_ ascii i/o support? json i/o support?
    - flat vectors to flat output
-- auto-generate a set of tests
-- should default length be supported?
+_?_ auto-generate a set of tests
+_?_ should default length be supported?

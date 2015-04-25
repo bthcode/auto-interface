@@ -226,11 +226,12 @@ def create_struct_impl(basetypes,structs,struct_name):
                 ret = ret + T + '}\n'
 
         elif f['LENGTH'] == 'VECTOR':
-            ret = ret + T + 'uint32_t tmp_%s_size;\n' % (f['NAME'])
+            ret = ret + T + 'int32_t tmp_%s_size;\n' % (f['NAME'])
             ret = ret + T + 'r_stream.read( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % (f['NAME'],f['NAME'])
             if f['IS_BASETYPE']:
                 ret = ret + T + '{0}.resize( tmp_{0}_size );\n'.format(f['NAME'])
-                ret = ret + T + 'r_stream.read( reinterpret_cast<char*>(&{0}[0]), tmp_{0}_size * sizeof({1}));\n'.format(f['NAME'],ctype)
+                ret = ret + T + 'if (tmp_{0}_size > 0)\n'.format(f['NAME'])
+                ret = ret + T + T + 'r_stream.read( reinterpret_cast<char*>(&{0}[0]), tmp_{0}_size * sizeof({1}));\n'.format(f['NAME'],ctype)
             elif f['IS_STRUCT']:
                 ctype = f['TYPE']
                 ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % (f['NAME'])
@@ -261,7 +262,7 @@ def create_struct_impl(basetypes,structs,struct_name):
                 ret = ret + T + T + '{0}[ii].write_binary( r_stream );\n'.format(f['NAME'])
                 ret = ret + T + '}\n'
         elif f['LENGTH'] == 'VECTOR':
-            ret = ret + T + 'uint32_t tmp_%s_size = %s.size();\n' % (f['NAME'],f['NAME'])
+            ret = ret + T + 'int32_t tmp_%s_size = %s.size();\n' % (f['NAME'],f['NAME'])
             ret = ret + T + 'r_stream.write( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % (f['NAME'],f['NAME'])
             # TODO: This write should be faster
             if f['IS_BASETYPE']:
