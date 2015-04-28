@@ -83,7 +83,7 @@
          "DEFAULT_VALUE" : 0.0,
          "MEX_TYPE" : "mxDOUBLE_CLASS",
          "MAT_TYPE" : "double",
-         "LENGTH" : 4
+         "LENGTH" : 8
       },
     "COMPLEX_DOUBLE" :
       {

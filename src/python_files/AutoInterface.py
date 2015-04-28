@@ -24,9 +24,10 @@ class AutoGenerator:
 
      
     """
-    def __init__(self, json_basetypes, json_file):
+    def __init__(self, json_basetypes, json_file, pad=-1):
         self.basetypes = json.load( open( json_basetypes,  'r' ) )
         self.project   = json.load( open( json_file, 'r' ) )
+        self.pad = pad
 
         # We want the structures two ways:
         #  - ordered (by occurrence in the json file )
@@ -59,6 +60,9 @@ class AutoGenerator:
 
         # go through keys, setting length
         for struct_name, struct_def in self.structs.items():
+            # track padding and size information
+            struct_def['IS_PADDED'] = False
+            struct_def['SIZE'] = None
             # inherit the namespace
             if self.project['NAMESPACE']:
                 struct_def['NAMESPACE'] = self.project['NAMESPACE']
@@ -129,7 +133,92 @@ class AutoGenerator:
             if not basetype.has_key('STREAM_CAST'):
                 basetype['STREAM_CAST'] = basetype['CPP_TYPE']
             self.basetypes[base_name]=basetype
+
+        if self.pad > 0:
+            print "padding to {0}".format(self.pad)
+            for struct_name in self.structs.keys():
+                if self.structs[struct_name]['IS_PADDED'] == False:
+                    self.insert_padding( struct_name, self.structs, pad_to=self.pad )
+        else:
+            print "no padding"
     # end preprocess
+
+    def insert_padding(self,struct_name,structs,pad_to=8):
+        ''' Inserts padding using the following rules:
+            1. pad basic type to width of that type
+            2. pad end of struct to widest alignment in that struct '''
+        pad_template = {'DEFAULT_VALUE': 0,
+                        'DESCRIPTION': '',
+                        'IS_BASETYPE': True,
+                        'IS_STRUCT': False,
+                        'LENGTH': 1,
+                        'NAME': 'pad',
+                        'TYPE': 'UINT_8'}
+        struct_def = self.structs[struct_name]
+        sum_bytes=0
+        pad_counter=0;
+        out_fields = []
+        largest_alignment = 1
+        for idx, f in enumerate(struct_def['FIELDS']):
+            if type(f['LENGTH']) == int:
+                if f['IS_BASETYPE']:
+                    b = self.basetypes[f['TYPE']]
+                    field_bytes = b['LENGTH']
+                elif f['IS_STRUCT']:
+                    if not self.structs[f['TYPE']]['IS_PADDED']:
+                        self.insert_padding( f['TYPE'], self.structs, pad_to=self.pad )
+                    field_bytes = self.structs[f['TYPE']]['SIZE']
+                # fields should be aligned according to their length, but 
+                #  not larger than the target word size
+                target_pad = min( pad_to, field_bytes )
+                largest_alignment = max( target_pad, largest_alignment )
+                if sum_bytes % target_pad != 0:
+                    pad_name = "pad_{0}".format(pad_counter)
+                    pad_counter += 1
+                    pad_length = target_pad - sum_bytes % target_pad
+                    field = {}
+                    field['NAME'] = pad_name
+                    field['LENGTH'] = pad_length
+                    field['IS_BASETYPE'] = True
+                    field['IS_STRUCT'] = False
+                    field['TYPE'] = 'UINT_8'
+                    field['DEFAULT_VALUE'] = [55] * pad_length
+                    field['DESCRIPTION'] = 'PADDING FOR ALIGNMENT'
+                    out_fields.append(field)
+                    sum_bytes += target_pad - sum_bytes % target_pad
+                    print ( "Inserting pad, length {1} before {0}".format(f['NAME'],pad_length) )  
+            elif f['LENGTH'] == 'VECTOR':
+                print( "WARNING! Cannot pre-pad structs with variable length" )
+                sys.exit(1)
+            sum_bytes += field_bytes * f['LENGTH']
+            out_fields.append(f)
+        import ipdb; ipdb.set_trace()
+        if sum_bytes % largest_alignment != 0:
+            target_pad = largest_alignment
+            pad_name = "pad_{0}".format(pad_counter)
+            pad_counter += 1
+            pad_length = target_pad - sum_bytes % target_pad
+            field = {}
+            field['NAME'] = pad_name
+            field['LENGTH'] = pad_length
+            field['IS_BASETYPE'] = True
+            field['IS_STRUCT'] = False
+            field['TYPE'] = 'UINT_8'
+            field['DEFAULT_VALUE'] = [55] * pad_length
+            field['DESCRIPTION'] = 'PADDING FOR ALIGNMENT'
+            out_fields.append(field)
+            sum_bytes += target_pad - sum_bytes % target_pad
+            print ( "Inserting pad, length {1} before {0}".format(f['NAME'],pad_length) )  
+
+        #TODO : do we pad the end of the struct?
+        self.structs[struct_name]['FIELDS'] = out_fields
+        self.structs[struct_name]['IS_PADDED'] = True
+        self.structs[struct_name]['SIZE']    = sum_bytes
+                
+    # end insert_padding
+
+# end class AutoGenerator
+
 
 
 if __name__=="__main__":
@@ -137,8 +226,11 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser('')
     parser.add_argument( 'basetypes' )
     parser.add_argument( 'json_file' )
+    parser.add_argument( '--pad', default=-1, type=int, help='Insert Padding For Explicit 64-Bit Word Alignment (Warning: Does Not Work With VECTOR Data Type)')
+    parser.set_defaults(pad=-1)
     args = parser.parse_args()
-    A = AutoGenerator(args.basetypes, args.json_file) 
+    print args
+    A = AutoGenerator(args.basetypes, args.json_file, pad = args.pad) 
     import pprint
     print pprint.pformat(A.basetypes)
     print pprint.pformat(A.structs)

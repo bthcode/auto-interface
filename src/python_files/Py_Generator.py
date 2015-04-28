@@ -212,12 +212,13 @@ if __name__ == "__main__":
     parser.add_argument( 'json_basetypes_file' )
     parser.add_argument( 'json_structures_file' )
     parser.add_argument( 'output_directory' )
+    parser.add_argument( '--pad', default=-1, type=int, help='Insert Padding For Explicit 64-Bit Word Alignment (Warning: Does Not Work With VECTOR Data Type)')
     args = parser.parse_args()
 
     json_basetypes = args.json_basetypes_file
     json_file = args.json_structures_file
     out_dir = args.output_directory
-    A = AutoGenerator( json_basetypes, json_file )
+    A = AutoGenerator(json_basetypes,json_file,pad=args.pad)
     basetypes = A.basetypes
     structs   = A.structs
     generate_py( out_dir, basetypes, structs )
