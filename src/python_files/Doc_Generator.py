@@ -12,6 +12,7 @@ import json, string, pprint, sys, os
 import shutil
 from AutoInterface import AutoGenerator
 from Templates import py_class_template
+import format_utils
 
 T="    "
 
@@ -66,7 +67,10 @@ def create_rst( basetypes, structs, struct_name ):
         descriptions.append(str(f['DESCRIPTION']))
         descriptions_length = max(len(descriptions[-1]),descriptions_length)
         if f['IS_BASETYPE'] and f['LENGTH']!='VECTOR':
-            defaults.append(str(f['DEFAULT_VALUE']))
+            if f['LENGTH'] == 1:
+                defaults.append(str(f['DEFAULT_VALUE']))
+            else:
+                defaults.append(format_utils.print_list_summary(f['DEFAULT_VALUE']))
         else:
             defaults.append('')
         defaults_length = max(len(defaults[-1]),defaults_length)

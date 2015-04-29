@@ -40,3 +40,4 @@ _x_ cleanup default value handling
 _x_ cleanup cpp_type handling
 _x_ cleanup stream_type handling
 _x_ add explicit structure padding
+_x_ Truncate defaults in documentation
