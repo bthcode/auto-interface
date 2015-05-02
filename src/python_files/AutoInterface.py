@@ -82,6 +82,7 @@ class AutoGenerator:
                             f['LENGTH'] = 1
                             print "ERROR: Bad length for field {0}".format(f['NAME'])
 
+
                 # Determine if is struct
                 if self.structs.has_key(f['TYPE']):
                     f['IS_STRUCT'] = True
