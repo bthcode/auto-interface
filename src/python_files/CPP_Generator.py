@@ -41,7 +41,6 @@ stock_includes = \
 
 class_end = \
 '''
-    std::size_t num_fields;
 
     // Member Functions
     void write_props( std::ostream& r_stream, std::string& r_prefix );
@@ -196,7 +195,7 @@ def create_struct_impl(basetypes,structs,struct_name):
         ret = ret + '\nnamespace %s {\n\n' % (struct_def['NAMESPACE'])
 
     ### Constructor
-    ret = ret + '%s::%s() : num_fields(%s){}\n\n\n' % (struct_name,struct_name,len(struct_def['FIELDS']))
+    ret = ret + '%s::%s(){}\n\n\n' % (struct_name,struct_name)
 
     ### Read Binary
     ret = ret + "void %s::read_binary( std::ifstream& r_stream ){\n\n" % (struct_name)
