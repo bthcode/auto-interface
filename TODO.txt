@@ -17,6 +17,8 @@
 ###
 # Other todos:
 
+_1_ Calculate length for fixed length structures and include in documents
+_1_ Better JSON Format Debugging
 _3_ Prettyify output code
 _2_ combine c++ and c into single header/c file
 _2_ combine c files by "namespace"
@@ -41,3 +43,5 @@ _x_ cleanup cpp_type handling
 _x_ cleanup stream_type handling
 _x_ add explicit structure padding
 _x_ Truncate defaults in documentation
+_x_ Remove num_fields field
+_x_ Remove sphinx output
