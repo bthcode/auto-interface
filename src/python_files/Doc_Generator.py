@@ -60,6 +60,8 @@ def create_rst( basetypes, structs, struct_name ):
             width  = int(basetypes[f['TYPE']]['LENGTH'])
             total  = length * width
             lengths.append('{0} * {1} = {2}'.format( length,width,total ) )
+        elif f['IS_STRUCT']:
+            lengths.append('STRUCTURE')
                                                     
         else:
             lengths.append('VARIABLE')
@@ -110,16 +112,9 @@ def create_rst( basetypes, structs, struct_name ):
 # end generate_rst
 
 
-def generate_docs( project_name, project_version, project_description, doc_dir, basetypes, struct_order, structs, overwrite=True ):
-    if overwrite:
-        if os.path.exists( doc_dir ):
-            shutil.rmtree( doc_dir )
+def generate_docs( project_name, project_version, project_description, output_file, basetypes, struct_order, structs, overwrite=True ):
 
-        python_repo_dir = os.path.dirname(os.path.realpath(__file__))
-        shutil.copytree( python_repo_dir + os.sep + 'sphinx_in', 
-                     doc_dir  )
-
-    fOut = open( doc_dir + os.sep + 'generated.rst', 'w' )
+    fOut = open( output_file, 'w' )
     generated = '''
 ###########################
 Project: {0}
@@ -145,13 +140,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser( 'AutoInterface Python Generator' )
     parser.add_argument( 'json_basetypes_file' )
     parser.add_argument( 'json_structures_file' )
-    parser.add_argument( 'output_directory' )
+    parser.add_argument( 'output_file' )
     parser.add_argument( '--pad', default=-1, type=int, help='Insert Padding For Explicit 64-Bit Word Alignment (Warning: Does Not Work With VECTOR Data Type)')
     args = parser.parse_args()
 
     json_basetypes = args.json_basetypes_file
     json_file = args.json_structures_file
-    out_dir = args.output_directory
+    output_file = args.output_file 
     A = AutoGenerator( json_basetypes, json_file,pad=args.pad )
     basetypes = A.basetypes
     structs   = A.structs
@@ -160,4 +155,4 @@ if __name__ == "__main__":
     pver  = A.project['VERSION']
     struct_order = A.struct_order
 
-    generate_docs( pname, pdesc, pver, out_dir, basetypes, struct_order, structs, overwrite=True )
+    generate_docs( pname, pdesc, pver, output_file, basetypes, struct_order, structs, overwrite=True )
