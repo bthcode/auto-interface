@@ -193,7 +193,6 @@ class AutoGenerator:
                 sys.exit(1)
             sum_bytes += field_bytes * f['LENGTH']
             out_fields.append(f)
-        import ipdb; ipdb.set_trace()
         if sum_bytes % largest_alignment != 0:
             target_pad = largest_alignment
             pad_name = "pad_{0}".format(pad_counter)

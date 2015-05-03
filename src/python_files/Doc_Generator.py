@@ -53,15 +53,28 @@ def create_rst( basetypes, structs, struct_name ):
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
                 lengths.append(str(basetypes[f['TYPE']]['LENGTH']))
+            elif f['IS_STRUCT']:
+                child = structs[f['TYPE']]
+                if child.has_key('SIZE'):
+                    lengths.append(str(child['SIZE']))
+                else:
+                    lengths.append('STRUCTURE')
             else:
-                lengths.append('STRUCTURE')
+                pass
         elif f['IS_BASETYPE'] and type(f['LENGTH']) == int:
             length = f['LENGTH']
             width  = int(basetypes[f['TYPE']]['LENGTH'])
             total  = length * width
-            lengths.append('{0} * {1} = {2}'.format( length,width,total ) )
-        elif f['IS_STRUCT']:
-            lengths.append('STRUCTURE')
+            lengths.append('{0} * {1} = {2}'.format(length,width,total))
+        elif f['IS_STRUCT'] and type(f['LENGTH']) == int:
+            child = structs[f['TYPE']]
+            if child.has_key('SIZE'):
+                length = f['LENGTH']
+                width  = int(child['SIZE'])
+                total  = length * width
+                lengths.append( '{0} * {1} = {2}'.format(length,width,total))
+            else:
+                lengths.append('STRUCTURE')
                                                     
         else:
             lengths.append('VARIABLE')
