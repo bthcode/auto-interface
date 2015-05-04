@@ -48,6 +48,7 @@ def create_rst( basetypes, structs, struct_name ):
     descriptions = []
     defaults = []
     
+
     for f in struct_def['FIELDS']:
         fields.append(f['NAME'])
         fields_length = max(len(fields[-1]),fields_length)
@@ -97,6 +98,16 @@ def create_rst( basetypes, structs, struct_name ):
         else:
             defaults.append('')
         defaults_length = max(len(defaults[-1]),defaults_length)
+    if struct_def.has_key("SIZE"):
+        fields.append( "TOTAL" )
+        types.append("")
+        lengths.append("")
+        bytes_.append(str(struct_def["SIZE"]))
+        descriptions.append("")
+        defaults.append("")
+        fields_length=max(len(fields[-1]),fields_length)
+        bytes_length=max(len(fields[-1]),fields_length)    
+         
 
     print fields
     print types
