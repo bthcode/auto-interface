@@ -32,8 +32,10 @@ def create_rst( basetypes, structs, struct_name ):
     fields_length = len(fields_header)
     types_header = 'Types'
     types_length = len(types_header)
-    lengths_header = 'Length(Bytes)'
+    lengths_header = 'Length'
     lengths_length = len(lengths_header)
+    bytes_header = 'Bytes'
+    bytes_length = len(bytes_header)
     descriptions_header='Description'
     descriptions_length = len(descriptions_header)
     defaults_header='Defaults'
@@ -42,43 +44,49 @@ def create_rst( basetypes, structs, struct_name ):
     fields = []
     types = []
     lengths = []
+    bytes_ = []
     descriptions = []
     defaults = []
-
+    
     for f in struct_def['FIELDS']:
         fields.append(f['NAME'])
         fields_length = max(len(fields[-1]),fields_length)
         types.append(f['TYPE'])
         types_length = max(len(types[-1]),types_length)
         if f['LENGTH'] == 1:
+            lengths.append('1')
             if f['IS_BASETYPE']:
-                lengths.append(str(basetypes[f['TYPE']]['LENGTH']))
+                bytes_.append(str(basetypes[f['TYPE']]['LENGTH']))
             elif f['IS_STRUCT']:
                 child = structs[f['TYPE']]
                 if child.has_key('SIZE'):
-                    lengths.append(str(child['SIZE']))
+                    bytes_.append(str(child['SIZE']))
                 else:
-                    lengths.append('STRUCTURE')
+                    bytes_.append('STRUCTURE')
             else:
                 pass
         elif f['IS_BASETYPE'] and type(f['LENGTH']) == int:
             length = f['LENGTH']
             width  = int(basetypes[f['TYPE']]['LENGTH'])
             total  = length * width
-            lengths.append('{0} * {1} = {2}'.format(length,width,total))
+            lengths.append(str(length))
+            bytes_.append('{0}/{1}'.format(width,total))
         elif f['IS_STRUCT'] and type(f['LENGTH']) == int:
             child = structs[f['TYPE']]
+            length = f['LENGTH']
+            lengths.append(str(length))
             if child.has_key('SIZE'):
-                length = f['LENGTH']
                 width  = int(child['SIZE'])
                 total  = length * width
-                lengths.append( '{0} * {1} = {2}'.format(length,width,total))
+                bytes_.append('{0}/{1}'.format(width,total))
             else:
-                lengths.append('STRUCTURE')
+                bytes_.append('STRUCTURE')
                                                     
         else:
-            lengths.append('VARIABLE')
+            lengths.append('VAR')
+            bytes_.append('VAR/VAR')
         lengths_length = max(len(lengths[-1]),lengths_length)
+        bytes_length = max(len(bytes_[-1]),bytes_length)
         descriptions.append(str(f['DESCRIPTION']))
         descriptions_length = max(len(descriptions[-1]),descriptions_length)
         if f['IS_BASETYPE'] and f['LENGTH']!='VECTOR':
@@ -99,6 +107,7 @@ def create_rst( basetypes, structs, struct_name ):
     magic_row = "="*fields_length + " " + \
                 "="*types_length + " " + \
                 "="*lengths_length + " " + \
+                "="*bytes_length + " " + \
                 "="*descriptions_length + " " + \
                 "="*defaults_length + "\n"
     print magic_row
@@ -106,6 +115,7 @@ def create_rst( basetypes, structs, struct_name ):
     ret = ret + fields_header.ljust(fields_length) + " " + \
                 types_header.ljust(types_length) + " " + \
                 lengths_header.ljust(lengths_length) + " " + \
+                bytes_header.ljust(bytes_length) + " " + \
                 descriptions_header.ljust(descriptions_length) + " " + \
                 defaults_header + "\n"
     ret = ret + magic_row
@@ -114,6 +124,7 @@ def create_rst( basetypes, structs, struct_name ):
         ret = ret + fields[idx].ljust(fields_length) + " " + \
                     types[idx].ljust(types_length) + " " + \
                     lengths[idx].ljust(lengths_length) + " " + \
+                    bytes_[idx].ljust(bytes_length) + " " + \
                     descriptions[idx].ljust(descriptions_length) + " " + \
                     defaults[idx].ljust(defaults_length) + "\n"
 
