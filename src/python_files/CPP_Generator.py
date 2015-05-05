@@ -286,27 +286,31 @@ def create_struct_impl(basetypes,structs,struct_name):
         elif type(f['LENGTH']) == int:
             if f['IS_BASETYPE']:
                 b = basetypes[ f['TYPE'] ]
-                ret = ret + T + T +  'for ( std::size_t ii = 0; ii != {0}; ii++ )\n'.format(f['LENGTH'])
-                ret = ret + T + T +  '{\n'
-                ret = ret + T + T + T + 'r_stream << r_prefix << "{0}[ " << ii << " ] = " << ({1})({0}[ii]) << std::endl;\n'.format(f['NAME'],b['STREAM_CAST'])
-                ret = ret + T + T +  '}\n'
+                ret = ret + T + 'r_stream << r_prefix << "{0}" <<  " = " ;\n'.format(f['NAME'])
+                ret = ret + T + 'for ( std::size_t ii = 0; ii != {1}; ii++ )\n'.format(f['NAME'],f['LENGTH'])
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'r_stream << ({0})({1}[ii]) << " ";'.format(b['STREAM_CAST'],f['NAME'])
+                ret = ret + T + '}\n'
+                ret = ret + T + 'r_stream << std::endl;\n'
             elif f['IS_STRUCT']:
                 ret = ret + T + T +  'for ( std::size_t ii = 0; ii != {0}; ii++ )\n'.format(f['LENGTH'])
                 ret = ret + T + T +  '{\n'
                 # Build a prefix
                 ret = ret + T + T + T + 'std::stringstream ss;\n'
-                ret = ret + T + T + T + 'ss << r_prefix << "({0})[ " << ii << " ].";\n'.format(f['NAME'])
+                ret = ret + T + T + T + 'ss << r_prefix << "{0}[ " << ii << " ].";\n'.format(f['NAME'])
                 ret = ret + T + T + T + 'std::string tmp( ss.str() );\n'
                 # Use prefix to write props
                 ret = ret + T + T + T + '{0}[ii].write_props( r_stream, tmp );\n'.format(f['NAME'])
                 ret = ret + T + T +  '}\n'
-
         elif f['LENGTH'] == 'VECTOR':
             if f['IS_BASETYPE']:
                 b = basetypes[ f['TYPE'] ]
-                iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % (b['CPP_TYPE'])
-                print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << (%s)((*ii)) << "\\n";\n' % (f['NAME'],b['STREAM_CAST'])
-            
+                ret = ret + T + 'r_stream << r_prefix << "{0}" <<  " = " ;\n'.format(f['NAME'])
+                ret = ret + T + 'for ( std::size_t ii = 0; ii != {0}.size(); ii++ )\n'.format(f['NAME'])
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'r_stream << ({0})({1}[ii]) << " ";'.format(b['STREAM_CAST'],f['NAME'])
+                ret = ret + T + '}\n'
+                ret = ret + T + 'r_stream << std::endl;\n'
             elif f['IS_STRUCT']:
                 iter_decl = T + T + 'std::vector< %s >::iterator ii;\n' % (f['TYPE'])
                 print_decl = T + T + T + 'std::stringstream ss;\n'
@@ -314,15 +318,15 @@ def create_struct_impl(basetypes,structs,struct_name):
                 print_decl = print_decl + T + T + T + 'std::string tmp( ss.str() );\n'
                 print_decl = print_decl + T + T + T + 'ii->write_props( r_stream, tmp );\n'
             
-            ret = ret + T + '{\n'
-            ret = ret + iter_decl
-            ret = ret + T + T +  'std::size_t count = 0;\n'
-            ret = ret + T + T +  'for ( ii = %s.begin(); ii != %s.end(); ii++ )\n' %(f['NAME'],f['NAME'])
-            ret = ret + T + T +  '{\n'
-            ret = ret + print_decl
-            ret = ret + T + T +T +   'count++;\n'
-            ret = ret + T + T +  '}\n'
-            ret = ret + T + '}\n'
+                ret = ret + T + '{\n'
+                ret = ret + iter_decl
+                ret = ret + T + T +  'std::size_t count = 0;\n'
+                ret = ret + T + T +  'for ( ii = %s.begin(); ii != %s.end(); ii++ )\n' %(f['NAME'],f['NAME'])
+                ret = ret + T + T +  '{\n'
+                ret = ret + print_decl
+                ret = ret + T + T +T +   'count++;\n'
+                ret = ret + T + T +  '}\n'
+                ret = ret + T + '}\n'
     ret = ret + "}\n\n"
 
     ### Read Props From Params
@@ -353,29 +357,18 @@ def create_struct_impl(basetypes,structs,struct_name):
             pass
         elif f['LENGTH'] == 'VECTOR':
             if f['IS_BASETYPE']:
-                # 1. Get the prefix
-                # 2. Go into a while loop incrementing count until no more keys 
-                #       are found
                 b = basetypes[f['TYPE']]
+                ret = ret + T + 'key = r_prefix + "%s";\n\n' % (f['NAME'])
+                ret = ret + T + 'param_iter = r_params.find( key );\n'
+                ret = ret + T + 'if ( param_iter != r_params.end() )\n'
                 ret = ret + T + '{\n'
-                ret = ret + T + 'std::size_t count=0;\n'
-                ret = ret + T + 'while( 1 )\n'
-                ret = ret + T + '{\n'
-                ret = ret + T +T + 'std::stringstream ss;\n'
-                ret = ret + T +T + 'ss << r_prefix << "%s" << "[ " << count << " ]";\n' % (f['NAME'])
-                ret = ret + T +T + 'param_iter = r_params.find( ss.str() );\n' 
-                ret = ret + T +T + 'if ( param_iter == r_params.end() )\n'
-                ret = ret + T +T + T + 'break;\n'
-                ret = ret + T +T + 'else {\n'
-                ret = ret + T +T + T + 'std::stringstream ss2( param_iter->second );\n'
-                ret = ret + T +T +T + '%s u;\n' % (b['STREAM_CAST'])
-                ret = ret + T +T +T + 'ss2 >> u;\n'
-                ret = ret + T +T +T + '%s.push_back(%s( u ));\n' % (f['NAME'],b['STREAM_CAST'])
-                ret = ret + T +T +T + 'count++;\n'
-                ret = ret + T +T + '}\n'
-                ret = ret + T +T + 'fields_found += count;\n'
-                ret = ret + T +T + '}\n'
+                ret = ret + T + T + '%s.clear();\n' % ( f['NAME'] )
+                ret = ret + T + T + 'std::stringstream ss( param_iter->second );\n'
+                ret = ret + T + T + '%s u;\n' % ( b[ 'STREAM_CAST' ] )
+                ret = ret + T + T + 'while( ss >> u ) %s.push_back( u );\n' % ( f['NAME'] )
+                ret = ret + T + T + 'fields_found++;\n'
                 ret = ret + T + '}\n'
+
             elif f['IS_STRUCT']:
                 ret = ret + T + '{\n'
                 ret = ret + T + 'std::size_t count=0;\n'

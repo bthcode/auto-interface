@@ -17,7 +17,7 @@
 ###
 # Other todos:
 
-_1_ Calculate length for fixed length structures and include in documents
+_1_ Print flat arrays cleanly
 _1_ Better JSON Format Debugging
 _3_ Prettyify output code
 _2_ combine c++ and c into single header/c file
@@ -30,7 +30,7 @@ _?_ GPB support plan
 _?_ ascii i/o support? json i/o support?
    - flat vectors to flat output
 _?_ auto-generate a set of tests
-_?_ should default length be supported?
+_?_ should default length be supported for variable structures?
 
 DONE:
 _x_ all types: handle empty vectors when reading and writing  
@@ -45,3 +45,4 @@ _x_ add explicit structure padding
 _x_ Truncate defaults in documentation
 _x_ Remove num_fields field
 _x_ Remove sphinx output
+_x_ Calculate length for fixed length structures and include in documents -- only words when padding
