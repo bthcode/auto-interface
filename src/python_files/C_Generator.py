@@ -229,6 +229,10 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
                 ret = ret + T + '}\n\n'
     ret = ret + "}\n\n"
 
+    ### Validate
+    ret = ret + 'int validate_{0}( {0} * p_{0} ){{\n'.format( struct_name )
+    ret = ret + T + 'printf( "validate not implemented\\n" );\n'
+    ret = ret + '}\n\n'
 
     ### Set Deafults
     ret = ret + "void set_defaults_{0}( {0} * p_{0} ){{\n".format(struct_name)
