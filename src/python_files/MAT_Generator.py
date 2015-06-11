@@ -49,8 +49,8 @@ def create_set_defaults(basetypes,structs,struct_name):
                     # COMPLEX
                     if basetype['IS_COMPLEX']:
                         def_str = ''
-                        for idx in range(0,len(def_val),2):
-                            def_str = def_str + '{0} + {1}i '.format(def_val[idx],def_val[idx+1])
+                        for idx in range(0,len(def_val)):
+                            def_str = def_str + '{0} + {1}i '.format(def_val[idx][0],def_val[idx][1])
                     # Not COMPLEX
                     else:
                         def_str = ''

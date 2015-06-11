@@ -427,12 +427,12 @@ def create_struct_impl(basetypes,structs,struct_name):
                 if b['IS_COMPLEX']:
                     num_elements = len(def_val)/2
                     counter=0
-                    for idx in range(0,len(def_val),2):
+                    for idx in range(0,len(def_val)):
                         ret = ret + T + '{0}[{1}] = {2}({3},{4});\n'.format(f['NAME'],
                                                                             counter,
                                                                             b['CPP_TYPE'],
-                                                                            def_val[idx],
-                                                                            def_val[idx+1])
+                                                                            def_val[idx][0],
+                                                                            def_val[idx][1])
                         counter = counter+1
                 else:
                     num_elements = len(def_val)
