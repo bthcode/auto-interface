@@ -70,8 +70,10 @@ def create_c_struct_header( basetypes, structs, struct_name ):
     for dep in deps:
         ret = ret + '#include "%s"' % dep + "\n"
 
+    ret = ret + "\n\n"
+
     ### Class Def
-    ret = ret + " typedef struct {{\n".format( struct_name )
+    ret = ret + "typedef struct {{\n".format( struct_name )
 
 
     ### Member Data
@@ -101,7 +103,6 @@ def create_c_struct_header( basetypes, structs, struct_name ):
             ret = ret + T + "int32_t n_elements_{0};\n".format( f['NAME'] )
 
 
-    ret = ret + T + "size_t num_fields;\n"
     ret = ret + "\n}} {0} ;\n".format( struct_name )
 
     ret = ret + funcs_template.format(struct_name)
@@ -228,6 +229,59 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
                 ret = ret + T + '}\n\n'
     ret = ret + "}\n\n"
 
+
+    ### Set Deafults
+    ret = ret + "void set_defaults_{0}( {0} * p_{0} ){{\n".format(struct_name)
+    for f in struct_def['FIELDS']:
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                b = basetypes[ f['TYPE'] ]
+                # get default value
+                def_val = f['DEFAULT_VALUE']
+                # format for complex or not
+                if b['IS_COMPLEX']:
+                    val = '{0} + {1}j'.format(def_val[0],def_val[1])
+                else:
+                    val = '{0}'.format(def_val)
+                # set default value
+                ret = ret + T + 'p_{0}->{1} = {2};\n'.format(struct_name,f['NAME'],val)
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'set_defaults_{0}(&(p_{1}->{2}) );\n' % ( f['TYPE'],struct_name,f['NAME'] )
+        elif type(f['LENGTH']) == int:
+            # TODO
+            if f['IS_BASETYPE']:
+                b = basetypes[f['TYPE']]
+                # get default value
+                def_val = f['DEFAULT_VALUE']
+                # format for complex or not
+                if b['IS_COMPLEX']:
+                    num_elements = len(def_val)/2
+                    counter=0
+                    for idx in range(0,len(def_val)):
+                        ret = ret + T + 'p_{0}->{1}[{2}] = {3} + {4}j;\n'.format(struct_name,
+                                                                          f['NAME'],
+                                                                          counter,
+                                                                          def_val[idx][0],
+                                                                          def_val[idx][1])
+                        counter = counter+1
+                else:
+                    num_elements = len(def_val)
+                    counter=0
+                    for idx in range(len(def_val)):
+                        ret = ret + T + 'p_{0}->{1}[{2}] = {3};\n'.format(struct_name,f['NAME'],counter,def_val[idx])
+                        counter = counter+1
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'for ( std::size_t ii=0; ii < {0}; ii++ )\n'.format( f['LENGTH'] )
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'set_defaults_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
+                ret = ret + T + '}\n'
+
+        elif f['LENGTH'] == 'VECTOR':
+            print ("WARNING: Setting Default Length for VECTOR Type in C not supported")
+            
+
+    ret = ret + "}\n\n"
+
     ret = ret + "void write_props_{0}( FILE * r_stream, const char * prefix, int prefix_len, {0} * p_{0} )\n".format(struct_name)
     ret = ret + '{\n'
     ret = ret + T + 'char buf[1024];\n'
@@ -280,6 +334,27 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
     return ret
 # end create_c_struct_impl
 
+def create_default_gen(basetypes,structs,struct_name):
+    ret = '#include "{0}_struct_def.h"\n'.format(struct_name)
+    ret = ret + 'int main(int argc, char *argv[])\n'
+    ret = ret + '{\n'
+    ret = ret + T + 'if (argc != 2 )\n'
+    ret = ret + T + '{\n'
+    ret = ret + T + T + 'printf( "USAGE: print_{0} <binary>\\n" );\n'.format(struct_name)
+    ret = ret + T + T + 'exit(1);\n'
+    ret = ret + T + '}\n\n'
+    ret = ret + T + 'FILE * fout = fopen( argv[1], "wb" );\n'
+    ret = ret + T + '{0} x;\n'.format(struct_name)
+    ret = ret + T + 'set_defaults_{0}(&x);\n'.format(struct_name)
+    ret = ret + T + 'write_binary_{0}(fout,&x);\n'.format(struct_name)
+    ret = ret + T + 'dealloc_{0}(&x);\n'.format(struct_name)
+    ret = ret + T + 'fclose(fout);\n\n'
+    ret = ret + T + 'return 0;\n'
+    ret = ret + '}\n'
+    return ret
+# end create_printer_for_struct
+
+
 def create_printer_for_struct(basetypes,structs,struct_name):
     ret = '#include "{0}_struct_def.h"\n'.format(struct_name)
     ret = ret + 'int main(int argc, char *argv[])\n'
@@ -327,6 +402,15 @@ def create_printers( src_dir,basetypes,structs):
         fOut.close()
 # end create_printers
 
+def create_default_generators( src_dir,basetypes,structs):
+    for struct_name,struct_def in structs.items():
+        c_code = create_default_gen(basetypes,structs,struct_name)
+        fOut = open( src_dir + os.sep + "generate_{0}.c".format( struct_name), "w" )
+        fOut.write(c_code)
+        fOut.close()
+# end create_default_gen
+
+
 def create_cmake_file( c_src_dir, c_inc_dir, basetypes, structs ):
     ret = """
 cmake_minimum_required(VERSION 2.8)
@@ -357,10 +441,11 @@ ADD_LIBRARY( auto_interface_structs ${{C_FILES}} )
     for struct_name, struct_def in structs.items():
         ret = ret + 'ADD_EXECUTABLE( print_{0} print_{0}.c )\n'.format(struct_name)
         ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} auto_interface_structs )\n\n'.format(struct_name) 
+        ret = ret + 'ADD_EXECUTABLE( generate_{0} generate_{0}.c )\n'.format(struct_name)
+        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} auto_interface_structs )\n\n'.format(struct_name)
     return ret
 
 # end create_cmake_file
-
 
 
 def generate_c( src_dir, inc_dir, basetypes, structs ):
@@ -379,6 +464,7 @@ def generate_c( src_dir, inc_dir, basetypes, structs ):
     create_c_headers(inc_dir, basetypes, structs )
     create_c_impls(src_dir, basetypes, structs )
     create_printers(src_dir,basetypes,structs)
+    create_default_generators(src_dir,basetypes,structs)
 
     cmake_txt = create_cmake_file( src_dir, inc_dir, basetypes, structs )
     fOut = open( src_dir + os.sep + "CMakeLists.txt", "w" )
