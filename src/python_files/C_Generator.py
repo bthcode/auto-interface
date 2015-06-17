@@ -250,7 +250,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
                 # set default value
                 ret = ret + T + 'p_{0}->{1} = {2};\n'.format(struct_name,f['NAME'],val)
             elif f['IS_STRUCT']:
-                ret = ret + T + 'set_defaults_{0}(&(p_{1}->{2}) );\n' % ( f['TYPE'],struct_name,f['NAME'] )
+                ret = ret + T + 'set_defaults_{0}(&(p_{1}->{2}) );\n'.format( f['TYPE'],struct_name,f['NAME'] )
         elif type(f['LENGTH']) == int:
             # TODO
             if f['IS_BASETYPE']:
