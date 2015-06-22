@@ -275,7 +275,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
                         ret = ret + T + 'p_{0}->{1}[{2}] = {3};\n'.format(struct_name,f['NAME'],counter,def_val[idx])
                         counter = counter+1
             elif f['IS_STRUCT']:
-                ret = ret + T + 'for ( std::size_t ii=0; ii < {0}; ii++ )\n'.format( f['LENGTH'] )
+                ret = ret + T + 'for ( int ii=0; ii < {0}; ii++ )\n'.format( f['LENGTH'] )
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'set_defaults_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + T + '}\n'
@@ -338,8 +338,8 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
     return ret
 # end create_c_struct_impl
 
-def create_default_gen(basetypes,structs,struct_name):
-    ret = '#include "{0}_struct_def.h"\n'.format(struct_name)
+def create_default_gen(basetypes,structs,struct_name,project):
+    ret = '#include "{0}_struct_defs.h"\n'.format(project['PROJECT'])
     ret = ret + 'int main(int argc, char *argv[])\n'
     ret = ret + '{\n'
     ret = ret + T + 'if (argc != 2 )\n'
@@ -359,8 +359,8 @@ def create_default_gen(basetypes,structs,struct_name):
 # end create_printer_for_struct
 
 
-def create_printer_for_struct(basetypes,structs,struct_name):
-    ret = '#include "{0}_struct_def.h"\n'.format(struct_name)
+def create_printer_for_struct(basetypes,structs,struct_name,project):
+    ret = '#include "{0}_struct_defs.h"\n'.format(project['PROJECT'])
     ret = ret + 'int main(int argc, char *argv[])\n'
     ret = ret + '{\n'
     ret = ret + T + 'if (argc != 2 )\n'
@@ -383,11 +383,27 @@ def create_printer_for_struct(basetypes,structs,struct_name):
     # END STRAIGHT C
     ###############################################################
 
-def create_c_headers( inc_dir, basetypes, structs ):
+def create_c_headers( inc_dir, basetypes, structs, project_struct):
     '''Creates all structure and matlab support headers'''
     for struct_name, struct_def in structs.items():
         fOut = open( inc_dir + os.sep + "%s_struct_def.h" % (struct_name), "w" )
         fOut.write( create_c_struct_header( basetypes, structs, struct_name ) )
+    # Now create a master header
+    project = project_struct['PROJECT']
+    fOut = open( inc_dir + os.sep + '{0}_struct_defs.h'.format(project), "w" ) 
+    fOut.write("#ifndef {0}_HEADER_H\n".format(project))
+    fOut.write("#define {0}_HEADER_H\n".format(project))
+    fOut.write("/**\n")
+    fOut.write(" * AutoInterface Generated Code\n" )
+    fOut.write(" * \n" )
+    fOut.write(" *    PROJECT: {0}\n".format(project))
+    fOut.write(" *    VERSION: {0}\n".format(project_struct['VERSION']))
+    fOut.write(" */\n\n")
+    for struct_name, struct_def in structs.items():
+        fOut.write( '#include "{0}_struct_def.h"\n'.format(struct_name))
+    fOut.write( "#endif // Header Guard\n".format(project))
+    
+    
 # end create_struct_headers
 
 def create_c_impls( src_dir, basetypes, structs):
@@ -398,24 +414,25 @@ def create_c_impls( src_dir, basetypes, structs):
         fOut.write( c_def )
 # end create_struct_impl
 
-def create_printers( src_dir,basetypes,structs):
+def create_printers( src_dir,basetypes,structs,project):
     for struct_name,struct_def in structs.items():
-        c_code = create_printer_for_struct(basetypes,structs,struct_name)
-        fOut = open( src_dir + os.sep + "print_{0}.c".format( struct_name), "w" )
+        c_code = create_printer_for_struct(basetypes,structs,struct_name,project)
+        fOut = open( src_dir + os.sep + "print_{0}.c".format(struct_name), "w" )
         fOut.write(c_code)
         fOut.close()
 # end create_printers
 
-def create_default_generators( src_dir,basetypes,structs):
+def create_default_generators( src_dir,basetypes,structs,project):
     for struct_name,struct_def in structs.items():
-        c_code = create_default_gen(basetypes,structs,struct_name)
+        c_code = create_default_gen(basetypes,structs,struct_name,project)
         fOut = open( src_dir + os.sep + "generate_{0}.c".format( struct_name), "w" )
         fOut.write(c_code)
         fOut.close()
 # end create_default_gen
 
 
-def create_cmake_file( c_src_dir, c_inc_dir, basetypes, structs ):
+def create_cmake_file( c_src_dir, c_inc_dir, basetypes, structs, project ):
+    libname='{0}_structs'.format(project['PROJECT'])
     ret = """
 cmake_minimum_required(VERSION 2.8)
 
@@ -438,21 +455,21 @@ FOREACH( loop_var ${{C_FILES}} )
 ENDFOREACH()
 ########### VERBOSE DEBUG ##########
 
-ADD_LIBRARY( auto_interface_structs ${{C_FILES}} )
+ADD_LIBRARY( {2} ${{C_FILES}} )
 
 # Sample executables
-""".format( c_src_dir, c_inc_dir )
+""".format( c_src_dir, c_inc_dir, libname )
     for struct_name, struct_def in structs.items():
         ret = ret + 'ADD_EXECUTABLE( print_{0} print_{0}.c )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} auto_interface_structs )\n\n'.format(struct_name) 
+        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} {1} )\n\n'.format(struct_name, libname) 
         ret = ret + 'ADD_EXECUTABLE( generate_{0} generate_{0}.c )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} auto_interface_structs )\n\n'.format(struct_name)
+        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} {1} )\n\n'.format(struct_name, libname)
     return ret
 
 # end create_cmake_file
 
 
-def generate_c( src_dir, inc_dir, basetypes, structs ):
+def generate_c( src_dir, inc_dir, basetypes, structs, project):
     if not os.path.exists(src_dir):
         os.mkdir(src_dir)
     if not os.path.exists(inc_dir):
@@ -465,12 +482,12 @@ def generate_c( src_dir, inc_dir, basetypes, structs ):
     shutil.copy( python_repo_dir + os.sep + 'io_support.c', 
                  src_dir + os.sep + 'io_support.c' )
 
-    create_c_headers(inc_dir, basetypes, structs )
+    create_c_headers(inc_dir, basetypes, structs,project)
     create_c_impls(src_dir, basetypes, structs )
-    create_printers(src_dir,basetypes,structs)
-    create_default_generators(src_dir,basetypes,structs)
+    create_printers(src_dir,basetypes,structs,project)
+    create_default_generators(src_dir,basetypes,structs,project)
 
-    cmake_txt = create_cmake_file( src_dir, inc_dir, basetypes, structs )
+    cmake_txt = create_cmake_file( src_dir, inc_dir, basetypes, structs, project )
     fOut = open( src_dir + os.sep + "CMakeLists.txt", "w" )
     fOut.write( cmake_txt )
 
@@ -488,4 +505,5 @@ if __name__ == "__main__":
     A = AutoGenerator(args.json_basetypes_file, args.json_structures_file,pad=args.pad)
     basetypes = A.basetypes
     structs   = A.structs
-    generate_c(args.src_dir,args.inc_dir,basetypes,structs)
+    project   = A.project
+    generate_c(args.src_dir,args.inc_dir,basetypes,structs,project)
