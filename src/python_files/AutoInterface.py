@@ -183,7 +183,10 @@ class AutoGenerator:
                     field['IS_BASETYPE'] = True
                     field['IS_STRUCT'] = False
                     field['TYPE'] = 'UINT_8'
-                    field['DEFAULT_VALUE'] = [170] * pad_length
+                    if pad_length == 1:
+                        field['DEFAULT_VALUE'] = 170
+                    else:
+                        field['DEFAULT_VALUE'] = [170] * pad_length
                     field['DESCRIPTION'] = 'PADDING FOR ALIGNMENT'
                     out_fields.append(field)
                     sum_bytes += target_pad - sum_bytes % target_pad

@@ -72,6 +72,12 @@ def create_c_struct_header( basetypes, structs, struct_name ):
 
     ret = ret + "\n\n"
 
+    ### C++ Linkage 
+
+    ret = ret + '#ifdef __cplusplus\n'
+    ret = ret + 'extern "C" {\n'
+    ret = ret + '#endif\n'
+
     ### Class Def
     ret = ret + "typedef struct {{\n".format( struct_name )
 
@@ -108,6 +114,9 @@ def create_c_struct_header( basetypes, structs, struct_name ):
     ret = ret + funcs_template.format(struct_name)
 
 
+    ret = ret + '#ifdef __cplusplus\n'
+    ret = ret + '} // extern "C"\n'
+    ret = ret + '#endif\n'
 
     ret = ret + "#endif\n"
     return ret
