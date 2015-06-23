@@ -241,6 +241,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
     ### Validate
     ret = ret + 'int validate_{0}( {0} * p_{0} ){{\n'.format( struct_name )
     ret = ret + T + 'printf( "validate not implemented\\n" );\n'
+    ret = ret + T + 'return 0;\n'
     ret = ret + '}\n\n'
 
     ### Set Deafults
@@ -302,18 +303,18 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
     for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
-                ret = ret + T + 'fprintf( r_stream, prefix );\n'
+                ret = ret + T + 'fprintf( r_stream, "%s", prefix );\n'
                 ret = ret + T + 'fprintf( r_stream, "{0} :" );\n'.format(f['NAME'])
                 ret = ret + T + 'print_{0}( r_stream, 1, &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
                 ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
             elif f['IS_STRUCT']:
                 ret = ret + T + 'num_written = snprintf( buf, 1024, "%s.{0}.", prefix );\n'.format(f['NAME']) 
-                ret = ret + T + 'buf[ num_written ] = NULL;\n'
+                ret = ret + T + 'buf[ num_written ] = 0x0;\n'
                 ret = ret + T + 'write_props_{0}(r_stream,buf,num_written,&(p_{1}->{2}));\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + "\n"
         elif type( f['LENGTH'] ) == int:
             if f['IS_BASETYPE']:
-                ret = ret + T + 'fprintf( r_stream, prefix );\n'
+                ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
                 ret = ret + T + 'fprintf( r_stream, "{0} :" );\n'.format(f['NAME'])
                 ret = ret + T + 'print_{0}( r_stream, {3}, &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME'],f['LENGTH']);
                 ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
@@ -321,23 +322,23 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
                 ret = ret + T + 'for (int32_t ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'num_written = snprintf( buf, 1024, "%s.{0}[ %d ]", prefix, ii );\n'.format(f['NAME']) 
-                ret = ret + T + T + 'buf[ num_written ] = NULL;\n'
+                ret = ret + T + T + 'buf[ num_written ] = 0x0;\n'
                 ret = ret + T + T + 'write_props_{0}(r_stream, buf, num_written, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + T + '}\n'
                 ret = ret + "\n"
         elif f['LENGTH'] == 'VECTOR':
             if f['IS_BASETYPE']:
-                ret = ret + T + 'fprintf( r_stream, prefix );\n'
+                ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
                 ret = ret + T + 'fprintf( r_stream, "{0} :" );\n'.format(f['NAME'])
                 ret = ret + T + 'print_{0}(r_stream,p_{1}->n_elements_{2},p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME']) 
                 ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
             elif f['IS_STRUCT']:
-                ret = ret + T + 'fprintf( r_stream, prefix );\n'
+                ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
                 ret = ret + T + 'fprintf( r_stream, "{0} :\\n");\n'.format(f['NAME'])
                 ret = ret + T + 'for (int ii=0; ii< p_{0}->n_elements_{1}; ++ii )\n'.format(struct_name,f['NAME'])
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'num_written = snprintf( buf, 1024, "%s.{0}[ %d ]", prefix, ii );\n'.format(f['NAME']) 
-                ret = ret + T + T + 'buf[ num_written ] = NULL;\n'
+                ret = ret + T + T + 'buf[ num_written ] = 0x0;\n'
                 ret = ret + T + T + 'write_props_{0}(r_stream, prefix, prefix_len,&(p_{1}->{2}[ii]));\n'.format(f['TYPE'], struct_name, f['NAME'])
                 ret = ret + T + '}\n\n'
 
