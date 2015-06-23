@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include <complex.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void read_UINT_8( FILE * p_in_file, int nElements, uint8_t * p_ret );
 void read_UINT_16( FILE * p_in_file, int nElements, uint16_t * p_ret );
 void read_UINT_32( FILE * p_in_file, int nElements, uint32_t * p_ret );
@@ -48,5 +52,8 @@ void print_DOUBLE( FILE * p_out_file, int nElements, double * p_val );
 void print_COMPLEX_SINGLE( FILE * p_out_file, int nElements, float complex * p_val );
 void print_COMPLEX_DOUBLE( FILE * p_out_file, int nElements, double complex * p_val );
 
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif
