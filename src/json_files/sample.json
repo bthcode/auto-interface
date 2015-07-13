@@ -15,7 +15,7 @@
             {
                 "NAME" : "field2",
                 "TYPE" : "SINGLE",
-                "LENGTH" : "VECTOR",
+                "LENGTH" : "5",
                 "DEFAULT_VALUE" : [ 1,2,3,4,5 ]
 
             } ]

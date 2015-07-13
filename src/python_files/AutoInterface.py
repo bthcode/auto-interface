@@ -95,6 +95,11 @@ class AutoGenerator:
                 if not f.has_key('DESCRIPTION'):
                     f['DESCRIPTION'] = ''
 
+                # Doc name
+                if f['IS_BASETYPE']:
+                    f['DOC_NAME'] = self.basetypes[f['TYPE']]['DOC_NAME']
+                else:
+                    f['DOC_NAME'] = f['TYPE']
                 
 
                 # Handle default value setting
@@ -183,6 +188,7 @@ class AutoGenerator:
                     field['IS_BASETYPE'] = True
                     field['IS_STRUCT'] = False
                     field['TYPE'] = 'UINT_8'
+                    field['DOC_NAME'] = 'u8'
                     if pad_length == 1:
                         field['DEFAULT_VALUE'] = 170
                     else:
@@ -207,6 +213,7 @@ class AutoGenerator:
             field['IS_BASETYPE'] = True
             field['IS_STRUCT'] = False
             field['TYPE'] = 'UINT_8'
+            field['DOC_NAME'] = 'u8'
             field['DEFAULT_VALUE'] = [170] * pad_length
             field['DESCRIPTION'] = 'PADDING FOR ALIGNMENT'
             out_fields.append(field)

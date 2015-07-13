@@ -16,19 +16,54 @@ import format_utils
 
 T="    "
 
+def create_struct_table(basetypes,structs,struct_order):
+    header = "List of Structures"
+    delim  = "=" * len(header)
+    ret = "{1}\n{0}\n{1}\n\n".format(delim,header,delim)
+    names = []
+    descriptions = []
+    names_header='Structure'
+    descr_header='Description'
+    # gather up the information
+    for struct_name in struct_order:
+        struct_def = structs[struct_name]
+        names.append(struct_def['NAME'])
+        if struct_def.has_key('DESCRIPTION'):
+            descriptions.append(struct_def['DESCRIPTION'])
+        else:
+            descriptions.append('') 
+    # find the longest of each column
+    names_len=len(names_header)
+    descr_len=len(descr_header)
+    for name in names:
+        names_len = max(len(name), names_len)
+    for descr in descriptions:
+        descr_len = max(len(descr), descr_len)
+    # make table
+    magic_line = "="*names_len + " " + \
+                 "="*descr_len + "\n" 
+    ret = ret + magic_line
+    ret = ret + names_header.ljust(names_len) + " " + descr_header.ljust(descr_len) + "\n"
+    ret = ret + magic_line
+    for idx in range(len(names)):
+        ret = ret + "{0} {1}\n".format(names[idx].ljust(names_len),descriptions[idx].ljust(descr_len))
+    ret = ret + magic_line + "\n\n"
+    return ret
+# end create_struct_table
 
 def create_rst( basetypes, structs, struct_name ):
-    heading = "*" * len( struct_name )
-    ret = "{0}\n{1}\n{0}\n\n".format(heading,struct_name,heading)
+    heading = "=" * len( struct_name )
+    ret = "{1}\n{0}\n{1}\n\n".format(struct_name,heading)
 
     struct_def = structs[struct_name]
 
     if struct_def.has_key( 'DESCRIPTION' ):
         ret = ret + struct_def[ 'DESCRIPTION' ] + "\n\n"
 
+
     # these are required to calculate the field width 
     #   when making the table
-    fields_header = 'Fields'
+    fields_header = 'Field Name'
     fields_length = len(fields_header)
     types_header = 'Types'
     types_length = len(types_header)
@@ -40,6 +75,8 @@ def create_rst( basetypes, structs, struct_name ):
     descriptions_length = len(descriptions_header)
     defaults_header='Defaults'
     defaults_length = len(defaults_header)
+    units_header = 'Units'
+    units_length = len(units_header)
 
     fields = []
     types = []
@@ -47,12 +84,15 @@ def create_rst( basetypes, structs, struct_name ):
     bytes_ = []
     descriptions = []
     defaults = []
+    units = []
     
 
     for f in struct_def['FIELDS']:
         fields.append(f['NAME'])
         fields_length = max(len(fields[-1]),fields_length)
-        types.append(f['TYPE'])
+        print f['NAME']
+        doc_name = f['DOC_NAME']
+        types.append(doc_name)
         types_length = max(len(types[-1]),types_length)
         if f['LENGTH'] == 1:
             lengths.append('1')
@@ -98,46 +138,50 @@ def create_rst( basetypes, structs, struct_name ):
         else:
             defaults.append('')
         defaults_length = max(len(defaults[-1]),defaults_length)
-    if struct_def.has_key("SIZE"):
-        fields.append( "TOTAL" )
-        types.append("")
-        lengths.append("")
-        bytes_.append(str(struct_def["SIZE"]))
-        descriptions.append("")
-        defaults.append("")
-        fields_length=max(len(fields[-1]),fields_length)
-        bytes_length=max(len(fields[-1]),fields_length)    
+    #if struct_def.has_key("SIZE"):
+    #    fields.append( "TOTAL" )
+    #    types.append("")
+    #    lengths.append("")
+    #    bytes_.append(str(struct_def["SIZE"]))
+    #    descriptions.append("")
+    #    defaults.append("")
+    #    fields_length=max(len(fields[-1]),fields_length)
+    #    bytes_length=max(len(fields[-1]),fields_length)    
+        # no units as of yet
+        units.append('')
          
-
-    print fields
-    print types
-    print lengths
-    print descriptions
-    print defaults
-
+    '''
     magic_row = "="*fields_length + " " + \
                 "="*types_length + " " + \
                 "="*lengths_length + " " + \
                 "="*bytes_length + " " + \
                 "="*descriptions_length + " " + \
                 "="*defaults_length + "\n"
+    '''
+
+    magic_row = "="*fields_length + " " + \
+                "="*types_length + " " + \
+                "="*units_length + " " + \
+                "="*lengths_length + " " + \
+                "="*descriptions_length + \
+                "\n"
     print magic_row
     ret = ret + magic_row
     ret = ret + fields_header.ljust(fields_length) + " " + \
                 types_header.ljust(types_length) + " " + \
+                units_header.ljust(units_length) + " " + \
                 lengths_header.ljust(lengths_length) + " " + \
-                bytes_header.ljust(bytes_length) + " " + \
-                descriptions_header.ljust(descriptions_length) + " " + \
-                defaults_header + "\n"
+                descriptions_header.ljust(descriptions_length) + \
+                "\n"
     ret = ret + magic_row
 
     for idx, field in enumerate(fields):
         ret = ret + fields[idx].ljust(fields_length) + " " + \
                     types[idx].ljust(types_length) + " " + \
+                    units[idx].ljust(units_length) + " " + \
                     lengths[idx].ljust(lengths_length) + " " + \
-                    bytes_[idx].ljust(bytes_length) + " " + \
-                    descriptions[idx].ljust(descriptions_length) + " " + \
-                    defaults[idx].ljust(defaults_length) + "\n"
+                    descriptions[idx].ljust(descriptions_length) + \
+                    "\n"
 
     ret = ret + magic_row + "\n\n"
 
@@ -158,11 +202,13 @@ Project: {0}
 Version: {1}
 Description: {2}
 
-====================
+####################
 Generated Structures 
-====================
+####################
 
 '''.format( project_name, project_version, project_description )
+    # Generate a table showing all messages
+    generated = generated + create_struct_table(basetypes,structs,struct_order)
     for struct_name in struct_order: 
         generated = generated + create_rst( basetypes, structs, struct_name )
     fOut.write( generated )

@@ -17,7 +17,7 @@
 ###
 # Other todos:
 
-_1_ Print flat arrays cleanly
+_1_ C support for set_defaults()
 _1_ Better JSON Format Debugging
 _3_ Prettyify output code
 _2_ combine c++ and c into single header/c file
@@ -46,3 +46,4 @@ _x_ Truncate defaults in documentation
 _x_ Remove num_fields field
 _x_ Remove sphinx output
 _x_ Calculate length for fixed length structures and include in documents -- only words when padding
+_x_ Print flat arrays cleanly
