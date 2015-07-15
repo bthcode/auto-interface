@@ -132,78 +132,91 @@ void write_COMPLEX_DOUBLE( FILE * p_out_file, int nElements, double complex * p_
 
 void print_UINT_8( FILE * p_out_file, int nElements, uint8_t * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "%d ", p_val[ii] );
 }
 
 void print_UINT_16( FILE * p_out_file, int nElements, uint16_t * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "%d ", p_val[ii] );
 }
 
 void print_UINT_32( FILE * p_out_file, int nElements, uint32_t * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "%d ", p_val[ii] );
 }
 
 void print_UINT_64( FILE * p_out_file, int nElements, uint64_t * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "%llu ", p_val[ii] );
 }
 
 void print_char( FILE * p_out_file, int nElements, char * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "%d ", p_val[ii] );
 }
 
 void print_INT_8( FILE * p_out_file, int nElements, int8_t * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "%d ", p_val[ii] );
 }
 
 void print_INT_16( FILE * p_out_file, int nElements, int16_t * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "%d ", p_val[ii] );
 }
 
 void print_INT_32( FILE * p_out_file, int nElements, int32_t * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "%d ", p_val[ii] );
 }
 
 void print_INT_64( FILE * p_out_file, int nElements, int64_t * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "%lld ", p_val[ii] );
 }
 
 void print_SINGLE( FILE * p_out_file, int nElements, float * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "%f ", p_val[ii] );
 }
 
 void print_DOUBLE( FILE * p_out_file, int nElements, double * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "%f ", p_val[ii] );
 }
 
 void print_COMPLEX_SINGLE( FILE * p_out_file, int nElements, float complex * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "(%f,%f) ", creal(p_val[ii]),cimag(p_val[ii]) );
 }
 
 void print_COMPLEX_DOUBLE( FILE * p_out_file, int nElements, double complex * p_val )
 {
-    for ( int32_t ii=0; ii < nElements; ii++ )
+    int32_t ii;
+    for ( ii=0; ii < nElements; ii++ )
         fprintf( p_out_file, "(%f,%f) ", creal(p_val[ii]),cimag(p_val[ii]) );
 }

@@ -52,6 +52,46 @@ funcs_template = '''
 '''
 
 
+##################################################################################
+#
+# CPP Wrapper for these structs
+#
+##################################################################################
+
+# create a class that "has_a" struct
+# read/write: call c read_binary, c write_binary
+# alloc/dealloc: call c alloc, dealloc
+# set_defaults / validate: call c
+# write props, read props, call c -> maybe update later
+def create_cpp_wrapper_for_class( basetypes, structs, struct_name ):
+    class_name = "{0}_class".format(struct_name)
+    ### Class Def
+    ret = ''    
+    ret = ret + 'class {0}\n{{\n'.format( class_name )
+    ret = ret + T + 'public :\n'
+    ret = ret + T + '{0}(){{}};\n'.format(class_name)
+    ret = ret + T + '~{0}(){{}};\n'.format(class_name) 
+    ret = ret + T + '{0} m_data;\n'.format(struct_name)
+    ret = ret + T + 'void set_defaults(){{set_defaults_{0}(&m_data);}};\n'.format(struct_name)
+    ret = ret + T + 'void read_binary(FILE * r_in_stream){{read_binary_{0}(r_in_stream,&m_data);}};\n'.format(struct_name)
+    ret = ret + T + 'void write_binary(FILE * r_out_stream){{write_binary_{0}(r_out_stream,&m_data);}};\n'.format(struct_name)
+    ret = ret + T + 'void write_props(FILE * r_out_stream, const char * prefix, int prefix_len){{write_props_{0}(r_out_stream,prefix,prefix_len,&m_data); }};\n'.format(struct_name)
+    ret = ret + '};\n\n\n'
+    return ret
+# end create_cpp_wrapper_for_class
+
+def create_cpp_wrapper( inc_dir, basetypes, structs, project, struct_order ):
+    project_name = project['PROJECT']
+    fOut = open( inc_dir + os.sep + '{0}_struct_defs.hpp'.format(project_name), "w" )
+    ret = '#ifndef CPP_WRAP_TODO_H\n'
+    ret = ret + '#define CPP_WRAP_TODO_H\n'
+    ret = ret + '\n#include "{0}_struct_defs.h"\n\n'.format(project_name)
+    # now create a wrapper for each struct
+    for struct_name in struct_order:
+        ret = ret + create_cpp_wrapper_for_class( basetypes, structs, struct_name )
+    ret = ret + '#endif // CPP_WRAP_TODO_H\n'
+    fOut.write(ret)
+# end create_cpp_wrappers
 
 
 
@@ -138,6 +178,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
     ### De-allocate
     ret = ret + 'void dealloc_{0}( {0} * p_{0} ){{\n'.format(struct_name)
     ret = ret + T + '// Deallocate Allocated Fields\n'
+    ret = ret + T + 'int32_t ii;\n'
     #------------------------------------------------------------- 
     # Walk any structs that might have malloc'd data and free it
     #------------------------------------------------------------- 
@@ -146,12 +187,12 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
             if f['LENGTH'] == 1:
                 ret = ret + T + 'dealloc_{0}( &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME'])
             elif type(f['LENGTH']) == int:
-                ret = ret + T + 'for (size_t ii=0; ii<{0}; ii++ )\n'.format(f['LENGTH'])
+                ret = ret + T + 'for (ii=0; ii<{0}; ii++ )\n'.format(f['LENGTH'])
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'dealloc_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + T + '}\n'
             elif f['LENGTH'] == 'VECTOR':
-                ret = ret + T + 'for (size_t ii=0; ii<p_{0}->n_elements_{1}; ii++ )\n'.format(struct_name,f['NAME'])
+                ret = ret + T + 'for (ii=0; ii<p_{0}->n_elements_{1}; ii++ )\n'.format(struct_name,f['NAME'])
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'dealloc_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + T + '}\n'
@@ -162,6 +203,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
 
     ### Read Binary 
     ret = ret + "void read_binary_{0}( FILE * r_stream, {0} * p_{0} ){{\n".format(struct_name)
+    ret = ret + T + "int32_t ii;\n"
     for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
@@ -173,7 +215,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
             if f['IS_BASETYPE']:
                 ret = ret + T + 'read_{0}( r_stream, {3}, &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME'],f['LENGTH']);
             elif f['IS_STRUCT']:
-                ret = ret + T + 'for (int32_t ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
+                ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + T + '}\n'
@@ -201,7 +243,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
                 ret = ret + T + '}\n'
                 ret = ret + T + 'else\n'
                 ret = ret + T + T + 'p_{0}->{1} = 0x0;\n\n'.format(struct_name,f['NAME'])
-                ret = ret + T + 'for (int32_t ii=0; ii < p_{0}->n_elements_{1}; ii++) {{\n'.format(struct_name,f['NAME'])
+                ret = ret + T + 'for (ii=0; ii < p_{0}->n_elements_{1}; ii++) {{\n'.format(struct_name,f['NAME'])
                 ret = ret + "\n"
                 # For each pointer, call read binary
                 ret = ret + T + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
@@ -210,6 +252,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
 
     ### Write Binary 
     ret = ret + "void write_binary_{0}( FILE * r_stream, {0} * p_{0} ){{\n".format(struct_name)
+    ret = ret + T + "int32_t ii;\n"
     for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
@@ -221,7 +264,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
             if f['IS_BASETYPE']:
                 ret = ret + T + 'write_{0}( r_stream, {3}, &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME'],f['LENGTH']);
             elif f['IS_STRUCT']:
-                ret = ret + T + 'for (int32_t ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
+                ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'write_binary_{0}(r_stream, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + T + '}\n'
@@ -232,7 +275,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
                 ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
                 ret = ret + T + T + 'write_{0}(r_stream,p_{1}->n_elements_{2},p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME']) 
             elif f['IS_STRUCT']:
-                ret = ret + T + 'for (int ii=0; ii< p_{0}->n_elements_{1}; ++ii )\n'.format(struct_name,f['NAME'])
+                ret = ret + T + 'for (ii=0; ii< p_{0}->n_elements_{1}; ++ii )\n'.format(struct_name,f['NAME'])
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'write_binary_{0}(r_stream, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'], struct_name, f['NAME'])
                 ret = ret + T + '}\n\n'
@@ -246,6 +289,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
 
     ### Set Deafults
     ret = ret + "void set_defaults_{0}( {0} * p_{0} ){{\n".format(struct_name)
+    ret = ret + T + "int32_t ii;\n"
     for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
@@ -285,7 +329,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
                         ret = ret + T + 'p_{0}->{1}[{2}] = {3};\n'.format(struct_name,f['NAME'],counter,def_val[idx])
                         counter = counter+1
             elif f['IS_STRUCT']:
-                ret = ret + T + 'for ( int ii=0; ii < {0}; ii++ )\n'.format( f['LENGTH'] )
+                ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format( f['LENGTH'] )
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'set_defaults_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + T + '}\n'
@@ -300,6 +344,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
     ret = ret + '{\n'
     ret = ret + T + 'char buf[1024];\n'
     ret = ret + T + 'int num_written;\n'
+    ret = ret + T + 'int32_t ii=0;\n'
     for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
@@ -319,7 +364,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
                 ret = ret + T + 'print_{0}( r_stream, {3}, &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME'],f['LENGTH']);
                 ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
             elif f['IS_STRUCT']:
-                ret = ret + T + 'for (int32_t ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
+                ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'num_written = snprintf( buf, 1024, "%s.{0}[ %d ]", prefix, ii );\n'.format(f['NAME']) 
                 ret = ret + T + T + 'buf[ num_written ] = 0x0;\n'
@@ -335,7 +380,7 @@ def create_c_struct_impl( basetypes, structs, struct_name ):
             elif f['IS_STRUCT']:
                 ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
                 ret = ret + T + 'fprintf( r_stream, "{0} :\\n");\n'.format(f['NAME'])
-                ret = ret + T + 'for (int ii=0; ii< p_{0}->n_elements_{1}; ++ii )\n'.format(struct_name,f['NAME'])
+                ret = ret + T + 'for (ii=0; ii< p_{0}->n_elements_{1}; ++ii )\n'.format(struct_name,f['NAME'])
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'num_written = snprintf( buf, 1024, "%s.{0}[ %d ]", prefix, ii );\n'.format(f['NAME']) 
                 ret = ret + T + T + 'buf[ num_written ] = 0x0;\n'
@@ -479,7 +524,7 @@ ADD_LIBRARY( {2} ${{C_FILES}} )
 # end create_cmake_file
 
 
-def generate_c( src_dir, inc_dir, basetypes, structs, project):
+def generate_c( src_dir, inc_dir, basetypes, structs, project,struct_order):
     if not os.path.exists(src_dir):
         os.mkdir(src_dir)
     if not os.path.exists(inc_dir):
@@ -496,6 +541,8 @@ def generate_c( src_dir, inc_dir, basetypes, structs, project):
     create_c_impls(src_dir, basetypes, structs )
     create_printers(src_dir,basetypes,structs,project)
     create_default_generators(src_dir,basetypes,structs,project)
+    # Experimental cpp wrapper
+    #create_cpp_wrapper(inc_dir,basetypes,structs,project,struct_order)
 
     cmake_txt = create_cmake_file( src_dir, inc_dir, basetypes, structs, project )
     fOut = open( src_dir + os.sep + "CMakeLists.txt", "w" )
@@ -516,4 +563,5 @@ if __name__ == "__main__":
     basetypes = A.basetypes
     structs   = A.structs
     project   = A.project
-    generate_c(args.src_dir,args.inc_dir,basetypes,structs,project)
+    struct_order = A.struct_order
+    generate_c(args.src_dir,args.inc_dir,basetypes,structs,project,struct_order)
