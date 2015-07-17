@@ -9,18 +9,11 @@ __author__="Brian Hone"
 import json, string, pprint, sys, os
 import shutil
 from AutoInterface import AutoGenerator
+from GPB_Generator import *
 
 
 T="    "
 
-def get_dependencies_for_struct(structs, struct_name):
-    includes = {} # insert into a map to force unique -- probably a better way
-    struct_def = structs[ struct_name ]
-    for field in struct_def['FIELDS']:
-        if field['IS_STRUCT']:
-            includes[ "%s_class_def.h" % ( field['TYPE'] ) ] = 1
-    return includes.keys()
-# end get_dependencies_for_struct
 
 stock_includes = \
 '''
@@ -59,23 +52,10 @@ class_end = \
 ###############################################################
 # BEGIN C++
 ###############################################################
-def create_struct_header( basetypes, structs, struct_name ):
+def create_struct_header( basetypes, structs, struct_name,project,gpb=False ):
     '''Creates the Primary Structure Header'''
     struct_def = structs[ struct_name ]
-
-    ### HEADER Guards
-    ret = '#ifndef {0}_H\n'.format( struct_name )
-    ret = ret + '#define {0}_H\n'.format( struct_name )
-    ret = ret + stock_includes
-
-    ### Other generated deps
-    deps = get_dependencies_for_struct( structs, struct_name )
-    for dep in deps:
-        ret = ret + '#include "%s"' % dep + "\n"
-
-    ### Namespace
-    if struct_def.has_key( 'NAMESPACE'  ):
-        ret = ret + '\nnamespace %s {\n\n' % ( struct_def[ 'NAMESPACE' ] )
+    ret = ''
 
     ret = ret + "\n/**\n * @brief %s\n */\n" % ( struct_def[ 'DESCRIPTION' ] )
 
@@ -85,6 +65,18 @@ def create_struct_header( basetypes, structs, struct_name ):
     ret = ret + T + '{0}();\n'.format( struct_name )
     ret = ret + T + '~{0}(){{}};\n'.format( struct_name ) 
 
+    if gpb:
+        gpb_namespace = '{0}_GPB'.format(project['NAMESPACE'])
+        gpb_classname = struct_def['NAME']
+        ret = ret + "\n\n"
+        ret = ret + T + "/**\n"
+        ret = ret + T + " * @brief GPB Reader\n"
+        ret = ret + T + " */\n"
+        ret = ret + T + "void read_gpb(const {0}::{1}& gpb_obj);\n\n".format(gpb_namespace,gpb_classname)
+        ret = ret + T + "/**\n"
+        ret = ret + T + " * @brief GPB Reader\n"
+        ret = ret + T + " */\n"
+        ret = ret + T + "void write_gpb({0}::{1}* gpb_obj);\n\n".format(gpb_namespace,gpb_classname)
 
     ### Member Data
     ret = ret + '\n\n    // Member Fields\n\n'
@@ -114,19 +106,14 @@ def create_struct_header( basetypes, structs, struct_name ):
 
     ret = ret + class_end
 
-    ### End Namespace
-    if struct_def.has_key( 'NAMESPACE' ):
-        ret = ret + '} // namepsace\n\n'
 
-
-    ret = ret + "#endif\n"
     return ret
 # end create_struct_header
 
-def create_struct_generator( basetypes, structs, struct_name ):
+def create_struct_generator( basetypes, structs, struct_name, project ):
     struct_def = structs[ struct_name ]
 
-    ret = '#include "%s_class_def.h"\n\n' % ( struct_name )
+    ret = '#include "{0}_classes.hpp"\n\n'.format(project['PROJECT'])
     ret = ret + '#include <iostream>\n'
     ret = ret + '#include <fstream>\n'
 
@@ -152,10 +139,10 @@ def create_struct_generator( basetypes, structs, struct_name ):
 # end create_struct printer
 
 
-def create_struct_printer( basetypes, structs, struct_name ):
+def create_struct_printer( basetypes, structs, struct_name, project ):
     struct_def = structs[ struct_name ]
 
-    ret = '#include "%s_class_def.h"\n\n' % ( struct_name )
+    ret = '#include "{0}_classes.hpp"\n\n'.format(project['PROJECT'])
     ret = ret + '#include <iostream>\n'
     ret = ret + '#include <fstream>\n'
     ret = ret + '#include <string>\n'
@@ -183,16 +170,12 @@ def create_struct_printer( basetypes, structs, struct_name ):
     
 
 
-def create_struct_impl(basetypes,structs,struct_name):
+def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
     '''Creates the Primary Structure CPP Implementation'''
 
     struct_def = structs[struct_name]
 
-    ret = '#include "%s_class_def.h"\n\n' % (struct_name)
-
-    ### Namespace
-    if struct_def.has_key( 'NAMESPACE'  ):
-        ret = ret + '\nnamespace %s {\n\n' % (struct_def['NAMESPACE'])
+    ret = ''
 
     ### Constructor
     ret = ret + '%s::%s(){}\n\n\n' % (struct_name,struct_name)
@@ -503,28 +486,96 @@ def create_struct_impl(basetypes,structs,struct_name):
     ret = ret + T + 'return num_errs;\n';
     ret = ret + "}\n\n"
 
-    ### End Namespace
-    if struct_def.has_key( 'NAMESPACE' ):
-        ret = ret + '} // namepsace\n\n'
+    ### Read GPB
+    if gpb:
+        gpb_namespace = '{0}_GPB'.format(project['NAMESPACE'])
+        gpb_classname = struct_def['NAME']
+        class_name    = struct_def['NAME']
+        ret = ret + "void {0}::read_gpb(const {1}::{2}& gpb_obj){{\n".format(class_name,gpb_namespace,gpb_classname)
+        ret = ret + T + 'int max_count;\n'
+        for f in struct_def['FIELDS']:
+            field    = f['NAME']
+            # need max count for fixed length fields
+            if type(f['LENGTH']) == int and f['LENGTH'] > 1:
+                ret = ret + T + 'max_count = std::min({0}, gpb_obj.{1}_size());\n'.format(f['LENGTH'],field)
+            elif f['TYPE'] == 'VECTOR':
+                ret = ret + T + 'max_count = {0}->{1}_size();\n'.format(gpb_obj,field)
+                ret = ret + T + '{0}.resize(max_count);\n'.format(field)
+            # get type
+            if f['IS_BASETYPE']:
+                basetype = basetypes[f['TYPE']]
+                gpb_type = basetype['GPB_TYPE']
+                #ctype = basetype['CPP_TYPE']
+            if f['LENGTH']==1:
+                if f['IS_BASETYPE']:
+                    ret = ret + T + 'if (gpb_obj.has_{0}()){{\n'.format(field)
+                    ret = ret + T + T + 'this->{0} = gpb_obj.{0}();\n'.format(field)
+                    ret = ret + T + '}\n'
+                elif f['IS_STRUCT']:
+                    ret = ret + T + 'if (gpb_obj.has_{0}()){{\n'.format(field)
+                    ret = ret + T + T + '{0}.read_gpb(gpb_obj.{0}());\n'.format(field)
+                    ret = ret + T + '}\n'
+            elif type(f['LENGTH']) == int or f['LENGTH'] == 'VECTOR':
+                if f['IS_BASETYPE']:
+                    ret = ret + T + 'for (int ii=0; ii < max_count; ii++ ){\n'
+                    ret = ret + T + T + '{0}[ii] = ({1}) gpb_obj.{0}(ii);\n'.format(field,ctype)
+                    ret = ret + T + '}\n'
+                elif f['IS_STRUCT']:
+                    ret = ret + T + 'for (int ii=0; ii < max_count; ii++ ){\n'
+                    ret = ret + T + T + '{0} tmp_{0};\n'.format(f['TYPE'])
+                    ret = ret + T + T + 'tmp_{0}.read_gpb(gpb_obj.{1}(ii));\n'.format(f['TYPE'],field)
+                    ret = ret + T + T + '{0}[ii] = tmp_{1};\n'.format(field,f['TYPE'])
+                    ret = ret + T + '}\n'
+        ret = ret + "}\n\n"
+
+        ret = ret + "void {0}::write_gpb({1}::{2}* gpb_obj){{\n".format(class_name,gpb_namespace,gpb_classname)
+        ret = ret + T + 'int max_count;\n'
+        for f in struct_def['FIELDS']:
+            field    = f['NAME']
+            if f['IS_BASETYPE']:
+                basetype = basetypes[f['TYPE']]
+                gpb_type = basetype['GPB_TYPE']
+                #ctype = basetype['CPP_TYPE']
+            if f['LENGTH']==1:
+                if f['IS_BASETYPE']:
+                    default = f['DEFAULT_VALUE']
+                    ret = ret + T + 'if ({0} != {1}){{\n'.format(field,default)
+                    ret = ret + T + T + 'gpb_obj->set_{0}({0});\n'.format(field)
+                    ret = ret + T + '}\n'
+                elif f['IS_STRUCT']:
+                    ret = ret + T + '{0}.write_gpb(gpb_obj->mutable_{0}());\n'.format(field)
+            elif type(f['LENGTH']) == int:
+                if f['IS_BASETYPE']:
+                    ret = ret + T + 'for (int ii=0; ii < {0}; ii++ ){{\n'.format(f['LENGTH'])
+                    ret = ret + T + T + 'gpb_obj->add_{0}({0}[ii]);\n'.format(field)
+                    ret = ret + T + '}\n'
+                elif f['IS_STRUCT']:
+                    ret = ret + T + 'for (int ii=0; ii < {0}; ii++ ){{\n'.format(f['LENGTH'])
+                    ret = ret + T + T + '{0}::{1} * tmp = gpb_obj->add_{2}();;\n'.format(gpb_namespace,f['TYPE'],field)
+                    ret = ret + T + T + '{0}[ii].write_gpb(tmp);\n'.format(field)
+                    ret = ret + T + '}\n'
+        ret = ret + "}\n\n"
 
     return ret
 # end create_struct_impl
 
-def create_cmake_file( cpp_src_dir, cpp_inc_dir, basetypes, structs ):
+def create_cmake_file( cpp_src_dir, cpp_inc_dir, basetypes, structs, project, gpb=False ):
+    proj_name=project['PROJECT']
     ret = """
 cmake_minimum_required(VERSION 2.8)
 
-PROJECT(AutoInterfaceOut)
+PROJECT({0})
 
 SET( CMAKE_VERBOSE_MAKEFILE ON )
 
 SET( CMAKE_INSTALL_PREFIX "./install" )
 
-SET( AUTOGEN_SRC_DIR  "{0}" )
-SET( AUTOGEN_INC_DIR  "{1}" )
+SET( AUTOGEN_SRC_DIR  "{1}" )
+SET( AUTOGEN_INC_DIR  "{2}" )
 
 # Basic Library
-FILE( GLOB CPP_FILES "*_class_def.cpp" "props_parser.cpp"  )
+#FILE( GLOB CPP_FILES "*_class_def.cpp" "props_parser.cpp"  )
+SET( CPP_FILES "{0}_classes.cpp" "props_parser.cpp" )
 
 ########### VERBOSE DEBUG ##########
 MESSAGE( STATUS "CPP_FILES:" )
@@ -532,18 +583,32 @@ FOREACH( loop_var ${{CPP_FILES}} )
     MESSAGE( STATUS "  ${{loop_var}}" )
 ENDFOREACH()
 ########### VERBOSE DEBUG ##########
+""".format( proj_name,cpp_src_dir, cpp_inc_dir )
 
-ADD_LIBRARY( auto_interface_classes ${{CPP_FILES}} )
+    # Add rules for building protocol buffers bindings
+    if gpb:
+        gpb_links = 'protobuf'
+        ret = ret + '''
+FILE( GLOB GPB_FILES "*.pb.h" "*.pb.cc" )
+'''
+    else:
+        gpb_links = ''
+        ret = ret + '\nSET( GPB_FILES "" )\n\n'
 
-# Sample executables
-""".format( cpp_src_dir, cpp_inc_dir )
+    ret = ret + '\nADD_LIBRARY( {0}_classes ${{CPP_FILES}} ${{GPB_FILES}} )\n\n'.format(proj_name)
+
+    # Sample executables
+
 
     for struct_name, struct_def in structs.items():
         ret = ret + 'ADD_EXECUTABLE( print_{0} print_{0}.cpp )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} auto_interface_classes )\n\n'.format(struct_name) 
+        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} {1}_classes {2} )\n\n'.format(struct_name,proj_name,gpb_links) 
 
         ret = ret + 'ADD_EXECUTABLE( generate_{0} generate_{0}.cpp )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} auto_interface_classes )\n\n'.format(struct_name) 
+        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} {1}_classes {2} )\n\n'.format(struct_name,proj_name,gpb_links) 
+
+
+
 
     return ret
 
@@ -556,7 +621,7 @@ ADD_LIBRARY( auto_interface_classes ${{CPP_FILES}} )
 #
 ##################################################################################
 
-def generate_CPP( cpp_src_dir, cpp_inc_dir, basetypes, structs ):
+def generate_CPP( cpp_src_dir, cpp_inc_dir, basetypes, structs, project, gpb=False ):
     if not os.path.exists( cpp_src_dir ):
         os.mkdir(cpp_src_dir)
     if not os.path.exists( cpp_inc_dir ):
@@ -571,28 +636,74 @@ def generate_CPP( cpp_src_dir, cpp_inc_dir, basetypes, structs ):
     shutil.copy( python_repo_dir + os.sep + 'props_parser.h', 
                  cpp_inc_dir + os.sep + 'props_parser.h' )
 
-    # headers
-    for struct_name, struct_def in structs.items():
-        fOut = open( cpp_inc_dir + os.sep + "%s_class_def.h" % (struct_name), "w" )
-        fOut.write( create_struct_header(basetypes,structs,struct_name)) 
+    # proto file
+    if gpb:
+        print ("Creating GPB Proto File")
+        proto_file = generate_gpb(cpp_src_dir,cpp_inc_dir,basetypes,structs,project)
+        proto_file = os.path.split(proto_file)[-1]
+        # Call protoc - need to be in the directory with it
+        here = os.getcwd()
+        os.chdir(cpp_src_dir)
+        cmd = '''protoc --cpp_out={0} {1}'''.format('.',proto_file)
+        print ("Calling {0}".format(cmd))
+        os.popen(cmd)
+        os.chdir(here)
 
-    # class files
+    #-----------------------------------------------------
+    # Start Headers
+    #-----------------------------------------------------
+    header_file_name = '{0}_classes.hpp'.format(project['PROJECT'])
+    fOut = open( cpp_inc_dir + os.sep + header_file_name, "w" )
+
+    #HEADER Guards
+    fOut.write('#ifndef {0}_classes_H\n'.format(project['PROJECT']))
+    fOut.write('#define {0}_classes_H\n'.format(project['PROJECT']))
+    fOut.write(stock_includes)
+
+    if gpb:
+        fOut.write('#include "{0}_structs.pb.h"\n'.format(project['PROJECT']))
+
+    fOut.write('namespace {0} {{\n'.format(project['NAMESPACE']))
     for struct_name, struct_def in structs.items():
-        class_def = create_struct_impl(basetypes, structs, struct_name) 
-        fOut = open( cpp_src_dir + os.sep + "%s_class_def.cpp" % (struct_name), "w" )
+        fOut.write( create_struct_header(basetypes,structs,struct_name,project,gpb)) 
+
+    ### End Namespace
+    fOut.write('} // namepsace\n\n')
+    fOut.write('#endif // Header Guard\n' )
+    fOut.close()
+    #-----------------------------------------------------
+    # End Headers
+    #-----------------------------------------------------
+
+    #-----------------------------------------------------
+    # Start Impls
+    #-----------------------------------------------------
+    impl_file_name = '{0}_classes.cpp'.format(project['PROJECT']) 
+    fOut = open( cpp_inc_dir + os.sep + impl_file_name, "w" )
+    fOut.write('#include "{0}"\n'.format(header_file_name))
+
+    fOut.write('namespace {0} {{\n'.format(project['NAMESPACE']))
+    for struct_name, struct_def in structs.items():
+        class_def = create_struct_impl(basetypes, structs, struct_name,project,gpb) 
         fOut.write( class_def )
+
+    fOut.write('} // namepsace\n\n')
+    fOut.close()
+    #-----------------------------------------------------
+    # End Impls
+    #-----------------------------------------------------
 
     # printers
     for struct_name, struct_def in structs.items():
         fOut = open( cpp_src_dir + os.sep + "print_%s.cpp" % (struct_name), "w" )
-        fOut.write( create_struct_printer(basetypes,structs,struct_name)) 
+        fOut.write( create_struct_printer(basetypes,structs,struct_name,project)) 
 
     # generators
     for struct_name, struct_def in structs.items():
         fOut = open( cpp_src_dir + os.sep + "generate_%s.cpp" % (struct_name), "w" )
-        fOut.write( create_struct_generator(basetypes,structs,struct_name)) 
+        fOut.write( create_struct_generator(basetypes,structs,struct_name,project)) 
 
-    cmake_txt = create_cmake_file( cpp_src_dir, cpp_inc_dir, basetypes, structs )
+    cmake_txt = create_cmake_file( cpp_src_dir, cpp_inc_dir, basetypes, structs, project, gpb )
     fOut = open( cpp_src_dir + os.sep + "CMakeLists.txt", "w" )
     fOut.write( cmake_txt )
 
@@ -607,10 +718,13 @@ if __name__ == "__main__":
     parser.add_argument( 'json_structures_file' )
     parser.add_argument( 'inc_dir' )
     parser.add_argument( 'src_dir' )
-    parser.add_argument( '--pad', default=-1, type=int, help='Insert Padding For Explicit 64-Bit Word Alignment (Warning: Does Not Work With VECTOR Data Type)')
+    parser.add_argument( '--gpb', action='store_true', help='If selected, generate google protocol buffers serializer')
+    parser.add_argument( '--pad', default=8, type=int, help='Insert Padding For Explicit 64-Bit Word Alignment (Warning: Does Not Work With VECTOR Data Type)')
     args = parser.parse_args()
 
     A = AutoGenerator( args.json_basetypes_file, args.json_structures_file,pad=args.pad)
     basetypes = A.basetypes
     structs   = A.structs
-    generate_CPP( args.src_dir, args.inc_dir, basetypes, structs )
+    project   = A.project
+
+    generate_CPP( args.src_dir, args.inc_dir, basetypes, structs,project,gpb=args.gpb )

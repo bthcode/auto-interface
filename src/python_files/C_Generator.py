@@ -20,35 +20,14 @@ T = '    '
 #
 ##################################################################################
 
-def get_c_dependencies_for_struct( structs, struct_name):
-    includes = {} # insert into a map to force unique -- probably a better way
-    struct_def = structs[ struct_name ]
-    for field in struct_def['FIELDS']:
-        if field['IS_STRUCT']:
-            includes[ "%s_struct_def.h" % ( field['TYPE'] ) ] = 1
-    return includes.keys()
-# end get_dependencies_for_struct
-
-header_template = '''
-#ifndef {0}_C_H
-#define {0}_C_H
-
-// Stock Includes
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <complex.h>
-#include <string.h>
-'''
-
 funcs_template = '''
-    int validate_{0}( {0} * p_{0} );
-    void set_defaults_{0}( {0} * p_{0} );
-    void write_props_{0}( FILE * r_stream, const char * prefix, int prefix_len, {0} * p_{0} );
-    void write_binary_{0}( FILE * r_out_stream, {0} * p_{0} );
-    void read_binary_{0}( FILE * r_in_stream, {0} * p_{0} );
-    void alloc_{0}( {0} * p_{0} );
-    void dealloc_{0}( {0} * p_{0} );
+int validate_{0}( {0} * p_{0} );
+void set_defaults_{0}( {0} * p_{0} );
+void write_props_{0}( FILE * r_stream, const char * prefix, int prefix_len, {0} * p_{0} );
+void write_binary_{0}( FILE * r_out_stream, {0} * p_{0} );
+void read_binary_{0}( FILE * r_in_stream, {0} * p_{0} );
+void alloc_{0}( {0} * p_{0} );
+void dealloc_{0}( {0} * p_{0} );
 '''
 
 
@@ -104,26 +83,15 @@ def create_cpp_wrapper( inc_dir, basetypes, structs, project, struct_order ):
 def create_c_struct_header( basetypes, structs, struct_name ):
     ''' create a pure c language struct header '''
     struct_def = structs[ struct_name ]
-    ret = header_template.format( struct_name )
-    ### Other generated deps
-    deps = get_c_dependencies_for_struct( structs, struct_name )
-    for dep in deps:
-        ret = ret + '#include "%s"' % dep + "\n"
+    ret = ''
 
     ret = ret + "\n\n"
-
-    ### C++ Linkage 
-
-    ret = ret + '#ifdef __cplusplus\n'
-    ret = ret + 'extern "C" {\n'
-    ret = ret + '#endif\n'
 
     ### Class Def
     ret = ret + "typedef struct {{\n".format( struct_name )
 
-
     ### Member Data
-    ret = ret + '\n\n    // Member Fields\n\n'
+    ret = ret + T + '// Member Fields\n\n'
     for f in struct_def['FIELDS']:
         # Get basic type
         if f['IS_BASETYPE']:
@@ -153,22 +121,15 @@ def create_c_struct_header( basetypes, structs, struct_name ):
 
     ret = ret + funcs_template.format(struct_name)
 
-
-    ret = ret + '#ifdef __cplusplus\n'
-    ret = ret + '} // extern "C"\n'
-    ret = ret + '#endif\n'
-
-    ret = ret + "#endif\n"
     return ret
 # end create_c_struct_header
 
-def create_c_struct_impl( basetypes, structs, struct_name ):
+def create_c_struct_impl( basetypes, structs, struct_name,project ):
     '''Creates the Primary Structure CPP Implementation'''
 
     struct_def = structs[ struct_name ]
 
-    ret = '#include "%s_struct_def.h"\n\n' % ( struct_name )
-    ret = ret + '#include "io_support.h"\n'
+    ret = ''
 
     ### Allocate
     ret = ret + 'void alloc_{0} ( {0} * p_{0} )\n{{\n'.format(struct_name)
@@ -440,9 +401,9 @@ def create_printer_for_struct(basetypes,structs,struct_name,project):
 
 def create_c_headers( inc_dir, basetypes, structs, project_struct):
     '''Creates all structure and matlab support headers'''
-    for struct_name, struct_def in structs.items():
-        fOut = open( inc_dir + os.sep + "%s_struct_def.h" % (struct_name), "w" )
-        fOut.write( create_c_struct_header( basetypes, structs, struct_name ) )
+    #for struct_name, struct_def in structs.items():
+    #    fOut = open( inc_dir + os.sep + "%s_struct_def.h" % (struct_name), "w" )
+    #    fOut.write( create_c_struct_header( basetypes, structs, struct_name ) )
     # Now create a master header
     project = project_struct['PROJECT']
     fOut = open( inc_dir + os.sep + '{0}_struct_defs.h'.format(project), "w" ) 
@@ -454,19 +415,58 @@ def create_c_headers( inc_dir, basetypes, structs, project_struct):
     fOut.write(" *    PROJECT: {0}\n".format(project))
     fOut.write(" *    VERSION: {0}\n".format(project_struct['VERSION']))
     fOut.write(" */\n\n")
+
+    fOut.write( '// Stock Includes\n')
+    fOut.write( '#include <stdlib.h>\n')
+    fOut.write( '#include <stdint.h>\n')
+    fOut.write( '#include <stdio.h>\n')
+    fOut.write( '#include <complex.h>\n')
+    fOut.write( '#include <string.h>\n')
+
+
+    # CPP Guards
+    fOut.write('#ifdef __cplusplus\n')
+    fOut.write('extern "C" {\n')
+    fOut.write('#endif\n')
+
     for struct_name, struct_def in structs.items():
-        fOut.write( '#include "{0}_struct_def.h"\n'.format(struct_name))
-    fOut.write( "#endif // Header Guard\n".format(project))
+        fOut.write( create_c_struct_header( basetypes, structs, struct_name ) )
     
+    # CPP Guards
+    fOut.write('#ifdef __cplusplus\n')
+    fOut.write('} // extern "C"\n')
+    fOut.write('#endif\n')
+
+    # Header Guard
+    fOut.write( "#endif // Header Guard\n".format(project))
+    fOut.close()
     
 # end create_struct_headers
 
-def create_c_impls( src_dir, basetypes, structs):
+def create_c_impls( src_dir, basetypes, structs, project):
     '''Creates all structure and matlab support c files'''
+    project_name = project['PROJECT']
+    fOut = open( src_dir + os.sep + '{0}_struct_defs.c'.format(project_name), "w" ) 
+    fOut.write("/**\n")
+    fOut.write(" * AutoInterface Generated Code\n" )
+    fOut.write(" * \n" )
+    fOut.write(" *    PROJECT: {0}\n".format(project_name))
+    fOut.write(" *    VERSION: {0}\n".format(project['VERSION']))
+    fOut.write(" */\n\n")
+
+    fOut.write( '/* Stock Includes */\n')
+    fOut.write( '#include <stdlib.h>\n')
+    fOut.write( '#include <stdint.h>\n')
+    fOut.write( '#include <stdio.h>\n')
+    fOut.write( '#include <complex.h>\n')
+    fOut.write( '#include <string.h>\n\n')
+
+    fOut.write( '#include "{0}_struct_defs.h"\n'.format(project_name) )
+
     for struct_name, struct_def in structs.items():
-        c_def = create_c_struct_impl( basetypes, structs, struct_name )
-        fOut = open( src_dir + os.sep + "%s_struct_def.c" % (struct_name), "w" )
+        c_def = create_c_struct_impl( basetypes, structs, struct_name, project )
         fOut.write( c_def )
+    fOut.close()
 # end create_struct_impl
 
 def create_printers( src_dir,basetypes,structs,project):
@@ -488,6 +488,7 @@ def create_default_generators( src_dir,basetypes,structs,project):
 
 def create_cmake_file( c_src_dir, c_inc_dir, basetypes, structs, project ):
     libname='{0}_structs'.format(project['PROJECT'])
+    project_name=project['PROJECT']
     ret = """
 cmake_minimum_required(VERSION 2.8)
 
@@ -501,7 +502,7 @@ SET( AUTOGEN_SRC_DIR  "{0}" )
 SET( AUTOGEN_INC_DIR  "{1}" )
 
 # Basic Library
-FILE( GLOB C_FILES "*_struct_def.c" "io_support.c"  )
+SET( C_FILES "{2}_struct_defs.c" "io_support.c"  )
 
 ########### VERBOSE DEBUG ##########
 MESSAGE( STATUS "C_FILES:" )
@@ -510,10 +511,10 @@ FOREACH( loop_var ${{C_FILES}} )
 ENDFOREACH()
 ########### VERBOSE DEBUG ##########
 
-ADD_LIBRARY( {2} ${{C_FILES}} )
+ADD_LIBRARY( {3} ${{C_FILES}} )
 
 # Sample executables
-""".format( c_src_dir, c_inc_dir, libname )
+""".format( c_src_dir, c_inc_dir, project_name, libname )
     for struct_name, struct_def in structs.items():
         ret = ret + 'ADD_EXECUTABLE( print_{0} print_{0}.c )\n'.format(struct_name)
         ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} {1} )\n\n'.format(struct_name, libname) 
@@ -538,7 +539,7 @@ def generate_c( src_dir, inc_dir, basetypes, structs, project,struct_order):
                  src_dir + os.sep + 'io_support.c' )
 
     create_c_headers(inc_dir, basetypes, structs,project)
-    create_c_impls(src_dir, basetypes, structs )
+    create_c_impls(src_dir, basetypes, structs,project )
     create_printers(src_dir,basetypes,structs,project)
     create_default_generators(src_dir,basetypes,structs,project)
     # Experimental cpp wrapper

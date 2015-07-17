@@ -175,7 +175,7 @@ def create_py_class_def( basetypes, structs, struct_name ):
     # end create_class_def
 
 
-def generate_py( py_dir, basetypes, structs ):
+def generate_py( py_dir, basetypes, structs, project ):
     if not os.path.exists( py_dir ):
         os.mkdir( py_dir )
 
@@ -184,7 +184,7 @@ def generate_py( py_dir, basetypes, structs ):
                  py_dir + os.sep + 'io_support.py' )
 
 
-    fOut = open( py_dir + os.sep + "interface.py", "w" )
+    fOut = open( py_dir + os.sep + "{0}_interface.py".format(project['PROJECT']), "w" )
     fOut.write( "#!/usr/bin/env python\n" )
     fOut.write( "import string\n" )
     fOut.write( "import pprint\n" )
@@ -221,4 +221,5 @@ if __name__ == "__main__":
     A = AutoGenerator(json_basetypes,json_file,pad=args.pad)
     basetypes = A.basetypes
     structs   = A.structs
-    generate_py( out_dir, basetypes, structs )
+    project   = A.project
+    generate_py( out_dir, basetypes, structs, project )
