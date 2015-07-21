@@ -136,7 +136,6 @@ def create_struct_generator( basetypes, structs, struct_name, project ):
     return ret
 # end create_struct printer
 
-
 def create_struct_printer( basetypes, structs, struct_name, project ):
     struct_def = structs[ struct_name ]
 
@@ -161,7 +160,39 @@ def create_struct_printer( basetypes, structs, struct_name, project ):
     ret = ret + T + 'std::string prefix( "" );\n'
     ret = ret + T + 'tmp.write_props( std::cout, prefix );\n'
     ## READ IN DATA
-    ret = ret + T + 'return 0;'
+    ret = ret + T + 'return 0;\n'
+    ret = ret + '}\n'
+    return ret
+
+# end gpb_test
+
+
+def create_gpb_test( basetypes, structs, struct_name, project ):
+    struct_def = structs[ struct_name ]
+
+    ret = '#include "{0}_classes.hpp"\n'.format(project['PROJECT'])
+    ret = ret + '#include "{0}_structs.pb.h"\n\n'.format(project['PROJECT'])
+    ret = ret + '#include <iostream>\n'
+    ret = ret + '#include <fstream>\n'
+    ret = ret + '#include <string>\n'
+
+    ret = ret + 'int main( int argc, char* argv[] ) {\n'
+    ret = ret + T + '// create AutoInterface obj\n'
+    ret = ret + T + '{0}::{1} tmp;\n'.format(project['NAMESPACE'],struct_name)
+    ret = ret + T + 'tmp.set_defaults();\n'
+    ret = ret + T + '// create second AutoInterface obj\n'
+    ret = ret + T + '{0}::{1} tmp2;\n'.format(project['NAMESPACE'],struct_name)
+    ret = ret + T + 'tmp2.set_defaults();\n'
+    ret = ret + T + '// serialize to gpb object\n'
+    ret = ret + T + '{0}_GPB::{1} tmp_gpb;\n'.format(project['NAMESPACE'],struct_name)
+    ret = ret + T + 'tmp.write_gpb(&tmp_gpb);\n'.format(struct_name)
+    ret = ret + T + '// de-serialize from gpb object\n'
+    ret = ret + T + 'tmp2.read_gpb(tmp_gpb);\n'
+    ret = ret + T + '// print\n'
+    ret = ret + T + 'std::string prefix("");\n'
+    ret = ret + T + 'tmp2.write_props( std::cout, prefix );\n'
+    ## READ IN DATA
+    ret = ret + T + 'return 0;\n'
     ret = ret + '}\n'
     return ret
 # end create_struct printer
@@ -493,11 +524,12 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
         ret = ret + T + 'int max_count;\n'
         for f in struct_def['FIELDS']:
             field    = f['NAME']
+            lfield   = field.lower()
             # need max count for fixed length fields
             if type(f['LENGTH']) == int and f['LENGTH'] > 1:
-                ret = ret + T + 'max_count = std::min({0}, gpb_obj.{1}_size());\n'.format(f['LENGTH'],field)
+                ret = ret + T + 'max_count = std::min({0}, gpb_obj.{1}_size());\n'.format(f['LENGTH'],lfield)
             elif f['TYPE'] == 'VECTOR':
-                ret = ret + T + 'max_count = {0}->{1}_size();\n'.format(gpb_obj,field)
+                ret = ret + T + 'max_count = {0}->{1}_size();\n'.format(gpb_obj,lfield)
                 ret = ret + T + '{0}.resize(max_count);\n'.format(field)
             # get type
             if f['IS_BASETYPE']:
@@ -506,22 +538,22 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
                 #ctype = basetype['CPP_TYPE']
             if f['LENGTH']==1:
                 if f['IS_BASETYPE']:
-                    ret = ret + T + 'if (gpb_obj.has_{0}()){{\n'.format(field)
-                    ret = ret + T + T + 'this->{0} = gpb_obj.{0}();\n'.format(field)
+                    ret = ret + T + 'if (gpb_obj.has_{0}()){{\n'.format(lfield)
+                    ret = ret + T + T + 'this->{0} = gpb_obj.{1}();\n'.format(field,lfield)
                     ret = ret + T + '}\n'
                 elif f['IS_STRUCT']:
-                    ret = ret + T + 'if (gpb_obj.has_{0}()){{\n'.format(field)
-                    ret = ret + T + T + '{0}.read_gpb(gpb_obj.{0}());\n'.format(field)
+                    ret = ret + T + 'if (gpb_obj.has_{0}()){{\n'.format(lfield)
+                    ret = ret + T + T + '{0}.read_gpb(gpb_obj.{1}());\n'.format(field,lfield)
                     ret = ret + T + '}\n'
             elif type(f['LENGTH']) == int or f['LENGTH'] == 'VECTOR':
                 if f['IS_BASETYPE']:
                     ret = ret + T + 'for (int ii=0; ii < max_count; ii++ ){\n'
-                    ret = ret + T + T + '{0}[ii] = ({1}) gpb_obj.{0}(ii);\n'.format(field,ctype)
+                    ret = ret + T + T + '{0}[ii] = ({1}) gpb_obj.{2}(ii);\n'.format(field,ctype,lfield)
                     ret = ret + T + '}\n'
                 elif f['IS_STRUCT']:
                     ret = ret + T + 'for (int ii=0; ii < max_count; ii++ ){\n'
                     ret = ret + T + T + '{0} tmp_{0};\n'.format(f['TYPE'])
-                    ret = ret + T + T + 'tmp_{0}.read_gpb(gpb_obj.{1}(ii));\n'.format(f['TYPE'],field)
+                    ret = ret + T + T + 'tmp_{0}.read_gpb(gpb_obj.{1}(ii));\n'.format(f['TYPE'],lfield)
                     ret = ret + T + T + '{0}[ii] = tmp_{1};\n'.format(field,f['TYPE'])
                     ret = ret + T + '}\n'
         ret = ret + "}\n\n"
@@ -530,6 +562,7 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
         ret = ret + T + 'int max_count;\n'
         for f in struct_def['FIELDS']:
             field    = f['NAME']
+            lfield   = field.lower()
             if f['IS_BASETYPE']:
                 basetype = basetypes[f['TYPE']]
                 gpb_type = basetype['GPB_TYPE']
@@ -537,19 +570,17 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
             if f['LENGTH']==1:
                 if f['IS_BASETYPE']:
                     default = f['DEFAULT_VALUE']
-                    ret = ret + T + 'if ({0} != {1}){{\n'.format(field,default)
-                    ret = ret + T + T + 'gpb_obj->set_{0}({0});\n'.format(field)
-                    ret = ret + T + '}\n'
+                    ret = ret + T + T + 'gpb_obj->set_{0}({1});\n'.format(lfield,field)
                 elif f['IS_STRUCT']:
-                    ret = ret + T + '{0}.write_gpb(gpb_obj->mutable_{0}());\n'.format(field)
+                    ret = ret + T + '{0}.write_gpb(gpb_obj->mutable_{1}());\n'.format(field,lfield)
             elif type(f['LENGTH']) == int:
                 if f['IS_BASETYPE']:
                     ret = ret + T + 'for (int ii=0; ii < {0}; ii++ ){{\n'.format(f['LENGTH'])
-                    ret = ret + T + T + 'gpb_obj->add_{0}({0}[ii]);\n'.format(field)
+                    ret = ret + T + T + 'gpb_obj->add_{0}({1}[ii]);\n'.format(lfield,field)
                     ret = ret + T + '}\n'
                 elif f['IS_STRUCT']:
                     ret = ret + T + 'for (int ii=0; ii < {0}; ii++ ){{\n'.format(f['LENGTH'])
-                    ret = ret + T + T + '{0}::{1} * tmp = gpb_obj->add_{2}();;\n'.format(gpb_namespace,f['TYPE'],field)
+                    ret = ret + T + T + '{0}::{1} * tmp = gpb_obj->add_{2}();;\n'.format(gpb_namespace,f['TYPE'],lfield)
                     ret = ret + T + T + '{0}[ii].write_gpb(tmp);\n'.format(field)
                     ret = ret + T + '}\n'
         ret = ret + "}\n\n"
@@ -603,6 +634,10 @@ FILE( GLOB GPB_FILES "*.pb.h" "*.pb.cc" )
 
         ret = ret + 'ADD_EXECUTABLE( generate_{0} generate_{0}.cpp )\n'.format(struct_name)
         ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} {1}_classes {2} )\n\n'.format(struct_name,proj_name,gpb_links) 
+        
+        if gpb:
+            ret = ret + 'ADD_EXECUTABLE( test_gpb_{0} test_gpb_{0}.cpp )\n'.format(struct_name)
+            ret = ret + 'TARGET_LINK_LIBRARIES( test_gpb_{0} {1}_classes {2} )\n\n'.format(struct_name,proj_name,gpb_links) 
 
 
 
@@ -782,6 +817,12 @@ void parse_param_stream( std::istream& r_in_stream,
     for struct_name, struct_def in structs.items():
         fOut = open( cpp_src_dir + os.sep + "generate_%s.cpp" % (struct_name), "w" )
         fOut.write( create_struct_generator(basetypes,structs,struct_name,project)) 
+
+    if gpb:
+        for struct_name, struct_def in structs.items():
+            fOut = open( cpp_src_dir + os.sep + "test_gpb_{0}.cpp".format(struct_name), "w" )
+            fOut.write( create_gpb_test(basetypes,structs,struct_name,project)) 
+
 
     cmake_txt = create_cmake_file( cpp_src_dir, cpp_inc_dir, basetypes, structs, project, gpb )
     fOut = open( cpp_src_dir + os.sep + "CMakeLists.txt", "w" )
