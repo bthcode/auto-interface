@@ -18,8 +18,99 @@ from Templates import py_class_template
 T="    "
 
 
+
 def generate_gpb_for_class(basetypes, structs, struct_name, project):
-    return ''
+    struct_def = structs[struct_name]
+    # namespace does not appear to be used in python version
+    gpb_namespace = '{0}_GPB'.format(project['NAMESPACE'])
+    gpb_classname = struct_def['NAME']
+
+
+    #
+    # read gpb
+    #
+    ret = '\n' + T + 'def read_gpb(self, gpb_obj):\n'
+
+    for f in struct_def['FIELDS']:
+        field    = f['NAME']
+    
+        # need max count for fixed length fields
+        if type(f['LENGTH']) == int and f['LENGTH'] > 1:
+            ret = ret + T + T + 'max_count = min({0}, len(gpb_obj.{1}))\n'.format(f['LENGTH'],field)
+        elif f['TYPE'] == 'VECTOR':
+            ret = ret + T + T +  'max_count = len(gpb_obj.{0})\n'.format(field)
+
+        # get type
+        if f['IS_BASETYPE']:
+            basetype = basetypes[f['TYPE']]
+            gpb_type = basetype['GPB_TYPE']
+
+        if f['LENGTH']==1:
+            if f['IS_BASETYPE']:
+                ret = ret + T + T + 'self.{0} = gpb_obj.{0}\n'.format(field)
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'self.{0}.read_gpb(gpb_obj.{0})\n'.format(field)
+
+        elif type(f['LENGTH']) == int or f['LENGTH'] == 'VECTOR':
+            if f['IS_BASETYPE']:
+                ret = ret + T + T + 'self.{0} = []\n'.format(field)
+                ret = ret + T + T + 'for ii in range(max_count):\n'
+                ret = ret + T + T + T + 'self.{0}.append( gpb_obj.{0}[ii] )\n'.format(field)
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'self.{0} = []\n'.format(field)
+                ret = ret + T + T + 'for ii in range(max_count):\n'
+                ret = ret + T + T + T + 'tmp = {0}()\n'.format( f['TYPE'] )
+                ret = ret + T + T + T + 'tmp.read_gpb(gpb_obj.{0}[ii])\n'
+                ret = ret + T + T + T + 'self.{0}.append( tmp )\n'.format(f['NAME'])
+
+    ret = ret + T + '# end read_gpb\n\n'
+
+    #
+    # write gpb
+    #
+    ret = ret + '\n\n' + T + 'def write_gpb(self):\n'
+
+    ret = ret + T + T + 'gpb_obj = gpb.{0}()\n'.format(struct_name)
+
+    for f in struct_def['FIELDS']:
+        field    = f['NAME']
+    
+        # need max count for fixed length fields
+        if type(f['LENGTH']) == int and f['LENGTH'] > 1:
+            ret = ret + T + T + 'max_count = min({0}, len(self.{1}))\n'.format(f['LENGTH'],field)
+        elif f['TYPE'] == 'VECTOR':
+            ret = ret + T + T +  'max_count = len(self.{0})\n'.format(field)
+
+        # get type
+        if f['IS_BASETYPE']:
+            basetype = basetypes[f['TYPE']]
+            gpb_type = basetype['GPB_TYPE']
+
+        if f['LENGTH']==1:
+            if f['IS_BASETYPE']:
+                ret = ret + T + T + 'gpb_obj.{0} = self.{0}\n'.format(field)
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'tmp = gpb.{0}()\n'.format(f['TYPE'])
+                ret = ret + T + T + 'self.{0}.write_gpb(tmp)\n'.format(field)
+                ret = ret + T + T + 'gpb_obj.{0} = tmp\n'.format(field) 
+
+        elif type(f['LENGTH']) == int or f['LENGTH'] == 'VECTOR':
+            if f['IS_BASETYPE']:
+                #ret = ret + T + T + 'gpb_obj.{0} = []\n'.format(field)
+                ret = ret + T + T + 'for ii in range(max_count):\n'
+                ret = ret + T + T + T + 'gpb_obj.{0}.append( self.{0}[ii] )\n'.format(field)
+            elif f['IS_STRUCT']:
+                #ret = ret + T + T + 'gpb_obj.{0} = []\n'
+                ret = ret + T + T + 'for ii in range(max_count):\n'
+                ret = ret + T + T + T + 'tmp = gpb.{0}()\n'.format(f['TYPE'])
+                ret = ret + T + T + T + 'self.{0}[ii].write_gpb(tmp)\n'.format(field)
+                ret = ret + T + T + T + 'gpb_obj.{0}.append(tmp)\n'.format(field)
+    ret = ret + T + T + 'return gpb_obj\n'
+
+    ret = ret + T + '# end write_gpb\n\n'
+
+
+    return ret
 # end generate_gpb_for_class
 
 
@@ -219,6 +310,9 @@ def generate_py( py_dir, basetypes, structs, project, gpb=False ):
 
 """
     ''')
+
+    if gpb:
+        fOut.write( "\nimport {0}_structs_pb2 as gpb\n\n".format(project['PROJECT']))
 
     for struct_name, struct_def in structs.items():
         ret = create_py_class_def( basetypes, structs, struct_name, project, gpb )
