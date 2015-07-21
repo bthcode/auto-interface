@@ -18,7 +18,12 @@ from Templates import py_class_template
 T="    "
 
 
-def create_py_class_def( basetypes, structs, struct_name ):
+def generate_gpb_for_class(basetypes, structs, struct_name, project):
+    return ''
+# end generate_gpb_for_class
+
+
+def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
     struct_def = structs[ struct_name ]
     ret = py_class_template.format( struct_name )
 
@@ -167,21 +172,38 @@ def create_py_class_def( basetypes, structs, struct_name ):
                 ret = ret + T + T + T + T + T + 'print ("ERROR: {0}[{{0}}] should be type {1}, but is {{1}}".format(idx,self.{0}[idx].__class__.__name__))\n'.format(f['NAME'],f['TYPE'])
                 ret = ret + T + T + T + T + T + 'return\n'
                 ret = ret + T + T + T + 'self.{0}[idx].write_binary(r_stream)\n'.format(f['NAME'])
+
+    if gpb:
+        ret = ret + generate_gpb_for_class(basetypes, structs, struct_name, project)
     ret = ret + T + "# end write_binary\n\n"
     ret = ret + "# end class {0}\n\n".format(struct_name)
-
+ 
 
     return ret
     # end create_class_def
 
 
-def generate_py( py_dir, basetypes, structs, project ):
+def generate_py( py_dir, basetypes, structs, project, gpb=False ):
     if not os.path.exists( py_dir ):
         os.mkdir( py_dir )
 
     python_repo_dir = os.path.dirname(os.path.realpath(__file__))
     shutil.copy( python_repo_dir + os.sep + 'io_support.py', 
                  py_dir + os.sep + 'io_support.py' )
+
+    # proto file
+    if gpb:
+        print ("Creating GPB Proto File")
+        from GPB_Generator import *
+        proto_file = generate_gpb(py_dir,py_dir,basetypes,structs,project)
+        proto_file = os.path.split(proto_file)[-1]
+        # Call protoc - need to be in the directory with it
+        here = os.getcwd()
+        os.chdir(py_dir)
+        cmd = '''protoc --python_out={0} {1}'''.format('.',proto_file)
+        print ("Calling {0}".format(cmd))
+        os.popen(cmd)
+        os.chdir(here)
 
 
     fOut = open( py_dir + os.sep + "{0}_interface.py".format(project['PROJECT']), "w" )
@@ -199,7 +221,7 @@ def generate_py( py_dir, basetypes, structs, project ):
     ''')
 
     for struct_name, struct_def in structs.items():
-        ret = create_py_class_def( basetypes, structs, struct_name )
+        ret = create_py_class_def( basetypes, structs, struct_name, project, gpb )
         fOut.write( ret )
         fOut.write( "\n\n" )
     fOut.close()
@@ -212,7 +234,9 @@ if __name__ == "__main__":
     parser.add_argument( 'json_basetypes_file' )
     parser.add_argument( 'json_structures_file' )
     parser.add_argument( 'output_directory' )
+    parser.add_argument( '--gpb', action='store_true', help='If selected, generate google protocol buffers serializer')
     parser.add_argument( '--pad', default=-1, type=int, help='Insert Padding For Explicit 64-Bit Word Alignment (Warning: Does Not Work With VECTOR Data Type)')
+
     args = parser.parse_args()
 
     json_basetypes = args.json_basetypes_file
@@ -222,4 +246,4 @@ if __name__ == "__main__":
     basetypes = A.basetypes
     structs   = A.structs
     project   = A.project
-    generate_py( out_dir, basetypes, structs, project )
+    generate_py( out_dir, basetypes, structs, project, args.gpb )
