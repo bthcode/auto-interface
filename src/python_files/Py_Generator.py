@@ -110,6 +110,32 @@ def generate_gpb_for_class(basetypes, structs, struct_name, project):
     return ret
 # end generate_gpb_for_class
 
+def create_gpb_test_for_class( basetypes, structs, struct_name, project ):
+    ret = ''
+    ret = ret + 'import {0}_interface\n\n'.format(project['PROJECT'])
+    ret = ret + 'x = {0}_interface.{1}()\n'.format(project['PROJECT'],struct_name)
+    
+    struct_def = structs[struct_name]
+    for ii, f in enumerate(struct_def['FIELDS']):
+        if f['IS_BASETYPE'] and f['LENGTH'] == 1:
+            ret = ret + 'x.{0} = {1}\n'.format(f['NAME'],ii)
+    ret = ret + 'g = x.write_gpb()\n'
+    ret = ret + 'fout = open("out.bin", "wb")\n'
+    ret = ret + 'fout.write(g.SerializeToString())\n'
+    ret = ret + 'fout.close()\n'
+    ret = ret + 'fin = open("out.bin", "rb" )\n'
+    ret = ret + 'buf = fin.read()\n'
+    ret = ret + 'y = {0}_interface.{1}()\n'.format(project['PROJECT'],struct_name)
+    ret = ret + 'g = y.write_gpb()\n'
+    ret = ret + 'g.ParseFromString(buf)\n'
+    ret = ret + 'y.read_gpb(g)\n'
+    ret = ret + 'print ("ORIGNAL:")\n'
+    ret = ret + 'print (x)\n'
+    ret = ret + 'print ("GPB:")\n'
+    ret = ret + 'print (y)\n'
+    return ret
+# end create_gpb_test_for_class
+
 
 def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
     struct_def = structs[ struct_name ]
@@ -292,6 +318,15 @@ def generate_py( py_dir, basetypes, structs, project, gpb=False ):
         print ("Calling {0}".format(cmd))
         os.popen(cmd)
         os.chdir(here)
+
+        # gpb tests
+        for struct_name, struct_def in structs.items():
+            ret = create_gpb_test_for_class( basetypes, structs, struct_name, project )
+            print ("creating test_gpb_{0}.py".format(struct_name))
+            fOut = open( '{0}/test_gpb_{1}.py'.format(py_dir,struct_name), "w")
+            fOut.write(ret)
+            fOut.close
+        # end for each struct
 
 
     fOut = open( py_dir + os.sep + "{0}_interface.py".format(project['PROJECT']), "w" )
