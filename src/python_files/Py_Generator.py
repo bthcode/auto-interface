@@ -25,11 +25,25 @@ def generate_gpb_for_class(basetypes, structs, struct_name, project):
     gpb_namespace = '{0}_GPB'.format(project['NAMESPACE'])
     gpb_classname = struct_def['NAME']
 
+    #
+    # get gpb parser
+    #
+    ret = '\n' + T + 'def read_gpb_from_buf(self, buf):\n'
+    ret = ret + T + T + 'gpb_obj = gpb.{0}()\n'.format(struct_name)
+    ret = ret + T + T + 'gpb_obj.ParseFromString(buf)\n'
+    ret = ret + T + T + 'self.read_gpb(gpb_obj)\n'
+    ret = ret + T + '# end read_gpb_from_buf\n\n'
+
+    ret = ret + T + 'def write_gpb_to_buf(self):\n'
+    ret = ret + T + T + 'gpb_obj = self.write_gpb()\n'
+    ret = ret + T + T + 'return gpb_obj.SerializeToString()\n\n'
+    ret = ret + T + '# end write_gpb_to_buf\n'
+
 
     #
     # read gpb
     #
-    ret = '\n' + T + 'def read_gpb(self, gpb_obj):\n'
+    ret = ret + T + 'def read_gpb(self, gpb_obj):\n'
 
     for f in struct_def['FIELDS']:
         field    = f['NAME']
@@ -119,16 +133,13 @@ def create_gpb_test_for_class( basetypes, structs, struct_name, project ):
     for ii, f in enumerate(struct_def['FIELDS']):
         if f['IS_BASETYPE'] and f['LENGTH'] == 1:
             ret = ret + 'x.{0} = {1}\n'.format(f['NAME'],ii)
-    ret = ret + 'g = x.write_gpb()\n'
     ret = ret + 'fout = open("out.bin", "wb")\n'
-    ret = ret + 'fout.write(g.SerializeToString())\n'
+    ret = ret + 'fout.write(x.write_gpb_to_buf())\n'
     ret = ret + 'fout.close()\n'
     ret = ret + 'fin = open("out.bin", "rb" )\n'
     ret = ret + 'buf = fin.read()\n'
     ret = ret + 'y = {0}_interface.{1}()\n'.format(project['PROJECT'],struct_name)
-    ret = ret + 'g = y.write_gpb()\n'
-    ret = ret + 'g.ParseFromString(buf)\n'
-    ret = ret + 'y.read_gpb(g)\n'
+    ret = ret + 'y.read_gpb_from_buf(buf)\n'
     ret = ret + 'print ("ORIGNAL:")\n'
     ret = ret + 'print (x)\n'
     ret = ret + 'print ("GPB:")\n'
