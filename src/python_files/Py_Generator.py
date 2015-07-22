@@ -59,18 +59,19 @@ def generate_gpb_for_class(basetypes, structs, struct_name, project):
             elif f['IS_STRUCT']:
                 ret = ret + T + T + 'self.{0} = []\n'.format(field)
                 ret = ret + T + T + 'for ii in range(max_count):\n'
-                ret = ret + T + T + T + 'tmp = {0}()\n'.format( f['TYPE'] )
-                ret = ret + T + T + T + 'tmp.read_gpb(gpb_obj.{0}[ii])\n'
-                ret = ret + T + T + T + 'self.{0}.append( tmp )\n'.format(f['NAME'])
+                ret = ret + T + T + T + 'tmp = {0}()\n'.format(f['TYPE'])
+                ret = ret + T + T + T + 'tmp.read_gpb(gpb_obj.{0}[ii])\n'.format(field)
+                ret = ret + T + T + T + 'self.{0}.append( tmp )\n'.format(field)
 
     ret = ret + T + '# end read_gpb\n\n'
 
     #
     # write gpb
     #
-    ret = ret + '\n\n' + T + 'def write_gpb(self):\n'
+    ret = ret + '\n\n' + T + 'def write_gpb(self,gpb_obj=None):\n'
 
-    ret = ret + T + T + 'gpb_obj = gpb.{0}()\n'.format(struct_name)
+    ret = ret + T + T + 'if gpb_obj == None:\n'
+    ret = ret + T + T + T + 'gpb_obj = gpb.{0}()\n'.format(struct_name)
 
     for f in struct_def['FIELDS']:
         field    = f['NAME']
@@ -90,21 +91,17 @@ def generate_gpb_for_class(basetypes, structs, struct_name, project):
             if f['IS_BASETYPE']:
                 ret = ret + T + T + 'gpb_obj.{0} = self.{0}\n'.format(field)
             elif f['IS_STRUCT']:
-                ret = ret + T + T + 'tmp = gpb.{0}()\n'.format(f['TYPE'])
+                ret = ret + T + T + 'tmp = gpb_obj.{0}\n'.format(field)
                 ret = ret + T + T + 'self.{0}.write_gpb(tmp)\n'.format(field)
-                ret = ret + T + T + 'gpb_obj.{0} = tmp\n'.format(field) 
 
         elif type(f['LENGTH']) == int or f['LENGTH'] == 'VECTOR':
             if f['IS_BASETYPE']:
-                #ret = ret + T + T + 'gpb_obj.{0} = []\n'.format(field)
                 ret = ret + T + T + 'for ii in range(max_count):\n'
                 ret = ret + T + T + T + 'gpb_obj.{0}.append( self.{0}[ii] )\n'.format(field)
             elif f['IS_STRUCT']:
-                #ret = ret + T + T + 'gpb_obj.{0} = []\n'
                 ret = ret + T + T + 'for ii in range(max_count):\n'
-                ret = ret + T + T + T + 'tmp = gpb.{0}()\n'.format(f['TYPE'])
+                ret = ret + T + T + T + 'tmp = gpb_obj.{0}.add()\n'.format(field)
                 ret = ret + T + T + T + 'self.{0}[ii].write_gpb(tmp)\n'.format(field)
-                ret = ret + T + T + T + 'gpb_obj.{0}.append(tmp)\n'.format(field)
     ret = ret + T + T + 'return gpb_obj\n'
 
     ret = ret + T + '# end write_gpb\n\n'
