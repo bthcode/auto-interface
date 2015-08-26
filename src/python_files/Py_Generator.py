@@ -65,7 +65,7 @@ def generate_gpb_for_class(basetypes, structs, struct_name, project):
             elif f['IS_STRUCT']:
                 ret = ret + T + T + 'self.{0}.read_gpb(gpb_obj.{0})\n'.format(field)
 
-        elif type(f['LENGTH']) == int or f['LENGTH'] == 'VECTOR':
+        elif f['LENGTH'] == 'VECTOR':
             if f['IS_BASETYPE']:
                 ret = ret + T + T + 'self.{0} = []\n'.format(field)
                 ret = ret + T + T + 'for ii in range(max_count):\n'
@@ -76,6 +76,22 @@ def generate_gpb_for_class(basetypes, structs, struct_name, project):
                 ret = ret + T + T + T + 'tmp = {0}()\n'.format(f['TYPE'])
                 ret = ret + T + T + T + 'tmp.read_gpb(gpb_obj.{0}[ii])\n'.format(field)
                 ret = ret + T + T + T + 'self.{0}.append( tmp )\n'.format(field)
+
+        elif type(f['LENGTH']) == int:
+            if f['IS_BASETYPE']:
+                # TODO: replace warning with set default
+                ret = ret + T + T + 'if len(self.{0}) != {1}:\n'.format(field, f['LENGTH'])
+                ret = ret + T + T + T + 'print( "WARNING: bad field size on {0}\\n" )\n'.format(field)
+                ret = ret + T + T + 'for ii in range(max_count):\n'
+                ret = ret + T + T + T + 'self.{0}[ii] = gpb_obj.{0}[ii]\n'.format(field)
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'if len(self.{0}) != {1}:\n'.format(field, f['LENGTH'])
+                ret = ret + T + T + T + 'print( "WARNING: bad field size on {0}\\n" )\n'.format(field)
+                ret = ret + T + T + 'for ii in range(max_count):\n'
+                ret = ret + T + T + T + 'tmp = {0}()\n'.format(f['TYPE'])
+                ret = ret + T + T + T + 'tmp.read_gpb(gpb_obj.{0}[ii])\n'.format(field)
+                ret = ret + T + T + T + 'self.{0}.append( tmp )\n'.format(field)
+
 
     ret = ret + T + '# end read_gpb\n\n'
 
