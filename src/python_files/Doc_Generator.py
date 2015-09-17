@@ -90,7 +90,7 @@ def create_rst( basetypes, structs, struct_name ):
     for f in struct_def['FIELDS']:
         fields.append(f['NAME'])
         fields_length = max(len(fields[-1]),fields_length)
-        print f['NAME']
+        print (f['NAME'])
         doc_name = f['DOC_NAME']
         types.append(doc_name)
         types_length = max(len(types[-1]),types_length)
@@ -165,7 +165,7 @@ def create_rst( basetypes, structs, struct_name ):
                 "="*lengths_length + " " + \
                 "="*descriptions_length + \
                 "\n"
-    print magic_row
+    print (magic_row)
     ret = ret + magic_row
     ret = ret + fields_header.ljust(fields_length) + " " + \
                 types_header.ljust(types_length) + " " + \
@@ -185,7 +185,7 @@ def create_rst( basetypes, structs, struct_name ):
 
     ret = ret + magic_row + "\n\n"
 
-    print ret
+    print (ret)
         
     return ret
 # end generate_rst
