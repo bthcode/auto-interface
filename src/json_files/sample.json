@@ -5,15 +5,15 @@
     "DESCRIPTION" : "This is a project description",
     "STRUCTURES" : [
     {
-        "NAME" : "sample",
+        "NAME" : "sAmple",
         "DESCRIPTION" : "Sample Struct",
         "FIELDS" : [
             {
-                "NAME" : "field_1",
+                "NAME" : "fiEld_1",
                 "TYPE" : "UINT_8"
             },
             {
-                "NAME" : "field2",
+                "NAME" : "Field2",
                 "TYPE" : "SINGLE",
                 "LENGTH" : "5",
                 "DEFAULT_VALUE" : [ 1,2,3,4,5 ]

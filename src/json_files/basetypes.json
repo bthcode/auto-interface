@@ -16,6 +16,7 @@
          "DEFAULT_VALUE" : 0,
          "STREAM_CAST" : "int",
          "MEX_TYPE" : "mxUINT16_CLASS",
+         "MAT_TYPE" : "uint16",
          "GPB_TYPE" : "uint32",
          "LENGTH" : 2,
          "DOC_NAME": "u16"
