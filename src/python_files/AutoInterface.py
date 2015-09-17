@@ -80,7 +80,7 @@ class AutoGenerator:
                             f['LENGTH'] = int(f['LENGTH'])
                         except:
                             f['LENGTH'] = 1
-                            print "ERROR: Bad length for field {0}".format(f['NAME'])
+                            print ("ERROR: Bad length for field {0}".format(f['NAME']))
 
 
                 # Determine if is struct
@@ -141,12 +141,12 @@ class AutoGenerator:
             self.basetypes[base_name]=basetype
 
         if self.pad > 0:
-            print "padding to {0}".format(self.pad)
+            print ("padding to {0}".format(self.pad))
             for struct_name in self.structs.keys():
                 if self.structs[struct_name]['IS_PADDED'] == False:
                     self.insert_padding( struct_name, self.structs, pad_to=self.pad )
         else:
-            print "no padding"
+            print ("no padding")
     # end preprocess
 
     def insert_padding(self,struct_name,structs,pad_to=8):
@@ -178,7 +178,9 @@ class AutoGenerator:
                 #  not larger than the target word size
                 target_pad = min( pad_to, field_bytes )
                 largest_alignment = max( target_pad, largest_alignment )
+                print ('{0}, {1}'.format(f['NAME'], sum_bytes))
                 if sum_bytes % target_pad != 0:
+                    #import ipdb; ipdb.set_trace()
                     pad_name = "pad_{0}".format(pad_counter)
                     pad_counter += 1
                     pad_length = target_pad - sum_bytes % target_pad
@@ -201,6 +203,7 @@ class AutoGenerator:
                 print( "WARNING! Cannot pre-pad structs with variable length" )
                 sys.exit(1)
             sum_bytes += field_bytes * f['LENGTH']
+            print ( "end of {0}, sum_bytes = {1}".format( f['NAME'], sum_bytes ) )
             out_fields.append(f)
         if sum_bytes % largest_alignment != 0:
             target_pad = largest_alignment
@@ -239,9 +242,9 @@ if __name__=="__main__":
     parser.add_argument( '--pad', default=-1, type=int, help='Insert Padding For Explicit 64-Bit Word Alignment (Warning: Does Not Work With VECTOR Data Type)')
     parser.set_defaults(pad=-1)
     args = parser.parse_args()
-    print args
+    print (pprint.pformat(args))
     A = AutoGenerator(args.basetypes, args.json_file, pad = args.pad) 
     import pprint
-    print pprint.pformat(A.basetypes)
-    print pprint.pformat(A.structs)
-    print pprint.pformat(A.struct_order)
+    #print pprint.pformat(A.basetypes)
+    #print pprint.pformat(A.structs)
+    #print pprint.pformat(A.struct_order)
