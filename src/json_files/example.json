@@ -74,26 +74,15 @@
                 "DEFAULT_VALUE" : 1.0,
                 "type"         : "SINGLE" 
               },
-              { "NAME"         : "m_cmplx_double",
-                "DESCRIPTION"  : "Sample complex double",
-                "TYPE"         : "COMPLEX_DOUBLE",
-                "DEFAULT_VALUE" : [ 1, 1 ]
-              },
               { "NAME"  : "m_vector_of_doubles",
                 "TYPE"  : "DOUBLE",
-                "LENGTH" : "VECTOR",
+                "LENGTH" : "5",
                 "DESCRIPTION" : "vector of doubles",
                 "DEFAULT_VALUE" : [ 1,2,3,4,5 ]
               },
-              { "NAME" : "m_vector_of_complex_doubles",
-                "LENGTH" : "VECTOR",
-                "TYPE" : "COMPLEX_DOUBLE",
-                "DESCRIPTION" : "vector of complex doubles",
-                "DEFAULT_VALUE" : [ [1,1],[2,2],[3,3],[4,4],[5,5],[6,6] ]
-              },
               { "NAME"  : "m_empty_vector",
                 "TYPE"  : "DOUBLE",
-                "LENGTH" : "VECTOR",
+                "LENGTH" : "1",
                 "DESCRIPTION" : "vector of doubles"
               },
               { "NAME"  : "m_substruct1",
@@ -102,7 +91,7 @@
               },
               { "NAME"  : "m_vector_of_structs",
                 "TYPE"  : "substruct1",
-                "LENGTH" : "VECTOR",
+                "LENGTH" : "5",
                 "DESCRIPTION" : "vector of doubles"
               },
               { "NAME"  : "m_basetype_array",
