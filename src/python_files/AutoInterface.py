@@ -24,7 +24,7 @@ class AutoGenerator:
 
      
     """
-    def __init__(self, json_basetypes, json_file, pad=-1):
+    def __init__(self, json_basetypes, json_file, pad=-1 ):
         self.basetypes = json.load( open( json_basetypes,  'r' ) )
         self.project   = json.load( open( json_file, 'r' ) )
         self.pad = pad
@@ -39,16 +39,16 @@ class AutoGenerator:
             self.struct_order.append( struct['NAME'] )
             self.structs[ struct['NAME'] ] = struct
 
-        if not self.project.has_key( "PROJECT" ):
+        if not 'PROJECT' in self.project:
             self.project['PROJECT'] = "Untitled"
 
-        if not self.project.has_key( "NAMESPACE" ):
+        if not 'NAMESPACE' in self.project:
             self.project['NAMESPACE'] = False
 
-        if not self.project.has_key( "VERSION" ):
+        if not 'VERSION' in self.project:
             self.project['VERSION'] = '0.0.1'
 
-        if not self.project.has_key( "DESCRIPTION" ):
+        if not 'DESCRIPTION' in self.project:
             self.project['DESCRIPTION'] = ''
 
         self.preprocess()
@@ -69,10 +69,12 @@ class AutoGenerator:
             for idx, f in enumerate(struct_def['FIELDS']):
                 # move keys to upperclass
                 for key,val in f.items():
-                    f[key.upper()] = val
+                    #f[key.upper()] = val
+                    #mydict[new_key] = mydict.pop(old_key)
+                    f[key.upper()] = f.pop(key)
 
                 # SET LENGTH 
-                if not f.has_key('LENGTH'):
+                if not 'LENGTH' in f:
                     f['LENGTH'] = 1
                 else:
                     if f['LENGTH'] != 'VECTOR':
@@ -84,15 +86,15 @@ class AutoGenerator:
 
 
                 # Determine if is struct
-                if self.structs.has_key(f['TYPE']):
+                if f['TYPE'] in self.structs:
                     f['IS_STRUCT'] = True
                     f['IS_BASETYPE'] = False
-                elif self.basetypes.has_key(f['TYPE']):
+                elif f['TYPE'] in self.basetypes:
                     f['IS_STRUCT'] = False
                     f['IS_BASETYPE'] = True
                 else:
                     print ("ERROR: Unknown Type: {0}".format(f['TYPE'])) 
-                if not f.has_key('DESCRIPTION'):
+                if not 'DESCRIPTION' in f:
                     f['DESCRIPTION'] = ''
 
                 # Doc name
@@ -104,11 +106,11 @@ class AutoGenerator:
 
                 # Handle default value setting
                 if f['IS_BASETYPE'] and f['LENGTH'] == 1:
-                    if not f.has_key('DEFAULT_VALUE'):
+                    if not 'DEFAULT_VALUE' in f:
                         f['DEFAULT_VALUE'] = self.basetypes[f['TYPE']]['DEFAULT_VALUE'] 
                 elif f['IS_BASETYPE'] and type(f['LENGTH']) == int:
                     # no value
-                    if not f.has_key('DEFAULT_VALUE'):
+                    if not 'DEFAULT_VALUE' in f:
                         f['DEFAULT_VALUE'] = [ self.basetypes[f['TYPE']]['DEFAULT_VALUE'] ] * f['LENGTH']
                     # one value: repeat it
                     elif len(f['DEFAULT_VALUE']) == 1:
@@ -119,13 +121,13 @@ class AutoGenerator:
                 struct_def[idx] = f
                 # set missing types
                 # handle default values
-            if not struct_def.has_key('DESCRIPTION'):
+            if not 'DESCRIPTION' in struct_def:
                 struct_def['DESCRIPTION'] = ''
             self.structs[struct_name] = struct_def
         # turn dicts into classes
 
         for base_name, basetype in self.basetypes.items():
-            if not basetype.has_key('IS_COMPLEX'):
+            if not 'IS_COMPLEX' in basetype:
                 basetype['IS_COMPLEX'] = False
             else:
                 if basetype['IS_COMPLEX'].upper() == "TRUE":
@@ -134,9 +136,9 @@ class AutoGenerator:
                     basetype['IS_COMPLEX'] = False
 
             # Set CPP_TYPE and STREAM_TIME fields
-            if not basetype.has_key('CPP_TYPE'):
+            if not 'CPP_TYPE' in basetype:
                 basetype['CPP_TYPE'] = basetype['C_TYPE']
-            if not basetype.has_key('STREAM_CAST'):
+            if not 'STREAM_CAST' in basetype:
                 basetype['STREAM_CAST'] = basetype['CPP_TYPE']
             self.basetypes[base_name]=basetype
 
@@ -245,6 +247,6 @@ if __name__=="__main__":
     print (pprint.pformat(args))
     A = AutoGenerator(args.basetypes, args.json_file, pad = args.pad) 
     import pprint
-    #print pprint.pformat(A.basetypes)
-    #print pprint.pformat(A.structs)
-    #print pprint.pformat(A.struct_order)
+    print (pprint.pformat(A.basetypes))
+    print (pprint.pformat(A.structs))
+    print (pprint.pformat(A.struct_order))
