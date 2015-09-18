@@ -54,6 +54,12 @@ Generate Matlab::
            src/json_files/basetypes.json \
            src/json_files/example.json mat
 
+Generate C::
+
+    python src/python_files/C_Generator.py \
+           src/json_files/basetypes.json \
+           src/json_files/example.json mat
+
 Generate Sphinx Docs::
 
     python src/python_files/Doc_Generator.py \
@@ -110,6 +116,11 @@ Code can be generated for CPP, Matlab or Python.  The following functions are cu
     - read_binary
     - write_binary
     - set_defaults
+- C
+    - read_binary
+    - write_binary
+    - set_defaults
+    - write_props
 
 *********
 BASETYPES
@@ -128,8 +139,6 @@ INT_32          int32_t               int32    int    (4)Byte
 INT_64          int64_t               int64    int    (8)Byte
 SINGLE          float                 single   float  (4)Byte
 DOUBLE          double                double   float  (8)Byte
-COMPLEX_SINGLE  std::complex<float>   single   float  (8)Byte r,i
-COMPLEX_DOUBLE  std::complex<double>  double   float  (16)Byte r,i
 ==============  ===================== =======  ====== ============
 
 ********************
