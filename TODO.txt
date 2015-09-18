@@ -18,7 +18,6 @@
 # Other todos:
 
 ___ Move tests to subdirs
-___ Generate python tests
 ___ Remove complex data types
 ___ Test GPB Numeric conversions (u8->u32, ex)
 ___ Native strings

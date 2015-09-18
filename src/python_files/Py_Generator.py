@@ -188,7 +188,7 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
             
         elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
             # If a default vaulue, try to set it
-            if f.has_key( 'DEFAULT_VALUE' ):
+            if 'DEFAULT_VALUE' in f:
                 if f['IS_BASETYPE']:
                     basetype = basetypes[f['TYPE']]
                     def_val = f['DEFAULT_VALUE']
@@ -335,8 +335,8 @@ def generate_py( py_dir, basetypes, structs, project, gpb=False ):
     # proto file
     if gpb:
         print ("Creating GPB Proto File")
-        from GPB_Generator import *
-        proto_file = generate_gpb(py_dir,py_dir,basetypes,structs,project)
+        import GPB_Generator as gg
+        proto_file = gg.generate_gpb(py_dir,py_dir,basetypes,structs,project)
         proto_file = os.path.split(proto_file)[-1]
         # Call protoc - need to be in the directory with it
         here = os.getcwd()

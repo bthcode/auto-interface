@@ -96,7 +96,7 @@ def create_struct_header( basetypes, structs, struct_name,project,gpb=False ):
         elif type(f['LENGTH']) == int:
             n_elements ='[{0}]'.format(f['LENGTH'])
         else:
-            print 'ERROR - vector with no TYPE'
+            print ('ERROR - vector with no TYPE')
             sys.exit(1)
 
         # write declaration
@@ -116,7 +116,7 @@ def create_struct_generator( basetypes, structs, struct_name, project ):
     ret = ret + '#include <fstream>\n'
 
     ### Namespace
-    if struct_def.has_key( 'NAMESPACE'  ):
+    if 'NAMESPACE' in struct_def:
         ret = ret + '\n using %s::%s;\n' %( struct_def[ 'NAMESPACE' ], struct_name )
 
     ret = ret + 'int main( int argc, char* argv[] ) {\n'
@@ -145,7 +145,7 @@ def create_struct_printer( basetypes, structs, struct_name, project ):
     ret = ret + '#include <string>\n'
 
     ### Namespace
-    if struct_def.has_key( 'NAMESPACE'  ):
+    if 'NAMESPACE' in struct_def:
         ret = ret + '\n using %s::%s;\n' %( struct_def[ 'NAMESPACE' ], struct_name )
 
     ret = ret + 'int main( int argc, char* argv[] ) {\n'
@@ -459,23 +459,23 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
                 ret = ret + T + '}\n'
 
         elif f['LENGTH'] == 'VECTOR':
-            if f.has_key('DEFAULT_VALUE'):
+            if 'DEFAULT_VALUE' in f:
                 if f['IS_BASETYPE']:
                     b = basetypes[f['TYPE']]
                     # get default value
-                    if f.has_key('DEFAULT_VALUE'):
+                    if 'DEFAULT_VALUE' in f:
                         def_val = f['DEFAULT_VALUE']
                     # format for complex or not
                     if b['IS_COMPLEX']:
-                        num_elements = len(def_val)/2
+                        num_elements = len(def_val)
                         ret = ret + T + '{0}.resize({1});\n'.format(f['NAME'],num_elements)
                         counter=0
-                        for idx in range(0,len(def_val),2):
+                        for idx in range(len(def_val)):
                             ret = ret + T + '{0}[{1}] = {2}({3},{4});\n'.format(f['NAME'],
                                                                                 counter,
                                                                                 b['CPP_TYPE'],
-                                                                                def_val[idx],
-                                                                                def_val[idx+1])
+                                                                                def_val[idx][0],
+                                                                                def_val[idx][1])
                             counter = counter+1
                     else:
                         num_elements = len(def_val)
@@ -500,12 +500,12 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
                 b = basetypes[ f['TYPE'] ]
-                if f.has_key('VALID_MIN'):
+                if 'VALID_MIN' in f:
                     ret = ret + T + "if ( %s < %s ) {\n" % ( f['NAME'], f['VALID_MIN'] )
                     ret = ret + T + T + 'err_msg +=  "Failed field: %s is less than %s\\n";\n' % ( f['NAME'], f['VALID_MIN'])
                     ret = ret + T + T + 'num_errs++;\n'
                     ret = ret + T + '}\n'
-                if f.has_key('VALID_MAX'):
+                if 'VALID_MAX' in f:
                     ret = ret + T + "if ( %s > %s ) {\n" % ( f['NAME'], f['VALID_MAX'] )
                     ret = ret + T + T + 'err_msg +=  "Failed field: %s is greater than %s\\n";\n' % ( f['NAME'], f['VALID_MAX'])
                     ret = ret + T + T + 'num_errs++;\n'

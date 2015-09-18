@@ -130,7 +130,7 @@ def create_c_struct_header( basetypes, structs, struct_name ):
             elif f['IS_BASETYPE']:
                 c_decl = '{0} *'.format( basetypes[f['TYPE']]['C_TYPE'])
             else:
-                print 'ERROR - vector with unknown type or no CONTAINED_TYPE key'
+                print ('ERROR - vector with unknown type or no CONTAINED_TYPE key')
                 sys.exit(1)
             ret = ret + T + "{0}  {1}; ///<{2}\n".format( c_decl, f['NAME'], f['DESCRIPTION'] )
             ret = ret + T + "int32_t n_elements_{0};\n".format( f['NAME'] )

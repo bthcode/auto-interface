@@ -42,7 +42,7 @@ def create_set_defaults(basetypes,structs,struct_name):
                 ret = ret + T + T + 'out.{0} = set_defaults_{1}();\n'.format(f['NAME'],f['TYPE'])
         # type is basetype, length is vector or int
         elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
-            if f.has_key( 'DEFAULT_VALUE' ):
+            if 'DEFAULT_VALUE' in f:
                 if f['IS_BASETYPE']:
                     basetype = basetypes[f['TYPE']]
                     def_val = f['DEFAULT_VALUE']
