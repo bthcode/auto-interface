@@ -125,6 +125,58 @@ def create_read_binary(basetypes,structs,struct_name):
     return ret
 # end create_read_binary
 
+def create_write_buf(basetypes,structs,struct_name):
+    ret = 'function [ buf ] = write_buf_{0}(struct_out)\n'.format(struct_name)
+
+    # Empty uint8 buf
+    ret = ret + T + "buf = zeros(1,0,'uint8');\n" 
+    
+    struct_def = structs[struct_name]
+    for f in struct_def['FIELDS']:
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                b = basetypes[f['TYPE']]
+                if b['IS_COMPLEX']:
+                    ret = ret + T + "buf = [buf typecast({0}(real(struct_out.{1})),'uint8')];\n".format(b['MAT_TYPE'],f['NAME'])
+                    ret = ret + T + "buf = [buf typecast({0}(imag(struct_out.{1})),'uint8')];\n".format(b['MAT_TYPE'],f['NAME'])
+                else:
+                    ret = ret + T + "buf = [buf typecast({0}(struct_out.{1}),'uint8')];\n".format(b['MAT_TYPE'],f['NAME'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + "buf = [buf write_buf_{0}(struct_out.{1})];\n".format(f['TYPE'],f['NAME'])
+        elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
+            if f['LENGTH'] == 'VECTOR':
+                # get number of elements
+                ret = ret + T + "num_elems=length(struct_out.{0});\n".format(f['NAME'])
+                # write number of elements
+                ret = ret + T + "buf = [buf typecast(uint32(num_elems),'uint8')];\n".format(f['NAME'])
+            else:
+                # no need to write number of elements for fixed length, but logic below needs it
+                ret = ret + T + "num_elems={0};\n".format(f['LENGTH'])
+            ret = ret + T + 'if num_elems > 0\n'
+            # now read in that many types
+            if f['IS_BASETYPE']:
+                b = basetypes[f['TYPE']]
+                if b['IS_COMPLEX']:
+                    # flatten the complex data, then write
+                    ret = ret + T + T + 'tmp=zeros(num_elems*2,1);\n'
+                    ret = ret + T + T + 'tmp(1:2:end-1)=real(struct_out.{0});\n'.format(f['NAME'])
+                    ret = ret + T + T + 'tmp(2:2:end)=imag(struct_out.{0});\n'.format(f['NAME'])
+                    #ret = ret + T + T + "fwrite(file_handle,tmp,'{0}');\n".format(b['MAT_TYPE'])
+                    ret = ret + T + T + "buf = [buf typecast({0}(tmp),'uint8')];\n".format(b['MAT_TYPE'])
+                else:
+                    ret = ret + T + T + "buf = [buf typecast({0}(struct_out.{1}),'uint8')];\n".format(b['MAT_TYPE'],f['NAME'])
+                    #ret = ret + T + T + "fwrite(file_handle,struct_out.{0},'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'for ii=1:num_elems\n'   
+                #ret = ret + T + T + T + 'write_binary_{0}(file_handle,struct_out.{1}(ii));\n'.format(f['TYPE'],f['NAME'])
+                ret = ret + T + T + T + "buf = [buf write_buf_{0}(struct_out.{1}(ii))];\n".format(f['TYPE'],f['NAME'])
+                ret = ret + T + T + 'end\n'
+            ret = ret + T + 'end\n' # if num_elems > 0 
+    ret = ret + 'end\n'
+    return ret
+# end create_write_buf
+
+
 def create_write_binary(basetypes,structs,struct_name):
     ret = 'function [ success ] = write_binary_{0}(file_handle,struct_out)\n'.format(struct_name)
     ret = ret + T + 'success = 0;\n'
@@ -206,6 +258,13 @@ def create_calc_sizes_files(mat_dir,basetypes,structs):
         fOut.write(create_calc_size(basetypes,structs,struct_name))
 # end calc_sizes
 
+def create_write_buf_files(mat_dir,basetypes,structs):
+    for struct_name, struct_def in structs.items():
+        fOut = open(mat_dir + os.sep + "write_buf_{0}.m".format(struct_name),"w")
+        fOut.write(create_write_buf(basetypes,structs,struct_name))
+# end calc_sizes
+
+
 def generate_mat( mat_dir, basetypes, structs ):
     if not os.path.exists(mat_dir):
         os.mkdir(mat_dir)
@@ -214,6 +273,7 @@ def generate_mat( mat_dir, basetypes, structs ):
     create_read_binary_files(mat_dir,basetypes,structs)
     create_write_binary_files(mat_dir,basetypes,structs)
     create_calc_sizes_files(mat_dir,basetypes,structs)
+    create_write_buf_files(mat_dir,basetypes,structs)
 # end generate_mat
 
 if __name__ == "__main__":
