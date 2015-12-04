@@ -57,9 +57,11 @@ class AutoGenerator:
     def preprocess(self):
 
         # go through keys, send them "to upper"
-
+        any_variable_fields = False
         # go through keys, setting length
         for struct_name, struct_def in self.structs.items():
+            # if this struct has any vectors, this will be set to false
+            struct_def['IS_VARIABLE_SIZE'] = False
             # track padding and size information
             struct_def['IS_PADDED'] = False
             struct_def['SIZE'] = None
@@ -76,13 +78,16 @@ class AutoGenerator:
                 # SET LENGTH 
                 if not 'LENGTH' in f:
                     f['LENGTH'] = 1
+                elif f['LENGTH'] == 'VECTOR':
+                    struct_def['IS_VARIABLE_SIZE'] = True
+                    any_variable_fields = True
                 else:
-                    if f['LENGTH'] != 'VECTOR':
-                        try:
-                            f['LENGTH'] = int(f['LENGTH'])
-                        except:
-                            f['LENGTH'] = 1
-                            print ("ERROR: Bad length for field {0}".format(f['NAME']))
+                    try:
+                        f['LENGTH'] = int(f['LENGTH'])
+                    except:
+                        f['LENGTH'] = 1
+                        print ("ERROR: Bad length for field {0}".format(f['NAME']))
+                        sys.exit(1)
 
 
                 # Determine if is struct
@@ -143,7 +148,11 @@ class AutoGenerator:
             self.basetypes[base_name]=basetype
 
         if self.pad > 0:
-            print ("padding to {0}".format(self.pad))
+            if any_variable_fields:
+                print ("Found variable length fields, padding impossible")
+                sys.exit(1)
+            else:
+                print ("padding to {0}".format(self.pad))
             for struct_name in self.structs.keys():
                 if self.structs[struct_name]['IS_PADDED'] == False:
                     self.insert_padding( struct_name, self.structs, pad_to=self.pad )

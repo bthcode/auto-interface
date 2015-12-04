@@ -168,6 +168,20 @@ def create_write_binary(basetypes,structs,struct_name):
     return ret
 # end create_write_binary
 
+def create_calc_size(basetypes,structs,struct_name):
+    ret = 'function [ struct_size ] = calc_size_{0}(struct_def)\n'.format(struct_name)
+    # If size has been calculated: just return it
+    struct_def = structs[struct_name]
+    if 'SIZE' not in struct_def or struct_def['SIZE'] == None:
+        ret = ret + T + "fprintf('dynamic size calculation not implemented\\n');\n"
+        ret = ret + T + "struct_size = 0;\n"
+    # Else, calculate it
+    else:
+        ret = ret + T + 'struct_size = {0};\n'.format(struct_def['SIZE'])
+    ret = ret + 'end\n'
+    return ret
+# end create_write_binary
+
 def create_set_defaults_files(mat_dir,basetypes,structs):
     for struct_name, struct_def in structs.items():
         fOut = open(mat_dir + os.sep + "set_defaults_{0}.m".format(struct_name),"w")
@@ -186,6 +200,12 @@ def create_write_binary_files(mat_dir,basetypes,structs):
         fOut.write(create_write_binary(basetypes,structs,struct_name))
 # end create_write_binary
 
+def create_calc_sizes_files(mat_dir,basetypes,structs):
+    for struct_name, struct_def in structs.items():
+        fOut = open(mat_dir + os.sep + "calc_size_{0}.m".format(struct_name),"w")
+        fOut.write(create_calc_size(basetypes,structs,struct_name))
+# end calc_sizes
+
 def generate_mat( mat_dir, basetypes, structs ):
     if not os.path.exists(mat_dir):
         os.mkdir(mat_dir)
@@ -193,6 +213,7 @@ def generate_mat( mat_dir, basetypes, structs ):
     create_set_defaults_files(mat_dir,basetypes,structs)
     create_read_binary_files(mat_dir,basetypes,structs)
     create_write_binary_files(mat_dir,basetypes,structs)
+    create_calc_sizes_files(mat_dir,basetypes,structs)
 # end generate_mat
 
 if __name__ == "__main__":
