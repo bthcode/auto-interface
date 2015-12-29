@@ -221,26 +221,33 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
 
 
     # equals operator for testing
+    ret = ret + T + "def __ne__(self, obj):\n"
+    ret = ret + T + T + "retval = not(self.__eq__(obj))\n"
+    ret = ret + T + T + "return retval\n\n"
+
     ret = ret + T + "def __eq__(self, obj):\n"
     ret = ret + T + T + "retval = True\n"
+    ret = ret + T + T + "if obj.__class__ != self.__class__:\n"
+    ret = ret + T + T + T + "return False\n"
     for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
-            ret = ret + T + T + 'if self.{0} != obj.{0}:\n'.format(f['NAME'])
+            ret = ret + T + T + 'if not self.{0} == obj.{0}:\n'.format(f['NAME'])
             ret = ret + T + T + T + 'retval = False\n'
-            ret = ret + T + T + T + 'print("Mismatch in {0}, {{0}}:{{1}}".format(self.{0},obj.{0}))\n'.format(f['NAME'])
+            #ret = ret + T + T + T + 'print("Mismatch in {0}, {{0}}:{{1}}".format(self.{0},obj.{0}))\n'.format(f['NAME'])
 
         elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
             ret = ret + T + T + 'if len(self.{0}) != len(obj.{0}):\n'.format(f['NAME'])
-            ret = ret + T + T + T + 'print("Length mismatch in {0}, {{0}}:{{1}}".format(self.{0},obj.{0}))\n'.format(f['NAME'])
+            #ret = ret + T + T + T + 'print("Length mismatch in {0}, {{0}}:{{1}}".format(self.{0},obj.{0}))\n'.format(f['NAME'])
             ret = ret + T + T + T + 'retval = False\n'
             ret = ret + T + T + 'else:\n'
             ret = ret + T + T + T + 'for ii in range(len(self.{0})):\n'.format(f['NAME'])
-            ret = ret + T + T + T + T + 'if self.{0} != obj.{0}:\n'.format(f['NAME'])
+            ret = ret + T + T + T + T + 'if not self.{0} == obj.{0}:\n'.format(f['NAME'])
             ret = ret + T + T + T + T + T + 'retval = False\n'
-            ret = ret + T + T + T + T + T + 'print("Mismatch in {0} at index {{0}}, {{1}}:{{2}}".format(ii,self.{0}[ii],obj.{0}[ii]))\n'.format(f['NAME'])
+            #ret = ret + T + T + T + T + T + 'print("Mismatch in {0} at index {{0}}, {{1}}:{{2}}".format(ii,self.{0}[ii],obj.{0}[ii]))\n'.format(f['NAME'])
 
     ret = ret + T + T + "return retval\n"
     ret = ret + T + "# end __eq__\n\n"
+    
 
     # read binary
     ret = ret + T + "def read_binary( self, r_stream ):\n"

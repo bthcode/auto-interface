@@ -189,7 +189,7 @@ class AutoGenerator:
                 #  not larger than the target word size
                 target_pad = min( pad_to, field_bytes )
                 largest_alignment = max( target_pad, largest_alignment )
-                print ('{0}, {1}'.format(f['NAME'], sum_bytes))
+                #print ('{0}, {1}'.format(f['NAME'], sum_bytes))
                 if sum_bytes % target_pad != 0:
                     #import ipdb; ipdb.set_trace()
                     pad_name = "pad_{0}".format(pad_counter)
@@ -209,12 +209,12 @@ class AutoGenerator:
                     field['DESCRIPTION'] = 'PADDING FOR ALIGNMENT'
                     out_fields.append(field)
                     sum_bytes += target_pad - sum_bytes % target_pad
-                    print ( "Inserting pad, length {1} before {0}".format(f['NAME'],pad_length) )  
+                    #print ( "Inserting pad, length {1} before {0}".format(f['NAME'],pad_length) )  
             elif f['LENGTH'] == 'VECTOR':
                 print( "WARNING! Cannot pre-pad structs with variable length" )
                 sys.exit(1)
             sum_bytes += field_bytes * f['LENGTH']
-            print ( "end of {0}, sum_bytes = {1}".format( f['NAME'], sum_bytes ) )
+            #print ( "end of {0}, sum_bytes = {1}".format( f['NAME'], sum_bytes ) )
             out_fields.append(f)
         if sum_bytes % largest_alignment != 0:
             target_pad = largest_alignment
@@ -232,7 +232,7 @@ class AutoGenerator:
             field['DESCRIPTION'] = 'PADDING FOR ALIGNMENT'
             out_fields.append(field)
             sum_bytes += target_pad - sum_bytes % target_pad
-            print ( "Inserting pad, length {1} before {0}".format(f['NAME'],pad_length) )  
+            #print ( "Inserting pad, length {1} before {0}".format(f['NAME'],pad_length) )  
 
         #TODO : do we pad the end of the struct?
         self.structs[struct_name]['FIELDS'] = out_fields

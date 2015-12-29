@@ -46,6 +46,7 @@ def create_struct_table(basetypes,structs,struct_order):
     ret = ret + names_header.ljust(names_len) + " " + descr_header.ljust(descr_len) + "\n"
     ret = ret + magic_line
     for idx in range(len(names)):
+        #print names[idx]
         ret = ret + "{0} {1}\n".format(names[idx].ljust(names_len),descriptions[idx].ljust(descr_len))
     ret = ret + magic_line + "\n\n"
     return ret
@@ -85,12 +86,12 @@ def create_rst( basetypes, structs, struct_name ):
     descriptions = []
     defaults = []
     units = []
-    
+
 
     for f in struct_def['FIELDS']:
         fields.append(f['NAME'])
         fields_length = max(len(fields[-1]),fields_length)
-        print (f['NAME'])
+        #print (f['NAME'])
         doc_name = f['DOC_NAME']
         types.append(doc_name)
         types_length = max(len(types[-1]),types_length)
@@ -165,7 +166,7 @@ def create_rst( basetypes, structs, struct_name ):
                 "="*lengths_length + " " + \
                 "="*descriptions_length + \
                 "\n"
-    print (magic_row)
+    #print (magic_row)
     ret = ret + magic_row
     ret = ret + fields_header.ljust(fields_length) + " " + \
                 types_header.ljust(types_length) + " " + \
@@ -185,7 +186,9 @@ def create_rst( basetypes, structs, struct_name ):
 
     ret = ret + magic_row + "\n\n"
 
-    print (ret)
+    ret = ret + "Size = {0}\n\n".format(struct_def['SIZE'])
+
+    #print (ret)
         
     return ret
 # end generate_rst
