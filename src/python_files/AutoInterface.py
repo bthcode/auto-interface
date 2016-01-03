@@ -160,13 +160,12 @@ class AutoGenerator:
 
         # if there are variable fields, structs can only be padded to 
         #  1 byte sizes
-        if self.pad > 1:
-            if any_variable_fields:
+        if self.pad > 0:
+            if self.pad > 1 and any_variable_fields:
                 print ("Found variable length fields, padding impossible")
                 sys.exit(1)
             else:
                 print ("padding to {0}".format(self.pad))
-        elif self.pad > 0:
             for struct_name in self.structs.keys():
                 if self.structs[struct_name]['IS_PADDED'] == False:
                     # Note that insert padding also calculates structure size
@@ -176,7 +175,8 @@ class AutoGenerator:
     # end preprocess
 
     def find_variable_fields(self,struct_name):
-        ''' finds all the variable sized structs - note: recursive '''
+        ''' finds all the variable sized structs - note: recursive 
+            -- use this info later when trying to pad the structures and calc their size '''
         struct_def = self.structs[struct_name]
         if self.structs[struct_name]['IS_VARIABLE_SIZE_TESTED']:
             return self.structs[struct_name]['IS_VARIABLE_SIZE']
@@ -205,9 +205,10 @@ class AutoGenerator:
                         'NAME': 'pad',
                         'TYPE': 'UINT_8'}
         struct_def = self.structs[struct_name]
+        # We can't pad a variable sized structure, so don't try
         if struct_def['IS_VARIABLE_SIZE']:
-            struct_def['SIZE'] = 'VARIABLE'
-            self.structs['IS_PADDED'] = True
+            self.structs[struct_name]['SIZE'] = 'VARIABLE'
+            self.structs[struct_name]['IS_PADDED'] = True
             return
         sum_bytes=0
         pad_counter=0;
