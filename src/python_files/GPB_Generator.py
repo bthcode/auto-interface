@@ -36,7 +36,7 @@ def create_proto_for_struct(basetypes,structs,struct_name):
             if f['IS_BASETYPE']:
                 basetype = basetypes[f['TYPE']]
                 gpb_type = basetype['GPB_TYPE']
-                default = f['DEFAULT_VALUE']
+                #default = f['DEFAULT_VALUE']
                 ret = ret + T + 'repeated {0} {1} = {2};\n'.format(gpb_type,name,field_count)
             elif f['IS_STRUCT']:
                 gpb_type = f['TYPE']

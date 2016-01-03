@@ -64,6 +64,7 @@ class AutoGenerator:
             struct_def['IS_VARIABLE_SIZE'] = False
             # track padding and size information
             struct_def['IS_PADDED'] = False
+            struct_def['IS_VARIABLE_SIZE_TESTED'] = False
             struct_def['SIZE'] = None
             # inherit the namespace
             if self.project['NAMESPACE']:
@@ -79,8 +80,9 @@ class AutoGenerator:
                 if not 'LENGTH' in f:
                     f['LENGTH'] = 1
                 elif f['LENGTH'] == 'VECTOR':
-                    struct_def['IS_VARIABLE_SIZE'] = True
+                    #struct_def['IS_VARIABLE_SIZE'] = True
                     any_variable_fields = True
+                    pass
                 else:
                     try:
                         f['LENGTH'] = int(f['LENGTH'])
@@ -131,6 +133,7 @@ class AutoGenerator:
             self.structs[struct_name] = struct_def
         # turn dicts into classes
 
+
         for base_name, basetype in self.basetypes.items():
             if not 'IS_COMPLEX' in basetype:
                 basetype['IS_COMPLEX'] = False
@@ -147,18 +150,48 @@ class AutoGenerator:
                 basetype['STREAM_CAST'] = basetype['CPP_TYPE']
             self.basetypes[base_name]=basetype
 
-        if self.pad > 0:
+
+        # find variable fields
+        #any_variable_fields = self.find_variable_fields(struct_name)
+        for struct_name in self.structs.keys():
+            if self.structs[struct_name]['IS_VARIABLE_SIZE_TESTED'] == False:
+                if self.find_variable_fields(struct_name):
+                    any_variable_field = True
+
+        # if there are variable fields, structs can only be padded to 
+        #  1 byte sizes
+        if self.pad > 1:
             if any_variable_fields:
                 print ("Found variable length fields, padding impossible")
                 sys.exit(1)
             else:
                 print ("padding to {0}".format(self.pad))
+        elif self.pad > 0:
             for struct_name in self.structs.keys():
                 if self.structs[struct_name]['IS_PADDED'] == False:
+                    # Note that insert padding also calculates structure size
                     self.insert_padding( struct_name, self.structs, pad_to=self.pad )
         else:
             print ("no padding")
     # end preprocess
+
+    def find_variable_fields(self,struct_name):
+        ''' finds all the variable sized structs - note: recursive '''
+        struct_def = self.structs[struct_name]
+        if self.structs[struct_name]['IS_VARIABLE_SIZE_TESTED']:
+            return self.structs[struct_name]['IS_VARIABLE_SIZE']
+        for idx, f in enumerate(struct_def['FIELDS']):
+            if f['LENGTH'] == 'VECTOR':
+                self.structs[struct_name]['IS_VARIABLE_SIZE'] = True
+            if f['IS_STRUCT']:
+                substruct_name = f['TYPE']
+                if not self.structs[substruct_name]['IS_VARIABLE_SIZE_TESTED']:
+                    self.find_variable_fields(substruct_name)
+                if self.structs[substruct_name]['IS_VARIABLE_SIZE']:
+                    self.structs[struct_name]['IS_VARIABLE_SIZE'] = True
+        self.structs[struct_name]['IS_VARIABLE_SIZE_TESTED'] = True
+        return self.structs[struct_name]['IS_VARIABLE_SIZE']
+    # end find variable sizing
 
     def insert_padding(self,struct_name,structs,pad_to=8):
         ''' Inserts padding using the following rules:
@@ -172,6 +205,10 @@ class AutoGenerator:
                         'NAME': 'pad',
                         'TYPE': 'UINT_8'}
         struct_def = self.structs[struct_name]
+        if struct_def['IS_VARIABLE_SIZE']:
+            struct_def['SIZE'] = 'VARIABLE'
+            self.structs['IS_PADDED'] = True
+            return
         sum_bytes=0
         pad_counter=0;
         out_fields = []
