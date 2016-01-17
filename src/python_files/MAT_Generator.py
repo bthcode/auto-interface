@@ -12,7 +12,70 @@ from AutoInterface import AutoGenerator
 
 T = '    '
 
+## Function to read vars from a buffer ##
 
+bufread='''function [ pos, var ] = bufread( pos, buf, type, nelements )
+% Read a variable from a buffer, as fread() would
+%
+% USAGE: [ new_position, variable ] = bufread( position, buffer, type, nelements )
+%
+% Type must be one of 'UINT8', 'INT8', 'UINT16', 'INT16', 'UINT32', 'INT32', 'UINT64',
+%    'INT64', 'SINGLE', or 'DOUBLE'
+%
+% On Error, var will be set to NaN and the original pos will be returned
+pos = pos;
+var = nan;
+
+debug = 0;
+
+switch lower(type)
+    case ('uint8')
+        if debug: fprintf('uint8\\n'); end
+        num_bytes = 1;
+    case ('int8')
+        if debug: fprintf('int8\\n'); end
+        num_bytes = 1;
+    case ('uint16')
+        if debug: fprintf('uint16\\n'); end
+        num_bytes = 2;
+    case ('int16')
+        if debug: fprintf('int16\\n'); end
+        num_bytes = 2;
+    case ('uint32')
+        if debug: fprintf('uint32\\n'); end
+        num_bytes = 4;
+    case ('int32')
+        if debug: fprintf('int32\\n'); end
+        num_bytes = 4;
+    case ('uint64')
+        if debug: fprintf('uint64\\n'); end
+        num_bytes = 8;
+    case ('int64')
+        if debug: fprintf('int64\\n'); end
+        num_bytes = 8;
+    case ('single')
+        if debug: fprintf('single\\n'); end
+        num_bytes = 4;
+    case ('double') 
+        if debug: fprintf('double\\n'); end
+        num_bytes = 8;
+    otherwise
+        fprintf ('unknown type: %s\\n', type);
+        return
+end
+
+    %% Error Checking
+    end_pos = pos + (num_bytes*nelements) -1 ;  % need -1 for inclusive right hand
+    if end_pos > length(buf)
+        fprintf('Buffer overrun\\n');
+        return
+    end
+    %% Type conversion
+    var = typecast(buf(pos:end_pos), type);
+    pos = pos + (num_bytes*nelements);
+
+end
+'''
 
 ##################################################################################
 #
@@ -124,6 +187,61 @@ def create_read_binary(basetypes,structs,struct_name):
     ret = ret + 'end\n'
     return ret
 # end create_read_binary
+
+def create_read_buf(basetypes,structs,struct_name):
+    ret = 'function [ pos, struct_out ] = read_buf_{0}( buf, pos )\n'.format(struct_name)
+    struct_def = structs[struct_name]
+    # create return struct
+    ret = ret + T + 'struct_out = set_defaults_{0}();\n'.format(struct_name)
+    for f in struct_def['FIELDS']:
+        ret = ret + T + "% -- {0} --\n".format(f['NAME'])
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                b = basetypes[f['TYPE']]
+                if b['IS_COMPLEX']:
+                    ret = ret + T + "[ pos, tmp ] = bufread( pos, buf, '{0}', 2 );\n".format(b['MAT_TYPE'])
+                    ret = ret + T + "struct_out.{0} = tmp(0) + tmp(1) * i;\n".format(f['NAME'])
+                else:
+                    ret = ret + T + "[ pos, struct_out.{0} ] = bufread(pos, buf, '{1}', 1);\n".format(f['NAME'], b['MAT_TYPE'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + '[ pos, tmp ] = read_buf_{0}( buf, pos );\n'.format(f['TYPE']) 
+                ret = ret + T + 'struct_out.{0} = tmp;\n'.format(f['NAME']) 
+        elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
+            if f['LENGTH'] == 'VECTOR':
+                # get number of elements
+                ret = ret + T + "[ pos, num_elems ] = bufread(pos, buf 'int32', 1);\n"
+            else:
+                ret = ret + T + "num_elems = {0};\n".format(f['LENGTH'])
+            ret = ret + T + 'if num_elems > 0\n'
+            # now read in that many types
+            if f['IS_BASETYPE']:
+                b = basetypes[f['TYPE']]
+                if b['IS_COMPLEX']:
+                    ret = ret + T + T + "[ pos, tmp ] = bufread( pos, buf, '{0}', num_elems*2 );\n".format(b['MAT_TYPE'])
+                    ret = ret + T + T + "struct_out.{0} = complex(tmp(1:2:end-1), tmp(2:2:end));\n".format(f['NAME'])
+                else:
+                    ret = ret + T + T + "[ pos, struct_out.{0} ] = bufread( pos, buf, '{1}', num_elems );\n".format(f['NAME'],b['MAT_TYPE'])
+            elif f['IS_STRUCT']:
+                # in the case of a vector of structs, 
+                #  we need to declare the vector using the struct 
+                #  (hence the if i==1 below)
+                ret = ret + T + T + 'struct_out.{0} = [];\n'.format(f['NAME'])
+                ret = ret + T + T + 'for ii=1:num_elems\n'   
+                ret = ret + T + T + T + '[pos,tmp]=read_buf_{0}( buf, pos );\n'.format(f['TYPE'])
+                ret = ret + T + T + T + 'if ii==1\n'
+                ret = ret + T + T + T + T + 'struct_out.{0} = [tmp];\n'.format(f['NAME'])
+                ret = ret + T + T + T + 'else\n'
+                ret = ret + T + T + T + T + 'struct_out.{0}(end+1)=tmp;\n'.format(f['NAME'])
+                ret = ret + T + T + T + 'end\n'
+                ret = ret + T + T + 'end\n'
+            ret = ret + T + 'else\n' # if num_elems > 0
+            ret = ret + T + T + 'struct_out.{0} = [];\n'.format(f['NAME'])
+            ret = ret + T + 'end\n'
+    ret = ret + 'end\n'
+    return ret
+# end create_read_buf
+
+
 
 def create_write_buf(basetypes,structs,struct_name):
     ret = 'function [ buf ] = write_buf_{0}(struct_out)\n'.format(struct_name)
@@ -264,6 +382,18 @@ def create_write_buf_files(mat_dir,basetypes,structs):
         fOut.write(create_write_buf(basetypes,structs,struct_name))
 # end calc_sizes
 
+def create_read_buf_files(mat_dir,basetypes,structs):
+    # copy read_var utility
+    fOut = open(mat_dir + os.sep + 'bufread.m', 'w')
+    fOut.write(bufread)
+    fOut.close()
+    # run struct creator
+    for struct_name, struct_def in structs.items():
+        fOut = open(mat_dir + os.sep + "read_buf_{0}.m".format(struct_name),"w")
+        fOut.write(create_read_buf(basetypes,structs,struct_name))
+# end calc_sizes
+
+
 
 def generate_mat( mat_dir, basetypes, structs ):
     if not os.path.exists(mat_dir):
@@ -274,6 +404,7 @@ def generate_mat( mat_dir, basetypes, structs ):
     create_write_binary_files(mat_dir,basetypes,structs)
     create_calc_sizes_files(mat_dir,basetypes,structs)
     create_write_buf_files(mat_dir,basetypes,structs)
+    create_read_buf_files(mat_dir,basetypes,structs)
 # end generate_mat
 
 if __name__ == "__main__":
