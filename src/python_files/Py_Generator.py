@@ -13,7 +13,7 @@ Actual reading/writing is provided via io_support.py
 import json, string, pprint, sys, os
 import shutil
 from AutoInterface import AutoGenerator
-from Templates import py_class_template
+from Templates import py_class_template, py_basic_methods
 
 T="    "
 
@@ -167,6 +167,14 @@ def create_gpb_test_for_class( basetypes, structs, struct_name, project ):
 def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
     struct_def = structs[ struct_name ]
     ret = py_class_template.format( struct_name )
+
+    # slots here
+    ret = ret + T + "__slots__ = [\n"
+    for f in struct_def['FIELDS']:
+        ret = ret + T + T + '"{0}",\n'.format(f['NAME'])
+    ret = ret + T + "]\n\n"
+
+    ret = ret + py_basic_methods
 
     # set defaults
     ret = ret + T + T + '"""\n'
