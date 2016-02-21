@@ -6,11 +6,12 @@
 
 __author__="Brian Hone"
 
-import json, string, pprint, sys, os
+import json
+import string
+import pprint
+import sys
+import os
 import shutil
-
-
-
 
 T="    "
 

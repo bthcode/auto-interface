@@ -7,7 +7,7 @@ Place to store templates for AutoInteface system
 '''
 
 py_class_template = '''
-class {0}:
+class {0}(object):
     """
     Auto Generated Class {0}
     Methods:
@@ -15,6 +15,9 @@ class {0}:
       read_binary( file_handle )
       write_binary( file_handle )
     """
+'''
+
+py_basic_methods = '''
     def __init__(self):
         self.set_defaults() 
     # end __init__
@@ -30,10 +33,12 @@ class {0}:
 
     def __repr__(self):
         ret = ''
-        for key, val in sorted(vars(self).items()):
-            ret = ret + "{{0}}: {{1}}\\n".format( key, val )
+        for field in self.__slots__:
+            val = getattr(self, field)
+            #for key, val in sorted(vars(self).items()):
+            ret = ret + "{0}: {1}\\n".format( field, val )
         return ret
-    # end __repr__
+     # end __repr__
 
     def set_defaults(self):
 '''
