@@ -13,17 +13,46 @@ import sys
 import os
 import shutil
 
-T="    "
-
 class AutoGenerator:
     """
-    Holder class for data associated with auto-interface system.
+    Holder class for data associated with auto-interface system. 
+
+    This class does all the pre-processing required by the various generators.
 
     members are:
         - basetypes
         - structs
 
-     
+    each basetype has:
+        - c_type
+        - default_value
+        - mex_type
+        - mat_type
+        - GPB_type - google protocol buffers
+        - length - bytes
+        - doc_name - for printing documents
+
+    each project has:
+        - project
+        - version
+        - namespace
+        - description
+        - structures - list of structures
+
+    each structure has:
+        - name
+        - description
+        - fields - list of fields
+
+    each field has:
+        - name
+        - type  - must exist in basetypes
+        - description
+        - default_value
+        - valid_min
+        - valid_max
+        - length - 1 = scalar, >1 = fixed array, or VARIABLE
+        
     """
     def __init__(self, json_basetypes, json_file, pad=-1 ):
         self.basetypes = json.load( open( json_basetypes,  'r' ) )
@@ -56,6 +85,14 @@ class AutoGenerator:
     # end __init__
 
     def preprocess(self):
+        '''
+        - Determine if there are any variable length fields
+        - Set structure defaults
+            - size, length, namespace, is_basetype, is_struct, is_complex,
+              cpp_type, c_type, stream_type
+        - Make all structure keys upper()
+        - Recursively insert padding if padding is specified
+        '''
 
         # go through keys, send them "to upper"
         any_variable_fields = False
@@ -132,8 +169,6 @@ class AutoGenerator:
             if not 'DESCRIPTION' in struct_def:
                 struct_def['DESCRIPTION'] = ''
             self.structs[struct_name] = struct_def
-        # turn dicts into classes
-
 
         for base_name, basetype in self.basetypes.items():
             if not 'IS_COMPLEX' in basetype:
