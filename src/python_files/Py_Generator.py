@@ -256,6 +256,81 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
     ret = ret + T + T + "return retval\n"
     ret = ret + T + "# end __eq__\n\n"
     
+    # from_dict
+    ret = ret + T + "def from_dict( self, d ):\n"
+    ret = ret + T + T + '"""\n'
+    ret = ret + T + '.. function:: from_dict( dict )\n\n'
+    ret = ret + T + '   Read this class from a dict object - useful for JSON\n\n'
+    ret = ret + T + '   :param dict'
+    ret = ret + T + '   :rtype None\n\n'
+    ret = ret + T + T + '"""\n'
+    for f in struct_def['FIELDS']:
+        ret = ret + T + T + 'if "{0}" in d:\n'.format(f['NAME'])
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                ret = ret + T + T + T + 'self.{0} = d["{0}"]\n'.format(f['NAME'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + T + 'self.{0}.from_dict( d )\n'.format(f['NAME'])
+        elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
+            ret = ret + T + T + T + "self.{0} = []\n".format(f['NAME'])
+            if f['IS_BASETYPE']:
+                ret = ret + T + T + T  + 'self.{0} = d["{0}"]\n'.format(f['NAME'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + T + 'for idx in range(len(d["{0}"])):\n'.format(f['NAME'])
+                ret = ret + T + T + T + T + 'tmp = {0}()\n'.format( f['TYPE'] )
+                ret = ret + T + T + T + T + 'tmp.from_dict(d["{0}"][idx])\n'.format(f['NAME'])
+                ret = ret + T + T + T + T + 'self.{0}.append(tmp)\n'.format(f['NAME'])
+    ret = ret + T + "# end from_dict\n\n"
+
+    # to_dict
+    ret = ret + T + "def to_dict( self ):\n"
+    ret = ret + T + T + '"""\n'
+    ret = ret + T + '.. function:: to_dict()\n\n'
+    ret = ret + T + '   Write this class to a dict - useful for JSON\n\n'
+    ret = ret + T + '   :rtype dict\n\n'
+    ret = ret + T + T + '"""\n'
+    ret = ret + T + T + 'd = {}\n' 
+    for f in struct_def['FIELDS']:
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                ret = ret + T + T + 'd["{0}"] = self.{0}\n'.format(f['NAME'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'd["{0}"] = self.{0}.to_dict()\n'.format(f['NAME'])
+        elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
+            ret = ret + T + T + 'd["{0}"] = []\n'.format(f['NAME'])
+            if f['IS_BASETYPE']:
+                ret = ret + T + T + 'd["{0}"] = self.{0}\n'.format(f['NAME'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'for idx in range(len(self.{0})):\n'.format(f['NAME'])
+                ret = ret + T + T + T + 'd["{0}"].append(self.{0}[idx].to_dict())\n'.format(f['NAME'])
+    ret = ret + T + T + 'return d\n'
+    ret = ret + T + "# end to_dict\n\n"
+
+    # read json
+    ret = ret + T + "def to_json( self ):\n"
+    ret = ret + T + T + '"""\n'
+    ret = ret + T + '.. function:: to_json()\n\n'
+    ret = ret + T + '   JSONify this object\n\n'
+    ret = ret + T + '   :param None'
+    ret = ret + T + '   :rtype string\n\n'
+    ret = ret + T + T + '"""\n'
+    ret = ret + T + T + 'd = self.to_dict()\n'
+    ret = ret + T + T + 'return json.dumps(d)\n'
+    ret = ret + T + "# end to_json\n\n"
+
+    # read json
+    ret = ret + T + "def from_json( self, r_stream ):\n"
+    ret = ret + T + T + '"""\n'
+    ret = ret + T + '.. function:: from_json()\n\n'
+    ret = ret + T + '   read JSON into this object\n\n'
+    ret = ret + T + '   :param file handle'
+    ret = ret + T + '   :rtype None\n\n'
+    ret = ret + T + T + '"""\n'
+    ret = ret + T + T + 'json_obj = json.loads(r_stream.read())\n'
+    ret = ret + T + T + 'self.from_dict(json_obj)\n'
+    ret = ret + T + "# end from_json\n\n"
+
+
 
     # read binary
     ret = ret + T + "def read_binary( self, r_stream ):\n"
@@ -376,6 +451,7 @@ def generate_py( py_dir, basetypes, structs, project, gpb=False ):
     fOut.write( "import string\n" )
     fOut.write( "import pprint\n" )
     fOut.write( "import struct\n" )
+    fOut.write( "import json\n" )
     fOut.write( "import io_support as io\n\n\n" )
 
     fOut.write( '''"""
