@@ -1,11 +1,8 @@
-##################################################################################
+##############################################################################
 #
 # Code Generator System
 #
-##################################################################################
-
-__author__="Brian Hone"
-
+##############################################################################
 import json
 import string
 import pprint
@@ -13,9 +10,13 @@ import sys
 import os
 import shutil
 
+
+__author__ = "Brian Hone"
+
+
 class AutoGenerator:
     """
-    Holder class for data associated with auto-interface system. 
+    Holder class for data associated with auto-interface system.
 
     This class does all the pre-processing required by the various generators.
 
@@ -52,33 +53,32 @@ class AutoGenerator:
         - valid_min
         - valid_max
         - length - 1 = scalar, >1 = fixed array, or VARIABLE
-        
     """
-    def __init__(self, json_basetypes, json_file, pad=-1 ):
-        self.basetypes = json.load( open( json_basetypes,  'r' ) )
-        self.project   = json.load( open( json_file, 'r' ) )
+    def __init__(self, json_basetypes, json_file, pad=-1):
+        self.basetypes = json.load(open(json_basetypes,  'r'))
+        self.project = json.load(open(json_file, 'r'))
         self.pad = pad
 
         # We want the structures two ways:
         #  - ordered (by occurrence in the json file )
         #  - key/value pair
-        structs   = self.project['STRUCTURES']
+        structs = self.project['STRUCTURES']
         self.structs = {}
         self.struct_order = []
         for struct in structs:
-            self.struct_order.append( struct['NAME'] )
-            self.structs[ struct['NAME'] ] = struct
+            self.struct_order.append(struct['NAME'])
+            self.structs[struct['NAME']] = struct
 
-        if not 'PROJECT' in self.project:
+        if 'PROJECT' not in self.project:
             self.project['PROJECT'] = "Untitled"
 
-        if not 'NAMESPACE' in self.project:
+        if 'NAMESPACE' not in self.project:
             self.project['NAMESPACE'] = False
 
-        if not 'VERSION' in self.project:
+        if 'VERSION' not in self.project:
             self.project['VERSION'] = '0.0.1'
 
-        if not 'DESCRIPTION' in self.project:
+        if 'DESCRIPTION' not in self.project:
             self.project['DESCRIPTION'] = ''
 
         self.preprocess()
@@ -109,16 +109,13 @@ class AutoGenerator:
                 struct_def['NAMESPACE'] = self.project['NAMESPACE']
             for idx, f in enumerate(struct_def['FIELDS']):
                 # move keys to upperclass
-                for key,val in f.items():
-                    #f[key.upper()] = val
-                    #mydict[new_key] = mydict.pop(old_key)
+                for key, val in f.items():
                     f[key.upper()] = f.pop(key)
 
-                # SET LENGTH 
-                if not 'LENGTH' in f:
+                # SET LENGTH
+                if 'LENGTH' not in f:
                     f['LENGTH'] = 1
                 elif f['LENGTH'] == 'VECTOR':
-                    #struct_def['IS_VARIABLE_SIZE'] = True
                     any_variable_fields = True
                     pass
                 else:
@@ -129,7 +126,6 @@ class AutoGenerator:
                         print ("ERROR: Bad length for field {0}".format(f['NAME']))
                         sys.exit(1)
 
-
                 # Determine if is struct
                 if f['TYPE'] in self.structs:
                     f['IS_STRUCT'] = True
@@ -138,8 +134,8 @@ class AutoGenerator:
                     f['IS_STRUCT'] = False
                     f['IS_BASETYPE'] = True
                 else:
-                    print ("ERROR: Unknown Type: {0}".format(f['TYPE'])) 
-                if not 'DESCRIPTION' in f:
+                    print ("ERROR: Unknown Type: {0}".format(f['TYPE']))
+                if 'DESCRIPTION' not in f:
                     f['DESCRIPTION'] = ''
 
                 # Doc name
@@ -147,31 +143,30 @@ class AutoGenerator:
                     f['DOC_NAME'] = self.basetypes[f['TYPE']]['DOC_NAME']
                 else:
                     f['DOC_NAME'] = f['TYPE']
-                
 
                 # Handle default value setting
                 if f['IS_BASETYPE'] and f['LENGTH'] == 1:
-                    if not 'DEFAULT_VALUE' in f:
-                        f['DEFAULT_VALUE'] = self.basetypes[f['TYPE']]['DEFAULT_VALUE'] 
+                    if 'DEFAULT_VALUE' not in f:
+                        f['DEFAULT_VALUE'] = self.basetypes[f['TYPE']]['DEFAULT_VALUE']
                 elif f['IS_BASETYPE'] and type(f['LENGTH']) == int:
                     # no value
-                    if not 'DEFAULT_VALUE' in f:
-                        f['DEFAULT_VALUE'] = [ self.basetypes[f['TYPE']]['DEFAULT_VALUE'] ] * f['LENGTH']
+                    if 'DEFAULT_VALUE' not in f:
+                        f['DEFAULT_VALUE'] = [self.basetypes[f['TYPE']]['DEFAULT_VALUE']] * f['LENGTH']
                     # one value: repeat it
                     elif len(f['DEFAULT_VALUE']) == 1:
-                        f['DEFAULT_VALUE'] = [ f['DEFAULT_VALUE'] ] * f['LENGTH']
+                        f['DEFAULT_VALUE'] = [f['DEFAULT_VALUE']] * f['LENGTH']
                     # only other ok value is default value is correct length
                     elif len(f['DEFAULT_VALUE']) != f['LENGTH']:
                         print ("Bad Default for {0}: {1}".format(f['NAME'], f['DEFAULT_VALUE']))
                 struct_def[idx] = f
                 # set missing types
                 # handle default values
-            if not 'DESCRIPTION' in struct_def:
+            if 'DESCRIPTION' not in struct_def:
                 struct_def['DESCRIPTION'] = ''
             self.structs[struct_name] = struct_def
 
         for base_name, basetype in self.basetypes.items():
-            if not 'IS_COMPLEX' in basetype:
+            if 'IS_COMPLEX' not in basetype:
                 basetype['IS_COMPLEX'] = False
             else:
                 if basetype['IS_COMPLEX'].upper() == "TRUE":
@@ -180,21 +175,20 @@ class AutoGenerator:
                     basetype['IS_COMPLEX'] = False
 
             # Set CPP_TYPE and STREAM_TIME fields
-            if not 'CPP_TYPE' in basetype:
+            if 'CPP_TYPE' not in basetype:
                 basetype['CPP_TYPE'] = basetype['C_TYPE']
-            if not 'STREAM_CAST' in basetype:
+            if 'STREAM_CAST' not in basetype:
                 basetype['STREAM_CAST'] = basetype['CPP_TYPE']
-            self.basetypes[base_name]=basetype
-
+            self.basetypes[base_name] = basetype
 
         # find variable fields
-        #any_variable_fields = self.find_variable_fields(struct_name)
+        # any_variable_fields = self.find_variable_fields(struct_name)
         for struct_name in self.structs.keys():
-            if self.structs[struct_name]['IS_VARIABLE_SIZE_TESTED'] == False:
+            if self.structs[struct_name]['IS_VARIABLE_SIZE_TESTED'] is False:
                 if self.find_variable_fields(struct_name):
                     any_variable_field = True
 
-        # if there are variable fields, structs can only be padded to 
+        # if there are variable fields, structs can only be padded to
         #  1 byte sizes
         if self.pad > 0:
             if self.pad > 1 and any_variable_fields:
@@ -203,15 +197,15 @@ class AutoGenerator:
             else:
                 print ("padding to {0}".format(self.pad))
             for struct_name in self.structs.keys():
-                if self.structs[struct_name]['IS_PADDED'] == False:
+                if self.structs[struct_name]['IS_PADDED'] is False:
                     # Note that insert padding also calculates structure size
-                    self.insert_padding( struct_name, self.structs, pad_to=self.pad )
+                    self.insert_padding(struct_name, self.structs, pad_to=self.pad)
         else:
             print ("no padding")
     # end preprocess
 
-    def find_variable_fields(self,struct_name):
-        ''' finds all the variable sized structs - note: recursive 
+    def find_variable_fields(self, struct_name):
+        ''' finds all the variable sized structs - note: recursive
             -- use this info later when trying to pad the structures and calc their size '''
         struct_def = self.structs[struct_name]
         if self.structs[struct_name]['IS_VARIABLE_SIZE_TESTED']:
@@ -229,7 +223,7 @@ class AutoGenerator:
         return self.structs[struct_name]['IS_VARIABLE_SIZE']
     # end find variable sizing
 
-    def insert_padding(self,struct_name,structs,pad_to=8):
+    def insert_padding(self, struct_name, structs, pad_to=8):
         ''' Inserts padding using the following rules:
             1. pad basic type to width of that type
             2. pad end of struct to widest alignment in that struct '''
@@ -246,8 +240,8 @@ class AutoGenerator:
             self.structs[struct_name]['SIZE'] = 'VARIABLE'
             self.structs[struct_name]['IS_PADDED'] = True
             return
-        sum_bytes=0
-        pad_counter=0;
+        sum_bytes = 0
+        pad_counter = 0
         out_fields = []
         largest_alignment = 1
         for idx, f in enumerate(struct_def['FIELDS']):
@@ -257,15 +251,13 @@ class AutoGenerator:
                     field_bytes = b['LENGTH']
                 elif f['IS_STRUCT']:
                     if not self.structs[f['TYPE']]['IS_PADDED']:
-                        self.insert_padding( f['TYPE'], self.structs, pad_to=self.pad )
+                        self.insert_padding(f['TYPE'], self.structs, pad_to=self.pad)
                     field_bytes = self.structs[f['TYPE']]['SIZE']
-                # fields should be aligned according to their length, but 
+                # fields should be aligned according to their length, but
                 #  not larger than the target word size
-                target_pad = min( pad_to, field_bytes )
-                largest_alignment = max( target_pad, largest_alignment )
-                #print ('{0}, {1}'.format(f['NAME'], sum_bytes))
+                target_pad = min(pad_to, field_bytes)
+                largest_alignment = max(target_pad, largest_alignment)
                 if sum_bytes % target_pad != 0:
-                    #import ipdb; ipdb.set_trace()
                     pad_name = "pad_{0}".format(pad_counter)
                     pad_counter += 1
                     pad_length = target_pad - sum_bytes % target_pad
@@ -283,12 +275,10 @@ class AutoGenerator:
                     field['DESCRIPTION'] = 'PADDING FOR ALIGNMENT'
                     out_fields.append(field)
                     sum_bytes += target_pad - sum_bytes % target_pad
-                    #print ( "Inserting pad, length {1} before {0}".format(f['NAME'],pad_length) )  
             elif f['LENGTH'] == 'VECTOR':
-                print( "WARNING! Cannot pre-pad structs with variable length" )
+                print("WARNING! Cannot pre-pad structs with variable length")
                 sys.exit(1)
             sum_bytes += field_bytes * f['LENGTH']
-            #print ( "end of {0}, sum_bytes = {1}".format( f['NAME'], sum_bytes ) )
             out_fields.append(f)
         if sum_bytes % largest_alignment != 0:
             target_pad = largest_alignment
@@ -306,29 +296,27 @@ class AutoGenerator:
             field['DESCRIPTION'] = 'PADDING FOR ALIGNMENT'
             out_fields.append(field)
             sum_bytes += target_pad - sum_bytes % target_pad
-            #print ( "Inserting pad, length {1} before {0}".format(f['NAME'],pad_length) )  
 
-        #TODO : do we pad the end of the struct?
+        # TODO : do we pad the end of the struct
         self.structs[struct_name]['FIELDS'] = out_fields
         self.structs[struct_name]['IS_PADDED'] = True
-        self.structs[struct_name]['SIZE']    = sum_bytes
-                
+        self.structs[struct_name]['SIZE'] = sum_bytes
     # end insert_padding
-
 # end class AutoGenerator
 
-
-
-if __name__=="__main__":
+if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser('')
-    parser.add_argument( 'basetypes' )
-    parser.add_argument( 'json_file' )
-    parser.add_argument( '--pad', default=-1, type=int, help='Insert Padding For Explicit 64-Bit Word Alignment (Warning: Does Not Work With VECTOR Data Type)')
+    parser.add_argument('basetypes')
+    parser.add_argument('json_file')
+    parser.add_argument('--pad',
+                        default=-1,
+                        type=int,
+                        help='Insert Padding For Explicit 64-Bit Word Alignment (Warning: Does Not Work With VECTOR Data Type)')
     parser.set_defaults(pad=-1)
     args = parser.parse_args()
     print (pprint.pformat(args))
-    A = AutoGenerator(args.basetypes, args.json_file, pad = args.pad) 
+    A = AutoGenerator(args.basetypes, args.json_file, pad=args.pad)
     import pprint
     print (pprint.pformat(A.basetypes))
     print (pprint.pformat(A.structs))
