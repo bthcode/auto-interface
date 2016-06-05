@@ -30,6 +30,7 @@ void alloc_{0}( {0} * p_{0} );
 void dealloc_{0}( {0} * p_{0} );
 void write_json_{0}(FILE * r_out_stream, {0} * p_{0});
 void read_json_{0}(FILE * r_in_stream, {0} * p_{0});
+void parse_json_obj_{0}(cJSON * obj, {0} * p_{0});
 '''
 
 
@@ -420,53 +421,61 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
     ret = ret + T + 'fprintf(r_stream, "}\\n");\n'
     ret = ret + '}\n\n'
 
+    # Read from json obj into struct
+    ret = ret + "void parse_json_obj_{0}(cJSON * json, {0} * p_{0})\n{{\n".format(struct_name)
+    ret = ret + T + "int ii;\n"
+    ret = ret + T + "int size;\n"
+    ret = ret + T + "cJSON * item;\n"
+    ret = ret + T + "cJSON * subitem;\n"
+    for f in struct_def['FIELDS']:
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                ret = ret + T + 'p_{0}->{1} = cJSON_GetObjectItem(json, "{1}")->valuedouble;\n'.format(struct_name, f['NAME'])
+            elif f['IS_STRUCT']:
+                # get json sub obj, call this function
+                ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME'])
+                ret = ret + T + 'parse_json_obj_{0}(item, &(p_{1}->{2}));\n'.format(f['TYPE'], struct_name, f['NAME'])
+                ret = ret + "\n"
+        elif type(f['LENGTH']) == int:
+            if f['IS_BASETYPE']:
+                ret = ret + T + 'ii=0;\n'
+                ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME'])
+                ret = ret + T + 'size = cJSON_GetArraySize(item);\n'
+                ret = ret + T + 'if (size > {0})\n'.format(f['LENGTH'])
+                ret = ret + T + T + 'size = {0};\n'.format(f['LENGTH'])
+                ret = ret + T + 'for (ii = 0 ; ii < size; ii++){\n'
+                ret = ret + T + T + 'p_{0}->{1}[ii] = cJSON_GetArrayItem(item, ii)->valuedouble;'.format(struct_name, f['NAME'])
+                ret = ret + T + '}\n'
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'ii=0;\n'
+                ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME'])
+                ret = ret + T + 'size = cJSON_GetArraySize(item);\n'
+                ret = ret + T + 'if (size > {0})\n'.format(f['LENGTH'])
+                ret = ret + T + T + 'size = {0};\n'.format(f['LENGTH'])
+                ret = ret + T + 'for (ii = 0 ; ii < size; ii++){\n'
+                ret = ret + T + T + 'subitem = cJSON_GetArrayItem(item, ii);\n'
+                ret = ret + T + T + 'parse_json_obj_{0}(subitem, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'], struct_name, f['NAME'])
+                ret = ret + T + '}\n'
+    ret = ret + T + "}\n\n"
+
+
+
     ### Read Binary 
-    ret = ret + "void read_json_{0}( FILE * r_stream, {0} * p_{0} )\n{{\n".format(struct_name)
-    ret = ret + T + "int32_t ii;\n"
-#    for f in struct_def['FIELDS']:
-#        if f['LENGTH'] == 1:
-#            if f['IS_BASETYPE']:
-#                ret = ret + T + 'read_{0}( r_stream, 1, &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
-#            elif f['IS_STRUCT']:
-#                ret = ret + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}));\n'.format(f['TYPE'],struct_name,f['NAME'])
-#                ret = ret + "\n"
-#        elif type(f['LENGTH']) == int:
-#            if f['IS_BASETYPE']:
-#                ret = ret + T + 'read_{0}( r_stream, {3}, &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME'],f['LENGTH']);
-#            elif f['IS_STRUCT']:
-#                ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
-#                ret = ret + T + '{\n'
-#                ret = ret + T + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'],struct_name,f['NAME'])
-#                ret = ret + T + '}\n'
-#        elif f['LENGTH'] == 'VECTOR':
-#            ret = ret + T + "int32_t n_elements_{0};\n".format(f['NAME'])
-#            ret = ret + T + 'read_INT_32(r_stream,1,&(n_elements_{0}));\n'.format(f['NAME'])
-#            ret = ret + T + 'p_{0}->n_elements_{1} = n_elements_{1};\n'.format(struct_name,f['NAME'])
-#            if f['IS_BASETYPE']:
-#                ctype = basetypes[f['TYPE']]['C_TYPE']
-#                # ALLOC SPACE
-#                ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
-#                ret = ret + T + '{\n'
-#                ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
-#                ret = ret + T + T + 'read_{0}(r_stream, n_elements_{2}, p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME'])
-#                ret = ret + T + '}\n'
-#                ret = ret + T + 'else\n'
-#                ret = ret + T + T + 'p_{0}->{1} = 0x0;\n'.format(struct_name,f['NAME'])
-#                ret = ret + "\n"
-#            elif f['IS_STRUCT']:
-#                ctype = f['TYPE']
-#                # Allocate space for pointers
-#                ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
-#                ret = ret + T + '{\n'
-#                ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
-#                ret = ret + T + '}\n'
-#                ret = ret + T + 'else\n'
-#                ret = ret + T + T + 'p_{0}->{1} = 0x0;\n\n'.format(struct_name,f['NAME'])
-#                ret = ret + T + 'for (ii=0; ii < p_{0}->n_elements_{1}; ii++) {{\n'.format(struct_name,f['NAME'])
-#                ret = ret + "\n"
-#                # For each pointer, call read binary
-#                ret = ret + T + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
-#                ret = ret + T + '}\n\n'
+    ret = ret + "void read_json_{0}( FILE * r_stream, {0} * p_{0})\n{{\n".format(struct_name)
+    ret = ret + T + "//Read File into Buffer\n"
+    ret = ret + T + "fseek(r_stream, 0, SEEK_END);\n"
+    ret = ret + T + "long fsize = ftell(r_stream);\n"
+    ret = ret + T + "fseek(r_stream, 0, SEEK_SET);\n"  
+    ret = ret + T + "char *buf = malloc(fsize + 1);\n"
+    ret = ret + T + "fread(buf, fsize, 1, r_stream);\n"
+    ret = ret + T + "fclose(r_stream);\n"
+    ret = ret + T + "buf[fsize] = 0;\n"
+
+    ret = ret + T + "cJSON * json;\n"
+    ret = ret + T + "json = cJSON_Parse(buf);\n"
+    ret = ret + T + "parse_json_obj_{0}(json, p_{0});\n".format(struct_name)
+    ret = ret + T + "cJSON_Delete(json);\n"
+    ret = ret + T + "free(buf);\n"
     ret = ret + "}\n\n"
 
     return ret
@@ -503,7 +512,7 @@ def create_json_reader_for_struct(basetypes, structs, struct_name, project):
     ret = ret + T + '}\n\n'
     ret = ret + T + 'FILE * fin = fopen( argv[1], "rb" );\n'
     ret = ret + T + '{0} x;\n'.format(struct_name)
-    ret = ret + T + 'read_binary_{0}(fin,&x);\n'.format(struct_name)
+    ret = ret + T + 'read_json_{0}(fin,&x);\n'.format(struct_name)
     ret = ret + T + 'write_json_{0}(stdout,&x);\n'.format(struct_name)
     ret = ret + T + 'dealloc_{0}(&x);\n'.format(struct_name)
     ret = ret + T + 'fclose(fin);\n\n'
@@ -559,7 +568,7 @@ def create_c_headers( inc_dir, basetypes, structs, struct_order, project_struct)
     fOut.write( '#include <stdio.h>\n')
     fOut.write( '#include <complex.h>\n')
     fOut.write( '#include <string.h>\n')
-    fOut.write( '#include "jsmn.h"\n' )
+    fOut.write( '#include "cJSON.h"\n' )
     fOut.write( '#include "io_utils.h"\n')
 
 
@@ -600,7 +609,7 @@ def create_c_impls( src_dir, basetypes, structs, project):
     fOut.write('#include <stdio.h>\n')
     fOut.write('#include <complex.h>\n')
     fOut.write('#include <string.h>\n\n')
-    fOut.write('#include "jsmn.h"\n')
+    fOut.write('#include "cJSON.h"\n')
     fOut.write('#include "io_utils.h"\n')
 
     fOut.write('#include "{0}_struct_defs.h"\n'.format(project_name) )
@@ -664,7 +673,7 @@ ENDFOREACH()
 ADD_LIBRARY( {3} ${{C_FILES}} )
 
 # JSMN Json Support Library
-ADD_LIBRARY(jsmn jsmn.c)
+ADD_LIBRARY(cJSON cJSON.c)
 
 ADD_LIBRARY(io_utils io_utils.c)
 
@@ -672,11 +681,11 @@ ADD_LIBRARY(io_utils io_utils.c)
 """.format( c_src_dir, c_inc_dir, project_name, libname )
     for struct_name, struct_def in structs.items():
         ret = ret + 'ADD_EXECUTABLE( print_{0} print_{0}.c )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} {1} jsmn io_utils )\n\n'.format(struct_name, libname) 
+        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} {1} cJSON io_utils )\n\n'.format(struct_name, libname) 
         ret = ret + 'ADD_EXECUTABLE( generate_{0} generate_{0}.c )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} {1} jsmn io_utils )\n\n'.format(struct_name, libname)
+        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} {1} cJSON io_utils )\n\n'.format(struct_name, libname)
         ret = ret + 'ADD_EXECUTABLE( read_json_{0} read_json_{0}.c )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( read_json_{0} {1} jsmn io_utils )\n\n'.format(struct_name, libname)
+        ret = ret + 'TARGET_LINK_LIBRARIES( read_json_{0} {1} cJSON io_utils )\n\n'.format(struct_name, libname)
     return ret
 
 # end create_cmake_file
@@ -695,8 +704,8 @@ def generate_c( src_dir, inc_dir, basetypes, structs, project,struct_order):
     support_dir = python_repo_dir + os.sep  + '..' + os.sep + 'support_files'
     shutil.copy(support_dir + os.sep + 'io_utils.h', inc_dir )
     shutil.copy(support_dir + os.sep + 'io_utils.c', inc_dir )
-    shutil.copy(support_dir + os.sep + 'jsmn.h', inc_dir )
-    shutil.copy(support_dir + os.sep + 'jsmn.c', inc_dir )
+    shutil.copy(support_dir + os.sep + 'cJSON.h', inc_dir )
+    shutil.copy(support_dir + os.sep + 'cJSON.c', inc_dir )
 
     create_c_headers(inc_dir, basetypes, structs, struct_order, project)
     create_c_impls(src_dir, basetypes, structs,project )
