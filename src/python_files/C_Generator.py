@@ -28,6 +28,8 @@ void write_binary_{0}( FILE * r_out_stream, {0} * p_{0} );
 void read_binary_{0}( FILE * r_in_stream, {0} * p_{0} );
 void alloc_{0}( {0} * p_{0} );
 void dealloc_{0}( {0} * p_{0} );
+void write_json_{0}(FILE * r_out_stream, {0} * p_{0});
+void read_json_{0}(FILE * r_in_stream, {0} * p_{0});
 '''
 
 
@@ -330,7 +332,7 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
             if f['IS_BASETYPE']:
                 ret = ret + T + 'fprintf( r_stream, "%s", prefix );\n'
                 ret = ret + T + 'fprintf( r_stream, "{0} :" );\n'.format(f['NAME'])
-                ret = ret + T + 'print_{0}( r_stream, 1, &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
+                ret = ret + T + 'print_{0}( r_stream, 1, \' \', &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
                 ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
             elif f['IS_STRUCT']:
                 ret = ret + T + 'num_written = snprintf( buf, 1024, "%s.{0}.", prefix );\n'.format(f['NAME']) 
@@ -341,7 +343,7 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
             if f['IS_BASETYPE']:
                 ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
                 ret = ret + T + 'fprintf( r_stream, "{0} :" );\n'.format(f['NAME'])
-                ret = ret + T + 'print_{0}( r_stream, {3}, &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME'],f['LENGTH']);
+                ret = ret + T + 'print_{0}( r_stream, {3}, \' \', &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME'],f['LENGTH']);
                 ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
             elif f['IS_STRUCT']:
                 ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
@@ -355,7 +357,7 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
             if f['IS_BASETYPE']:
                 ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
                 ret = ret + T + 'fprintf( r_stream, "{0} :" );\n'.format(f['NAME'])
-                ret = ret + T + 'print_{0}(r_stream,p_{1}->n_elements_{2},p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME']) 
+                ret = ret + T + 'print_{0}(r_stream,p_{1}->n_elements_{2}, \' \', p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME']) 
                 ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
             elif f['IS_STRUCT']:
                 ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
@@ -366,9 +368,106 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 ret = ret + T + T + 'buf[ num_written ] = 0x0;\n'
                 ret = ret + T + T + 'write_props_{0}(r_stream, prefix, prefix_len,&(p_{1}->{2}[ii]));\n'.format(f['TYPE'], struct_name, f['NAME'])
                 ret = ret + T + '}\n\n'
-
     ret = ret + '}\n\n'
 
+    ret = ret + "void write_json_{0}( FILE * r_stream, {0} * p_{0} )\n".format(struct_name)
+    ret = ret + '{\n'
+    ret = ret + T + 'char buf[1024];\n'
+    ret = ret + T + 'int num_written;\n'
+    ret = ret + T + 'int32_t ii=0;\n'
+    ret = ret + T + 'fprintf(r_stream, "{\\n");\n'
+    for idx, f in enumerate(struct_def['FIELDS']):
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                ret = ret + T + 'fprintf( r_stream, "\\"{0}\\" : " );\n'.format(f['NAME'])
+                ret = ret + T + 'print_{0}( r_stream, 1, \',\', &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
+                if idx == len(struct_def['FIELDS'])-1:
+                    ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
+                else:
+                    ret = ret + T + 'fprintf( r_stream, ",\\n" );\n'
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'fprintf( r_stream, "\\"{0}\\" : " );\n'.format(f['NAME'])
+                ret = ret + T + 'write_json_{0}(r_stream,&(p_{1}->{2}));\n'.format(f['TYPE'],struct_name,f['NAME'])
+                if idx == len(struct_def['FIELDS'])-1:
+                    ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
+                else:
+                    ret = ret + T + 'fprintf( r_stream, ",\\n" );\n'
+                ret = ret + "\n"
+        elif type( f['LENGTH'] ) == int:
+            if f['IS_BASETYPE']:
+                ret = ret + T + 'fprintf( r_stream, "\\"{0}\\" : [ " );\n'.format(f['NAME'])
+                ret = ret + T + 'print_{0}( r_stream, {3}, \',\', &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME'],f['LENGTH']);
+                if idx == len(struct_def['FIELDS'])-1:
+                    ret = ret + T + 'fprintf( r_stream, "]\\n" );\n'
+                else:
+                    ret = ret + T + 'fprintf( r_stream, "],\\n" );\n'
+
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'fprintf( r_stream, "\\"{0}\\" : [ " );\n'.format(f['NAME'])
+                ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'write_json_{0}(r_stream, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'],struct_name,f['NAME'])
+                ret = ret + T + T + 'if (ii<{0})\n'.format(f['LENGTH']-1)
+                ret = ret + T + T + '    printf(",");\n'
+                ret = ret + T + '}\n'
+                ret = ret + "\n"
+
+                if idx == len(struct_def['FIELDS'])-1:
+                    ret = ret + T + 'fprintf( r_stream, "]\\n" );\n'
+                else:
+                    ret = ret + T + 'fprintf( r_stream, "],\\n" );\n'
+
+    ret = ret + T + 'fprintf(r_stream, "}\\n");\n'
+    ret = ret + '}\n\n'
+
+    ### Read Binary 
+    ret = ret + "void read_json_{0}( FILE * r_stream, {0} * p_{0} )\n{{\n".format(struct_name)
+    ret = ret + T + "int32_t ii;\n"
+#    for f in struct_def['FIELDS']:
+#        if f['LENGTH'] == 1:
+#            if f['IS_BASETYPE']:
+#                ret = ret + T + 'read_{0}( r_stream, 1, &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
+#            elif f['IS_STRUCT']:
+#                ret = ret + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}));\n'.format(f['TYPE'],struct_name,f['NAME'])
+#                ret = ret + "\n"
+#        elif type(f['LENGTH']) == int:
+#            if f['IS_BASETYPE']:
+#                ret = ret + T + 'read_{0}( r_stream, {3}, &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME'],f['LENGTH']);
+#            elif f['IS_STRUCT']:
+#                ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
+#                ret = ret + T + '{\n'
+#                ret = ret + T + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'],struct_name,f['NAME'])
+#                ret = ret + T + '}\n'
+#        elif f['LENGTH'] == 'VECTOR':
+#            ret = ret + T + "int32_t n_elements_{0};\n".format(f['NAME'])
+#            ret = ret + T + 'read_INT_32(r_stream,1,&(n_elements_{0}));\n'.format(f['NAME'])
+#            ret = ret + T + 'p_{0}->n_elements_{1} = n_elements_{1};\n'.format(struct_name,f['NAME'])
+#            if f['IS_BASETYPE']:
+#                ctype = basetypes[f['TYPE']]['C_TYPE']
+#                # ALLOC SPACE
+#                ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
+#                ret = ret + T + '{\n'
+#                ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
+#                ret = ret + T + T + 'read_{0}(r_stream, n_elements_{2}, p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME'])
+#                ret = ret + T + '}\n'
+#                ret = ret + T + 'else\n'
+#                ret = ret + T + T + 'p_{0}->{1} = 0x0;\n'.format(struct_name,f['NAME'])
+#                ret = ret + "\n"
+#            elif f['IS_STRUCT']:
+#                ctype = f['TYPE']
+#                # Allocate space for pointers
+#                ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
+#                ret = ret + T + '{\n'
+#                ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
+#                ret = ret + T + '}\n'
+#                ret = ret + T + 'else\n'
+#                ret = ret + T + T + 'p_{0}->{1} = 0x0;\n\n'.format(struct_name,f['NAME'])
+#                ret = ret + T + 'for (ii=0; ii < p_{0}->n_elements_{1}; ii++) {{\n'.format(struct_name,f['NAME'])
+#                ret = ret + "\n"
+#                # For each pointer, call read binary
+#                ret = ret + T + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
+#                ret = ret + T + '}\n\n'
+    ret = ret + "}\n\n"
 
     return ret
 # end create_c_struct_impl
@@ -393,6 +492,25 @@ def create_default_gen(basetypes,structs,struct_name,project):
     return ret
 # end create_printer_for_struct
 
+def create_json_reader_for_struct(basetypes, structs, struct_name, project):
+    ret = '#include "{0}_struct_defs.h"\n'.format(project['PROJECT'])
+    ret = ret + 'int main(int argc, char *argv[])\n'
+    ret = ret + '{\n'
+    ret = ret + T + 'if (argc != 2 )\n'
+    ret = ret + T + '{\n'
+    ret = ret + T + T + 'printf( "USAGE: print_{0} <binary>\\n" );\n'.format(struct_name)
+    ret = ret + T + T + 'exit(1);\n'
+    ret = ret + T + '}\n\n'
+    ret = ret + T + 'FILE * fin = fopen( argv[1], "rb" );\n'
+    ret = ret + T + '{0} x;\n'.format(struct_name)
+    ret = ret + T + 'read_binary_{0}(fin,&x);\n'.format(struct_name)
+    ret = ret + T + 'write_json_{0}(stdout,&x);\n'.format(struct_name)
+    ret = ret + T + 'dealloc_{0}(&x);\n'.format(struct_name)
+    ret = ret + T + 'fclose(fin);\n\n'
+    ret = ret + T + 'return 0;\n'
+    ret = ret + '}\n'
+    return ret
+# end create_json_reader_for_struct
 
 def create_printer_for_struct(basetypes,structs,struct_name,project):
     ret = '#include "{0}_struct_defs.h"\n'.format(project['PROJECT'])
@@ -441,58 +559,14 @@ def create_c_headers( inc_dir, basetypes, structs, struct_order, project_struct)
     fOut.write( '#include <stdio.h>\n')
     fOut.write( '#include <complex.h>\n')
     fOut.write( '#include <string.h>\n')
+    fOut.write( '#include "jsmn.h"\n' )
+    fOut.write( '#include "io_utils.h"\n')
 
 
     # CPP Guards
     fOut.write('#ifdef __cplusplus\n')
     fOut.write('extern "C" {\n')
     fOut.write('#endif\n')
-
-    fOut.write( '''
-/* ----------------  IO SUPPORT ---------------- */
-void read_UINT_8( FILE * p_in_file, int nElements, uint8_t * p_ret );
-void read_UINT_16( FILE * p_in_file, int nElements, uint16_t * p_ret );
-void read_UINT_32( FILE * p_in_file, int nElements, uint32_t * p_ret );
-void read_UINT_64( FILE * p_in_file, int nElements, uint64_t * p_ret );
-void read_char( FILE * p_in_file, int nElements, char * p_ret );
-void read_INT_8( FILE * p_in_file, int nElements, int8_t * p_ret );
-void read_INT_16( FILE * p_in_file, int nElements, int16_t * p_ret );
-void read_INT_32( FILE * p_in_file, int nElements, int32_t * p_ret );
-void read_INT_64( FILE * p_in_file, int nElements, int64_t* p_ret );
-void read_SINGLE( FILE * p_in_file, int nElements, float * p_ret );
-void read_DOUBLE( FILE * p_in_file, int nElements, double * p_ret );
-void read_COMPLEX_SINGLE( FILE * p_in_file, int nElements, float complex * p_ret );
-void read_COMPLEX_DOUBLE( FILE * p_in_file, int nElements, double complex * p_ret );
-
-void write_UINT_8( FILE * p_out_file, int nElements, uint8_t * p_val );
-void write_UINT_16( FILE * p_out_file, int nElements, uint16_t * p_val );
-void write_UINT_32( FILE * p_out_file, int nElements, uint32_t * p_val );
-void write_UINT_64( FILE * p_out_file, int nElements, uint64_t * p_val );
-void write_char( FILE * p_out_file, int nElements, char * p_val );
-void write_INT_8( FILE * p_out_file, int nElements, int8_t * p_val );
-void write_INT_16( FILE * p_out_file, int nElements, int16_t * p_val );
-void write_INT_32( FILE * p_out_file, int nElements, int32_t * p_val );
-void write_INT_64( FILE * p_out_file, int nElements, int64_t* p_val );
-void write_SINGLE( FILE * p_out_file, int nElements, float * p_val );
-void write_DOUBLE( FILE * p_out_file, int nElements, double * p_val );
-void write_COMPLEX_SINGLE( FILE * p_out_file, int nElements, float complex * p_val );
-void write_COMPLEX_DOUBLE( FILE * p_out_file, int nElements, double complex * p_val );
-
-void print_UINT_8( FILE * p_out_file, int nElements, uint8_t * p_val );
-void print_UINT_16( FILE * p_out_file, int nElements, uint16_t * p_val );
-void print_UINT_32( FILE * p_out_file, int nElements, uint32_t * p_val );
-void print_UINT_64( FILE * p_out_file, int nElements, uint64_t * p_val );
-void print_char( FILE * p_out_file, int nElements, char * p_val );
-void print_INT_8( FILE * p_out_file, int nElements, int8_t * p_val );
-void print_INT_16( FILE * p_out_file, int nElements, int16_t * p_val );
-void print_INT_32( FILE * p_out_file, int nElements, int32_t * p_val );
-void print_INT_64( FILE * p_out_file, int nElements, int64_t* p_val );
-void print_SINGLE( FILE * p_out_file, int nElements, float * p_val );
-void print_DOUBLE( FILE * p_out_file, int nElements, double * p_val );
-void print_COMPLEX_SINGLE( FILE * p_out_file, int nElements, float complex * p_val );
-void print_COMPLEX_DOUBLE( FILE * p_out_file, int nElements, double complex * p_val );
-/* --------------- END IO SUPPORT -------------- */
-''') # io support includes
 
 
     fOut.write('\n')
@@ -507,13 +581,12 @@ void print_COMPLEX_DOUBLE( FILE * p_out_file, int nElements, double complex * p_
     # Header Guard
     fOut.write( "#endif // Header Guard\n".format(project))
     fOut.close()
-    
 # end create_struct_headers
 
 def create_c_impls( src_dir, basetypes, structs, project):
     '''Creates all structure and matlab support c files'''
     project_name = project['PROJECT']
-    fOut = open( src_dir + os.sep + '{0}_struct_defs.c'.format(project_name), "w" ) 
+    fOut = open(src_dir + os.sep + '{0}_struct_defs.c'.format(project_name), "w") 
     fOut.write("/**\n")
     fOut.write(" * AutoInterface Generated Code\n" )
     fOut.write(" * \n" )
@@ -521,239 +594,17 @@ def create_c_impls( src_dir, basetypes, structs, project):
     fOut.write(" *    VERSION: {0}\n".format(project['VERSION']))
     fOut.write(" */\n\n")
 
-    fOut.write( '/* Stock Includes */\n')
-    fOut.write( '#include <stdlib.h>\n')
-    fOut.write( '#include <stdint.h>\n')
-    fOut.write( '#include <stdio.h>\n')
-    fOut.write( '#include <complex.h>\n')
-    fOut.write( '#include <string.h>\n\n')
+    fOut.write('/* Stock Includes */\n')
+    fOut.write('#include <stdlib.h>\n')
+    fOut.write('#include <stdint.h>\n')
+    fOut.write('#include <stdio.h>\n')
+    fOut.write('#include <complex.h>\n')
+    fOut.write('#include <string.h>\n\n')
+    fOut.write('#include "jsmn.h"\n')
+    fOut.write('#include "io_utils.h"\n')
 
-    fOut.write( '#include "{0}_struct_defs.h"\n'.format(project_name) )
+    fOut.write('#include "{0}_struct_defs.h"\n'.format(project_name) )
 
-    fOut.write( '''
-/* --------------------- IO SUPPORT -------------------- */
-void read_UINT_8( FILE * p_in_file, int nElements, uint8_t * p_ret )
-{
-    fread( p_ret, sizeof(uint8_t), nElements, p_in_file );
-}
-
-void read_UINT_16( FILE * p_in_file, int nElements, uint16_t * p_ret )
-{
-    fread( p_ret, sizeof(uint16_t), nElements, p_in_file );
-}
-
-void read_UINT_32( FILE * p_in_file, int nElements, uint32_t * p_ret )
-{
-    fread( p_ret, sizeof(uint32_t), nElements, p_in_file );
-}
-
-void read_UINT_64( FILE * p_in_file, int nElements, uint64_t * p_ret )
-{
-    fread( p_ret, sizeof(uint64_t), nElements, p_in_file );
-}
-
-void read_char( FILE * p_in_file, int nElements, char * p_ret )
-{
-    fread( p_ret, sizeof(char), nElements, p_in_file );
-}
-
-void read_INT_8( FILE * p_in_file, int nElements, int8_t * p_ret )
-{
-    fread( p_ret, sizeof(int8_t), nElements, p_in_file );
-}
-
-void read_INT_16( FILE * p_in_file, int nElements, int16_t * p_ret )
-{
-    fread( p_ret, sizeof(int16_t), nElements, p_in_file );
-}
-
-void read_INT_32( FILE * p_in_file, int nElements, int32_t * p_ret )
-{
-    fread( p_ret, sizeof(int32_t), nElements, p_in_file );
-}
-
-void read_INT_64( FILE * p_in_file, int nElements, int64_t * p_ret )
-{
-    fread( p_ret, sizeof(int64_t), nElements, p_in_file );
-}
-
-void read_SINGLE( FILE * p_in_file, int nElements, float * p_ret )
-{
-    fread( p_ret, sizeof(float), nElements, p_in_file );
-}
-
-void read_DOUBLE( FILE * p_in_file, int nElements, double * p_ret )
-{
-    fread( p_ret, sizeof(double), nElements, p_in_file );
-}
-
-void read_COMPLEX_SINGLE( FILE * p_in_file, int nElements, float complex * p_ret )
-{
-    fread( p_ret, sizeof(float complex), nElements, p_in_file );
-}
-
-void read_COMPLEX_DOUBLE( FILE * p_in_file, int nElements, double complex * p_ret )
-{
-    fread( p_ret, sizeof(double complex), nElements, p_in_file );
-}
-
-void write_UINT_8( FILE * p_out_file, int nElements, uint8_t * p_val )
-{
-    fwrite( p_val, sizeof(uint8_t), nElements, p_out_file );
-}
-
-void write_UINT_16( FILE * p_out_file, int nElements, uint16_t * p_val )
-{
-    fwrite( p_val, sizeof(uint16_t), nElements, p_out_file );
-}
-
-void write_UINT_32( FILE * p_out_file, int nElements, uint32_t * p_val )
-{
-    fwrite( p_val, sizeof(uint32_t), nElements, p_out_file );
-}
-
-void write_UINT_64( FILE * p_out_file, int nElements, uint64_t * p_val )
-{
-    fwrite( p_val, sizeof(uint64_t), nElements, p_out_file );
-}
-
-void write_char( FILE * p_out_file, int nElements, char * p_val )
-{
-    fwrite( p_val, sizeof(char), nElements, p_out_file );
-}
-
-void write_INT_8( FILE * p_out_file, int nElements, int8_t * p_val )
-{
-    fwrite( p_val, sizeof(int8_t), nElements, p_out_file );
-}
-
-void write_INT_16( FILE * p_out_file, int nElements, int16_t * p_val )
-{
-    fwrite( p_val, sizeof(int16_t), nElements, p_out_file );
-}
-
-void write_INT_32( FILE * p_out_file, int nElements, int32_t * p_val )
-{
-    fwrite( p_val, sizeof(int32_t), nElements, p_out_file );
-}
-
-void write_INT_64( FILE * p_out_file, int nElements, int64_t * p_val )
-{
-    fwrite( p_val, sizeof(int64_t), nElements, p_out_file );
-}
-
-void write_SINGLE( FILE * p_out_file, int nElements, float * p_val )
-{
-    fwrite( p_val, sizeof(float), nElements, p_out_file );
-}
-
-void write_DOUBLE( FILE * p_out_file, int nElements, double * p_val )
-{
-    fwrite( p_val, sizeof(double), nElements, p_out_file );
-}
-
-void write_COMPLEX_SINGLE( FILE * p_out_file, int nElements, float complex * p_val )
-{
-    fwrite( p_val, sizeof(float complex), nElements, p_out_file );
-}
-
-void write_COMPLEX_DOUBLE( FILE * p_out_file, int nElements, double complex * p_val )
-{
-    fwrite( p_val, sizeof(double complex), nElements, p_out_file );
-}
-
-void print_UINT_8( FILE * p_out_file, int nElements, uint8_t * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "%d ", p_val[ii] );
-}
-
-void print_UINT_16( FILE * p_out_file, int nElements, uint16_t * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "%d ", p_val[ii] );
-}
-
-void print_UINT_32( FILE * p_out_file, int nElements, uint32_t * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "%d ", p_val[ii] );
-}
-
-void print_UINT_64( FILE * p_out_file, int nElements, uint64_t * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "%llu ", p_val[ii] );
-}
-
-void print_char( FILE * p_out_file, int nElements, char * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "%d ", p_val[ii] );
-}
-
-void print_INT_8( FILE * p_out_file, int nElements, int8_t * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "%d ", p_val[ii] );
-}
-
-void print_INT_16( FILE * p_out_file, int nElements, int16_t * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "%d ", p_val[ii] );
-}
-
-void print_INT_32( FILE * p_out_file, int nElements, int32_t * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "%d ", p_val[ii] );
-}
-
-void print_INT_64( FILE * p_out_file, int nElements, int64_t * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "%lld ", p_val[ii] );
-}
-
-void print_SINGLE( FILE * p_out_file, int nElements, float * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "%f ", p_val[ii] );
-}
-
-void print_DOUBLE( FILE * p_out_file, int nElements, double * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "%f ", p_val[ii] );
-}
-
-void print_COMPLEX_SINGLE( FILE * p_out_file, int nElements, float complex * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "(%f,%f) ", creal(p_val[ii]),cimag(p_val[ii]) );
-}
-
-void print_COMPLEX_DOUBLE( FILE * p_out_file, int nElements, double complex * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements; ii++ )
-        fprintf( p_out_file, "(%f,%f) ", creal(p_val[ii]),cimag(p_val[ii]) );
-}
-/* --------------------- IO SUPPORT -------------------- */
-''') # IO SUPPORT
     for struct_name, struct_def in structs.items():
         c_def = create_c_struct_impl( basetypes, structs, struct_name, project )
         fOut.write( '\n\n /* ----------------- STRUCT {0} ----------------- */\n\n'.format(struct_name))
@@ -766,6 +617,12 @@ def create_printers( src_dir,basetypes,structs,project):
     for struct_name,struct_def in structs.items():
         c_code = create_printer_for_struct(basetypes,structs,struct_name,project)
         fOut = open( src_dir + os.sep + "print_{0}.c".format(struct_name), "w" )
+        fOut.write(c_code)
+        fOut.close()
+
+    for struct_name,struct_def in structs.items():
+        c_code = create_json_reader_for_struct(basetypes,structs,struct_name,project)
+        fOut = open( src_dir + os.sep + "read_json_{0}.c".format(struct_name), "w" )
         fOut.write(c_code)
         fOut.close()
 # end create_printers
@@ -806,13 +663,20 @@ ENDFOREACH()
 
 ADD_LIBRARY( {3} ${{C_FILES}} )
 
+# JSMN Json Support Library
+ADD_LIBRARY(jsmn jsmn.c)
+
+ADD_LIBRARY(io_utils io_utils.c)
+
 # Sample executables
 """.format( c_src_dir, c_inc_dir, project_name, libname )
     for struct_name, struct_def in structs.items():
         ret = ret + 'ADD_EXECUTABLE( print_{0} print_{0}.c )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} {1} )\n\n'.format(struct_name, libname) 
+        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} {1} jsmn io_utils )\n\n'.format(struct_name, libname) 
         ret = ret + 'ADD_EXECUTABLE( generate_{0} generate_{0}.c )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} {1} )\n\n'.format(struct_name, libname)
+        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} {1} jsmn io_utils )\n\n'.format(struct_name, libname)
+        ret = ret + 'ADD_EXECUTABLE( read_json_{0} read_json_{0}.c )\n'.format(struct_name)
+        ret = ret + 'TARGET_LINK_LIBRARIES( read_json_{0} {1} jsmn io_utils )\n\n'.format(struct_name, libname)
     return ret
 
 # end create_cmake_file
@@ -824,8 +688,15 @@ def generate_c( src_dir, inc_dir, basetypes, structs, project,struct_order):
     if not os.path.exists(inc_dir):
         os.mkdir(inc_dir)
 
+
     # Copy read/write support files
     python_repo_dir = os.path.dirname(os.path.realpath(__file__))
+
+    support_dir = python_repo_dir + os.sep  + '..' + os.sep + 'support_files'
+    shutil.copy(support_dir + os.sep + 'io_utils.h', inc_dir )
+    shutil.copy(support_dir + os.sep + 'io_utils.c', inc_dir )
+    shutil.copy(support_dir + os.sep + 'jsmn.h', inc_dir )
+    shutil.copy(support_dir + os.sep + 'jsmn.c', inc_dir )
 
     create_c_headers(inc_dir, basetypes, structs, struct_order, project)
     create_c_impls(src_dir, basetypes, structs,project )
