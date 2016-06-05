@@ -279,11 +279,7 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 b = basetypes[ f['TYPE'] ]
                 # get default value
                 def_val = f['DEFAULT_VALUE']
-                # format for complex or not
-                if b['IS_COMPLEX']:
-                    val = '{0} + {1}j'.format(def_val[0],def_val[1])
-                else:
-                    val = '{0}'.format(def_val)
+                val = '{0}'.format(def_val)
                 # set default value
                 ret = ret + T + 'p_{0}->{1} = {2};\n'.format(struct_name,f['NAME'],val)
             elif f['IS_STRUCT']:
@@ -294,23 +290,11 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 b = basetypes[f['TYPE']]
                 # get default value
                 def_val = f['DEFAULT_VALUE']
-                # format for complex or not
-                if b['IS_COMPLEX']:
-                    num_elements = len(def_val)/2
-                    counter=0
-                    for idx in range(0,len(def_val)):
-                        ret = ret + T + 'p_{0}->{1}[{2}] = {3} + {4}j;\n'.format(struct_name,
-                                                                          f['NAME'],
-                                                                          counter,
-                                                                          def_val[idx][0],
-                                                                          def_val[idx][1])
-                        counter = counter+1
-                else:
-                    num_elements = len(def_val)
-                    counter=0
-                    for idx in range(len(def_val)):
-                        ret = ret + T + 'p_{0}->{1}[{2}] = {3};\n'.format(struct_name,f['NAME'],counter,def_val[idx])
-                        counter = counter+1
+                num_elements = len(def_val)
+                counter=0
+                for idx in range(len(def_val)):
+                    ret = ret + T + 'p_{0}->{1}[{2}] = {3};\n'.format(struct_name,f['NAME'],counter,def_val[idx])
+                    counter = counter+1
             elif f['IS_STRUCT']:
                 ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format( f['LENGTH'] )
                 ret = ret + T + '{\n'

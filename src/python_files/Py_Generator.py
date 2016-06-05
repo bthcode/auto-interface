@@ -185,11 +185,7 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
             if f['IS_BASETYPE']:
                 basetype = basetypes[f['TYPE']]
                 def_val = f['DEFAULT_VALUE']
-                if basetype['IS_COMPLEX']:
-                    # TODO: handle the case when this is set wrong by the user
-                    ret = ret + T + T + "self.{0} = {1} + {2}j;\n".format(f['NAME'], def_val[0],def_val[1])
-                else:
-                    ret = ret + T + T + "self.{0} = {1};\n".format(f['NAME'], def_val)
+                ret = ret + T + T + "self.{0} = {1};\n".format(f['NAME'], def_val)
             elif f['IS_STRUCT']:
                 ret = ret + T + T + 'self.{0} = {1}()\n'.format(f['NAME'], f['TYPE'])
                 ret = ret + T + T + 'self.{0}.set_defaults();\n'.format(f['NAME'])
@@ -200,16 +196,9 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
                 if f['IS_BASETYPE']:
                     basetype = basetypes[f['TYPE']]
                     def_val = f['DEFAULT_VALUE']
-                    # COMPLEX
-                    if basetype['IS_COMPLEX']:
-                        def_str = ''
-                        for idx in range(0,len(def_val)):
-                            def_str = def_str + '{0} + {1}j,'.format(def_val[idx][0],def_val[idx][1])
-                    # Not COMPLEX
-                    else:
-                        def_str = ''
-                        for idx in range(len(def_val)):
-                            def_str = def_str + '{0},'.format(def_val[idx])
+                    def_str = ''
+                    for idx in range(len(def_val)):
+                        def_str = def_str + '{0},'.format(def_val[idx])
                     # remove trailing whitespace and comma
                     def_str = def_str.rstrip()
                     if def_str[-1] == ',':  

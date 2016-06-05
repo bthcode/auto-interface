@@ -104,30 +104,6 @@
          "GPB_TYPE" : "double",
          "LENGTH" : 8,
          "DOC_NAME": "double"
-      },
-    "COMPLEX_DOUBLE" :
-      {
-         "C_TYPE" : "double complex",
-         "CPP_TYPE" : "std::complex< double >",
-         "DEFAULT_VALUE" : [0,0],
-         "MEX_TYPE" : "mxDOUBLE_CLASS",
-         "MAT_TYPE" : "double",
-         "GPB_TYPE" : "double",
-         "IS_COMPLEX" : "TRUE",
-         "LENGTH" : 16,
-         "DOC_NAME": "cdouble"
-      },
-     "COMPLEX_SINGLE" :
-      {
-         "C_TYPE" : "float complex",
-         "CPP_TYPE" : "std::complex< float >",
-         "DEFAULT_VALUE" : [0,0],
-         "MEX_TYPE" : "mxDOUBLE_CLASS",
-         "MAT_TYPE" : "single",
-         "GPB_TYPE" : "single",
-         "IS_COMPLEX" : "TRUE",
-         "LENGTH" : 8,
-         "DOC_NAME": "cfloat"
       }
     
    

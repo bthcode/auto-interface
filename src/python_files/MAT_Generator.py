@@ -95,10 +95,7 @@ def create_set_defaults(basetypes,structs,struct_name):
                 # get default value 
                 def_val = f['DEFAULT_VALUE']
                 # format the default value
-                if basetype['IS_COMPLEX']:
-                    val = '{0} + {1}i'.format(def_val[0],def_val[1])
-                else:
-                    val = '{0}'.format(def_val)
+                val = '{0}'.format(def_val)
                 # set the default value
                 ret = ret + T + T + "out.{0} = {1}({2});\n".format(f['NAME'],mat_type,val);
             elif f['IS_STRUCT']:
@@ -109,16 +106,9 @@ def create_set_defaults(basetypes,structs,struct_name):
                 if f['IS_BASETYPE']:
                     basetype = basetypes[f['TYPE']]
                     def_val = f['DEFAULT_VALUE']
-                    # COMPLEX
-                    if basetype['IS_COMPLEX']:
-                        def_str = ''
-                        for idx in range(0,len(def_val)):
-                            def_str = def_str + '{0} + {1}i '.format(def_val[idx][0],def_val[idx][1])
-                    # Not COMPLEX
-                    else:
-                        def_str = ''
-                        for idx in range(len(def_val)):
-                            def_str = def_str + '{0} '.format(def_val[idx])
+                    def_str = ''
+                    for idx in range(len(def_val)):
+                        def_str = def_str + '{0} '.format(def_val[idx])
                     # set the value
                     ret = ret + T + T + 'out.{0} = [ {1} ];\n'.format(f['NAME'],def_str)
             # type is struct, if vector, if fixed length, fill with defaults
@@ -146,11 +136,7 @@ def create_read_binary(basetypes,structs,struct_name):
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
-                if b['IS_COMPLEX']:
-                    ret = ret + T + "tmp = fread( file_handle, 2, '{0}' );\n".format(b['MAT_TYPE'])
-                    ret = ret + T + "struct_in.{0} = tmp(1) + tmp(2)*i;\n".format(f['NAME'])
-                else:
-                    ret = ret + T + "struct_in.{0} = fread( file_handle, 1, '{1}' );\n".format(f['NAME'],b['MAT_TYPE'])
+                ret = ret + T + "struct_in.{0} = fread( file_handle, 1, '{1}' );\n".format(f['NAME'],b['MAT_TYPE'])
             elif f['IS_STRUCT']:
                 ret = ret + T + 'struct_in.{0} = read_binary_{1}( file_handle );\n'.format(f['NAME'],f['TYPE']) 
         elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
@@ -163,11 +149,7 @@ def create_read_binary(basetypes,structs,struct_name):
             # now read in that many types
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
-                if b['IS_COMPLEX']:
-                    ret = ret + T + T + "tmp = fread( file_handle, num_elems*2, '{0}' );\n".format(b['MAT_TYPE'])
-                    ret = ret + T + T + "struct_in.{0} = complex(tmp(1:2:end-1), tmp(2:2:end));\n".format(f['NAME'])
-                else:
-                    ret = ret + T + T + "struct_in.{0} = fread( file_handle, num_elems, '{1}' );\n".format(f['NAME'],b['MAT_TYPE'])
+                ret = ret + T + T + "struct_in.{0} = fread( file_handle, num_elems, '{1}' );\n".format(f['NAME'],b['MAT_TYPE'])
             elif f['IS_STRUCT']:
                 # in the case of a vector of structs, 
                 #  we need to declare the vector using the struct 
@@ -198,11 +180,7 @@ def create_read_buf(basetypes,structs,struct_name):
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
-                if b['IS_COMPLEX']:
-                    ret = ret + T + "[ pos, tmp ] = bufread( pos, buf, '{0}', 2 );\n".format(b['MAT_TYPE'])
-                    ret = ret + T + "struct_out.{0} = tmp(0) + tmp(1) * i;\n".format(f['NAME'])
-                else:
-                    ret = ret + T + "[ pos, struct_out.{0} ] = bufread(pos, buf, '{1}', 1);\n".format(f['NAME'], b['MAT_TYPE'])
+                ret = ret + T + "[ pos, struct_out.{0} ] = bufread(pos, buf, '{1}', 1);\n".format(f['NAME'], b['MAT_TYPE'])
             elif f['IS_STRUCT']:
                 ret = ret + T + '[ pos, tmp ] = read_buf_{0}( buf, pos );\n'.format(f['TYPE']) 
                 ret = ret + T + 'struct_out.{0} = tmp;\n'.format(f['NAME']) 
@@ -216,11 +194,7 @@ def create_read_buf(basetypes,structs,struct_name):
             # now read in that many types
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
-                if b['IS_COMPLEX']:
-                    ret = ret + T + T + "[ pos, tmp ] = bufread( pos, buf, '{0}', num_elems*2 );\n".format(b['MAT_TYPE'])
-                    ret = ret + T + T + "struct_out.{0} = complex(tmp(1:2:end-1), tmp(2:2:end));\n".format(f['NAME'])
-                else:
-                    ret = ret + T + T + "[ pos, struct_out.{0} ] = bufread( pos, buf, '{1}', num_elems );\n".format(f['NAME'],b['MAT_TYPE'])
+                ret = ret + T + T + "[ pos, struct_out.{0} ] = bufread( pos, buf, '{1}', num_elems );\n".format(f['NAME'],b['MAT_TYPE'])
             elif f['IS_STRUCT']:
                 # in the case of a vector of structs, 
                 #  we need to declare the vector using the struct 
@@ -254,11 +228,7 @@ def create_write_buf(basetypes,structs,struct_name):
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
-                if b['IS_COMPLEX']:
-                    ret = ret + T + "buf = [buf typecast({0}(real(struct_out.{1})),'uint8')];\n".format(b['MAT_TYPE'],f['NAME'])
-                    ret = ret + T + "buf = [buf typecast({0}(imag(struct_out.{1})),'uint8')];\n".format(b['MAT_TYPE'],f['NAME'])
-                else:
-                    ret = ret + T + "buf = [buf typecast({0}(struct_out.{1}),'uint8')];\n".format(b['MAT_TYPE'],f['NAME'])
+                ret = ret + T + "buf = [buf typecast({0}(struct_out.{1}),'uint8')];\n".format(b['MAT_TYPE'],f['NAME'])
             elif f['IS_STRUCT']:
                 ret = ret + T + "buf = [buf write_buf_{0}(struct_out.{1})];\n".format(f['TYPE'],f['NAME'])
         elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
@@ -274,16 +244,7 @@ def create_write_buf(basetypes,structs,struct_name):
             # now read in that many types
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
-                if b['IS_COMPLEX']:
-                    # flatten the complex data, then write
-                    ret = ret + T + T + 'tmp=zeros(num_elems*2,1);\n'
-                    ret = ret + T + T + 'tmp(1:2:end-1)=real(struct_out.{0});\n'.format(f['NAME'])
-                    ret = ret + T + T + 'tmp(2:2:end)=imag(struct_out.{0});\n'.format(f['NAME'])
-                    #ret = ret + T + T + "fwrite(file_handle,tmp,'{0}');\n".format(b['MAT_TYPE'])
-                    ret = ret + T + T + "buf = [buf typecast({0}(tmp),'uint8')];\n".format(b['MAT_TYPE'])
-                else:
-                    ret = ret + T + T + "buf = [buf typecast({0}(struct_out.{1}),'uint8')];\n".format(b['MAT_TYPE'],f['NAME'])
-                    #ret = ret + T + T + "fwrite(file_handle,struct_out.{0},'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
+                ret = ret + T + T + "buf = [buf typecast({0}(struct_out.{1}),'uint8')];\n".format(b['MAT_TYPE'],f['NAME'])
             elif f['IS_STRUCT']:
                 ret = ret + T + T + 'for ii=1:num_elems\n'   
                 #ret = ret + T + T + T + 'write_binary_{0}(file_handle,struct_out.{1}(ii));\n'.format(f['TYPE'],f['NAME'])
@@ -303,11 +264,7 @@ def create_write_binary(basetypes,structs,struct_name):
         if ['LENGTH'] == 1:
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
-                if b['IS_COMPLEX']:
-                    ret = ret + T + "fwrite(file_handle,real(struct_out.{0}),'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
-                    ret = ret + T + "fwrite(file_handle,imag(struct_out.{0}),'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
-                else:
-                    ret = ret + T + "fwrite(file_handle,struct_out.{0},'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
+                ret = ret + T + "fwrite(file_handle,struct_out.{0},'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
             elif f['IS_STRUCT']:
                 ret = ret + T + 'write_binary_{0}(file_handle,struct_out.{1});\n'.format(f['TYPE'],f['NAME']) 
         elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
@@ -321,14 +278,7 @@ def create_write_binary(basetypes,structs,struct_name):
             # now read in that many types
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
-                if b['IS_COMPLEX']:
-                    # flatten the complex data, then write
-                    ret = ret + T + T + 'tmp=zeros(num_elems*2,1);\n'
-                    ret = ret + T + T + 'tmp(1:2:end-1)=real(struct_out.{0});\n'.format(f['NAME'])
-                    ret = ret + T + T + 'tmp(2:2:end)=imag(struct_out.{0});\n'.format(f['NAME'])
-                    ret = ret + T + T + "fwrite(file_handle,tmp,'{0}');\n".format(b['MAT_TYPE'])
-                else:
-                    ret = ret + T + T + "fwrite(file_handle,struct_out.{0},'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
+                ret = ret + T + T + "fwrite(file_handle,struct_out.{0},'{1}');\n".format(f['NAME'],b['MAT_TYPE'])
             elif f['IS_STRUCT']:
                 ret = ret + T + T + 'for ii=1:num_elems\n'   
                 ret = ret + T + T + T + 'write_binary_{0}(file_handle,struct_out.{1}(ii));\n'.format(f['TYPE'],f['NAME'])

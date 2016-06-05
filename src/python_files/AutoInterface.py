@@ -166,13 +166,6 @@ class AutoGenerator:
             self.structs[struct_name] = struct_def
 
         for base_name, basetype in self.basetypes.items():
-            if 'IS_COMPLEX' not in basetype:
-                basetype['IS_COMPLEX'] = False
-            else:
-                if basetype['IS_COMPLEX'].upper() == "TRUE":
-                    basetype['IS_COMPLEX'] = True
-                else:
-                    basetype['IS_COMPLEX'] = False
 
             # Set CPP_TYPE and STREAM_TIME fields
             if 'CPP_TYPE' not in basetype:

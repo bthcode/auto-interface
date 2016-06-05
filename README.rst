@@ -193,36 +193,135 @@ For example::
 
 The following python will be generated::
 
-    class sample:
-        def __init__(self):
-            self.set_defaults() 
-        # end __init__
+
+   
+    class sAmple(object):
+        """
+        Auto Generated Class sAmple
+        Methods:
+          __init__ : Sets defaults
+          read_binary( file_handle )
+          write_binary( file_handle )
+        """
+        __slots__ = [
+            "fiEld_1",
+            "Field2",
+        ]
+
 
         def __repr__(self):
             ret = ''
-            for key, val in sorted(vars(self).items()):
-                ret = ret + "{0}: {1}\n".format( key, val )
+            for field in self.__slots__:
+                val = getattr(self, field)
+                #for key, val in sorted(vars(self).items()):
+                ret = ret + "{0}: {1}\n".format( field, val )
             return ret
-        # end __repr__
+         # end __repr__
 
         def set_defaults(self):
-            self.field_1 = 0;
-            self.field2 = [ 1,2,3,4,5 ]
+            """
+            Initializes and sets defaults
+            """
+            self.fiEld_1 = 0;
+            self.Field2 = [ 1,2,3,4,5 ]
         # end set_defaults
 
+
+        def from_dict( self, d ):
+            """
+        .. function:: from_dict( dict )
+
+           Read this class from a dict object - useful for JSON
+
+           :param dict       :rtype None
+
+            """
+            if "fiEld_1" in d:
+                self.fiEld_1 = d["fiEld_1"]
+            if "Field2" in d:
+                self.Field2 = []
+                self.Field2 = d["Field2"]
+        # end from_dict
+
+        def to_dict( self ):
+            """
+        .. function:: to_dict()
+
+           Write this class to a dict - useful for JSON
+
+           :rtype dict
+
+            """
+            d = {}
+            d["fiEld_1"] = self.fiEld_1
+            d["Field2"] = []
+            d["Field2"] = self.Field2
+            return d
+        # end to_dict
+
+        def to_json( self ):
+            """
+        .. function:: to_json()
+
+           JSONify this object
+
+           :param None       :rtype string
+
+            """
+            d = self.to_dict()
+            return json.dumps(d)
+        # end to_json
+
+        def from_json( self, r_stream ):
+            """
+        .. function:: from_json()
+
+           read JSON into this object
+
+           :param file handle       :rtype None
+
+            """
+            json_obj = json.loads(r_stream.read())
+            self.from_dict(json_obj)
+        # end from_json
+
         def read_binary( self, r_stream ):
-            self.field_1 = io.read_UINT_8( r_stream )
-            self.field2 = []
-            num_elems = io.read_INT_32( r_stream )
-            self.field2 = io.read_SINGLE( r_stream, nElements=num_elems )
+            """
+        .. function:: read_binary( file_handle )
+
+           Read this class from a packed binary message
+
+           :param r_stream an open filehandle (opened in mode rb )
+           :rtype None
+
+            """
+            self.fiEld_1 = io.read_UINT_8( r_stream )
+            self.Field2 = []
+            num_elems = 5
+            if num_elems > 0:
+                self.Field2 = io.read_SINGLE( r_stream, nElements=num_elems )
+            else:
+                self.Field2 = []
         # end read_binary
 
         def write_binary( self, r_stream, typecheck=False ):
-            io.write_UINT_8( r_stream, self.field_1 )
-            num_elems = len( self.field2 )
-            io.write_INT_32( r_stream, num_elems )
-            io.write_SINGLE( r_stream, self.field2, nElements=num_elems )
+            """
+        .. function:: read_binary( file_handle )
+
+           Write this class to a packed binary message
+
+           :param r_stream an open filehandle (opened in mode wb )
+           :typecheck if True, verify structures are correct type before including in arrays
+           :rtype None
+
+            """
+            io.write_UINT_8( r_stream, self.fiEld_1 )
+            num_elems = 5
+            if num_elems > 0:
+                io.write_SINGLE( r_stream, self.Field2, nElements=num_elems )
         # end write_binary
 
-    # end class sample
+    # end class sAmple
+
+
 
