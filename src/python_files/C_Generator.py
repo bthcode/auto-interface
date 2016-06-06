@@ -688,8 +688,12 @@ def generate_c( src_dir, inc_dir, basetypes, structs, project,struct_order):
     support_dir = python_repo_dir + os.sep  + '..' + os.sep + 'support_files'
     shutil.copy(support_dir + os.sep + 'io_utils.h', inc_dir )
     shutil.copy(support_dir + os.sep + 'io_utils.c', inc_dir )
-    shutil.copy(support_dir + os.sep + 'cJSON.h', inc_dir )
-    shutil.copy(support_dir + os.sep + 'cJSON.c', inc_dir )
+
+    cJSON_dir = python_repo_dir + os.sep + '..' + os.sep + \
+                '..' + os.sep + 'submodules' + os.sep + 'cJSON'
+
+    shutil.copy(cJSON_dir + os.sep + 'cJSON.h', inc_dir )
+    shutil.copy(cJSON_dir + os.sep + 'cJSON.c', inc_dir )
 
     create_c_headers(inc_dir, basetypes, structs, struct_order, project)
     create_c_impls(src_dir, basetypes, structs,project )
