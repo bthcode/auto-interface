@@ -170,6 +170,7 @@ def create_read_binary(basetypes,structs,struct_name):
     return ret
 # end create_read_binary
 
+
 def create_read_buf(basetypes,structs,struct_name):
     ret = 'function [ pos, struct_out ] = read_buf_{0}( buf, pos )\n'.format(struct_name)
     struct_def = structs[struct_name]
@@ -288,6 +289,22 @@ def create_write_binary(basetypes,structs,struct_name):
     return ret
 # end create_write_binary
 
+def create_write_json(basetypes,structs,struct_name):
+    ret = 'function write_json_{0}(fname, struct_out)\n'.format(struct_name)
+    ret = ret + T + "savejson('', struct_out, fname);\n"
+    ret = ret + 'end\n'
+    return ret
+# end create_write_json
+
+def create_read_json(basetypes,structs,struct_name):
+    ret = 'function read_json_{0}(fname, struct_out)\n'.format(struct_name)
+    ret = ret + T + "savejson('', struct_out, fname);\n"
+    ret = ret + 'end\n'
+    return ret
+# end create_write_json
+
+
+
 def create_calc_size(basetypes,structs,struct_name):
     ret = 'function [ struct_size ] = calc_size_{0}(struct_def)\n'.format(struct_name)
     # If size has been calculated: just return it
@@ -343,7 +360,19 @@ def create_read_buf_files(mat_dir,basetypes,structs):
         fOut.write(create_read_buf(basetypes,structs,struct_name))
 # end calc_sizes
 
+def create_write_json_files(mat_dir,basetypes,structs):
+    # run struct creator
+    for struct_name, struct_def in structs.items():
+        fOut = open(mat_dir + os.sep + "write_json_{0}.m".format(struct_name),"w")
+        fOut.write(create_write_json(basetypes,structs,struct_name))
+# end calc_sizes
 
+def create_read_json_files(mat_dir,basetypes,structs):
+    # run struct creator
+    for struct_name, struct_def in structs.items():
+        fOut = open(mat_dir + os.sep + "read_json_{0}.m".format(struct_name),"w")
+        fOut.write(create_read_json(basetypes,structs,struct_name))
+# end calc_sizes
 
 def generate_mat( mat_dir, basetypes, structs ):
     if not os.path.exists(mat_dir):
@@ -354,15 +383,10 @@ def generate_mat( mat_dir, basetypes, structs ):
     jsonlab_dir = python_repo_dir + os.sep + '..' + os.sep + \
                 '..' + os.sep + 'submodules' + os.sep + 'jsonlab'
 
-    #print os.listdir(jsonlab_dir)
-    #import glob
-    #mat_files = glob.glob(jsonlab_dir + os.sep + '*.m')
-    #for fname in mat_files:
-    #    #print fname
-    #    shutil.copy(fname, mat_dir)
-    shutil.copytree(jsonlab_dir, mat_dir + os.sep + 'jsonlab')
-
-    #import sys; sys.exit(1)
+    try:
+        shutil.copytree(jsonlab_dir, mat_dir + os.sep + 'jsonlab')
+    except:
+        print ("jsonlab directory already exists")
 
     create_set_defaults_files(mat_dir,basetypes,structs)
     create_read_binary_files(mat_dir,basetypes,structs)
@@ -370,6 +394,8 @@ def generate_mat( mat_dir, basetypes, structs ):
     create_calc_sizes_files(mat_dir,basetypes,structs)
     create_write_buf_files(mat_dir,basetypes,structs)
     create_read_buf_files(mat_dir,basetypes,structs)
+    create_write_json_files(mat_dir, basetypes, structs)
+    create_read_json_files(mat_dir, basetypes, structs)
 # end generate_mat
 
 if __name__ == "__main__":
