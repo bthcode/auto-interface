@@ -349,6 +349,21 @@ def generate_mat( mat_dir, basetypes, structs ):
     if not os.path.exists(mat_dir):
         os.mkdir(mat_dir)
 
+    # copy in support files
+    python_repo_dir = os.path.dirname(os.path.realpath(__file__))
+    jsonlab_dir = python_repo_dir + os.sep + '..' + os.sep + \
+                '..' + os.sep + 'submodules' + os.sep + 'jsonlab'
+
+    #print os.listdir(jsonlab_dir)
+    #import glob
+    #mat_files = glob.glob(jsonlab_dir + os.sep + '*.m')
+    #for fname in mat_files:
+    #    #print fname
+    #    shutil.copy(fname, mat_dir)
+    shutil.copytree(jsonlab_dir, mat_dir + os.sep + 'jsonlab')
+
+    #import sys; sys.exit(1)
+
     create_set_defaults_files(mat_dir,basetypes,structs)
     create_read_binary_files(mat_dir,basetypes,structs)
     create_write_binary_files(mat_dir,basetypes,structs)
