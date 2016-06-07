@@ -196,15 +196,18 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
                 if f['IS_BASETYPE']:
                     basetype = basetypes[f['TYPE']]
                     def_val = f['DEFAULT_VALUE']
-                    def_str = ''
-                    for idx in range(len(def_val)):
-                        def_str = def_str + '{0},'.format(def_val[idx])
-                    # remove trailing whitespace and comma
-                    def_str = def_str.rstrip()
-                    if def_str[-1] == ',':  
-                        def_str = def_str[:-1]
-                    # set the value
-                    ret = ret + T + T + 'self.{0} = [ {1} ]\n'.format(f['NAME'],def_str)
+                    if len(def_val) == 1:
+                        ret = ret + T + T + 'self.{0} = [{1}] * {2}\n'.format(f['NAME'],def_val[0],f['LENGTH'])
+                    else:
+                        def_str = ''
+                        for idx in range(len(def_val)):
+                            def_str = def_str + '{0},'.format(def_val[idx])
+                        # remove trailing whitespace and comma
+                        def_str = def_str.rstrip()
+                        if def_str[-1] == ',':  
+                            def_str = def_str[:-1]
+                        # set the value
+                        ret = ret + T + T + 'self.{0} = [ {1} ]\n'.format(f['NAME'],def_str)
             elif f['IS_STRUCT']:
                 ret = ret + T + T + 'self.{0} = []\n'.format( f['NAME'] )
                 if type(f['LENGTH']) == int:

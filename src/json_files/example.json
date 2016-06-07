@@ -100,6 +100,13 @@
                 "DESCRIPTION" : "fixed length basetype array",
                 "DEFAULT_VALUE" : [ 1,2,3,4,3,2,1,0 ]
               },
+              {
+               "NAME"  : "m_big_array",
+                "TYPE"  : "UINT_8",
+                "LENGTH" : "2048",
+                "DESCRIPTION" : "fixed length basetype array",
+                "DEFAULT_VALUE" : 0
+              },
               { "NAME"  : "m_struct_array",
                 "TYPE"  : "substruct1",
                 "LENGTH" : 3,

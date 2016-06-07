@@ -151,10 +151,13 @@ class AutoGenerator:
                 elif f['IS_BASETYPE'] and type(f['LENGTH']) == int:
                     # no value
                     if 'DEFAULT_VALUE' not in f:
-                        f['DEFAULT_VALUE'] = [self.basetypes[f['TYPE']]['DEFAULT_VALUE']] * f['LENGTH']
-                    # one value: repeat it
+                        f['DEFAULT_VALUE'] = [self.basetypes[f['TYPE']]['DEFAULT_VALUE']]
+                    # one value as int
+                    elif type(f['DEFAULT_VALUE']) == int:
+                        f['DEFAULT_VALUE'] = [f['DEFAULT_VALUE']] 
+                    # one value in array 
                     elif len(f['DEFAULT_VALUE']) == 1:
-                        f['DEFAULT_VALUE'] = [f['DEFAULT_VALUE']] * f['LENGTH']
+                        f['DEFAULT_VALUE'] = [f['DEFAULT_VALUE'][0]] 
                     # only other ok value is default value is correct length
                     elif len(f['DEFAULT_VALUE']) != f['LENGTH']:
                         print ("Bad Default for {0}: {1}".format(f['NAME'], f['DEFAULT_VALUE']))

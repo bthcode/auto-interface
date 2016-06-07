@@ -112,11 +112,14 @@ def create_set_defaults(basetypes,structs,struct_name):
                 if f['IS_BASETYPE']:
                     basetype = basetypes[f['TYPE']]
                     def_val = f['DEFAULT_VALUE']
-                    def_str = ''
-                    for idx in range(len(def_val)):
-                        def_str = def_str + '{0} '.format(def_val[idx])
-                    # set the value
-                    ret = ret + T + T + 'out.{0} = [ {1} ];\n'.format(f['NAME'],def_str)
+                    if len(f['DEFAULT_VALUE']) == 1:
+                        ret = ret + T + T + 'out.{0} = ones(1,{1})*{2};\n'.format(f['NAME'],f['LENGTH'],def_val[0])
+                    else:
+                        def_str = ''
+                        for idx in range(len(def_val)):
+                            def_str = def_str + '{0} '.format(def_val[idx])
+                        # set the value
+                        ret = ret + T + T + 'out.{0} = [ {1} ];\n'.format(f['NAME'],def_str)
             # type is struct, if vector, if fixed length, fill with defaults
             elif f['IS_STRUCT']:
                 # No method for defaulting structs yet, unless they're fixed length

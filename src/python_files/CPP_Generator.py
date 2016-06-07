@@ -9,7 +9,7 @@ __author__="Brian Hone"
 import json, string, pprint, sys, os
 import shutil
 from AutoInterface import AutoGenerator
-from GPB_Generator import *
+#from GPB_Generator import *
 
 
 T="    "
@@ -432,11 +432,16 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
                 b = basetypes[f['TYPE']]
                 # get default value
                 def_val = f['DEFAULT_VALUE']
-                num_elements = len(def_val)
-                counter=0
-                for idx in range(len(def_val)):
-                    ret = ret + T + '{0}[{1}] = {2};\n'.format(f['NAME'],counter,def_val[idx])
-                    counter = counter+1
+                if len(def_val) == 1:
+                    ret = ret + T + 'for (int ii=0; ii<{0}; ii++){{\n'.format(f['LENGTH'])
+                    ret = ret + T + T + '{0}[ii] = {1};\n'.format(f['NAME'],def_val[0])
+                    ret = ret + T + '}\n'
+                else:
+                    num_elements = len(def_val)
+                    counter=0
+                    for idx in range(len(def_val)):
+                        ret = ret + T + '{0}[{1}] = {2};\n'.format(f['NAME'],counter,def_val[idx])
+                        counter = counter+1
             elif f['IS_STRUCT']:
                 ret = ret + T + 'for ( std::size_t ii=0; ii < {0}; ii++ )\n'.format( f['LENGTH'] )
                 ret = ret + T + '{\n'

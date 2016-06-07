@@ -290,11 +290,16 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 b = basetypes[f['TYPE']]
                 # get default value
                 def_val = f['DEFAULT_VALUE']
-                num_elements = len(def_val)
-                counter=0
-                for idx in range(len(def_val)):
-                    ret = ret + T + 'p_{0}->{1}[{2}] = {3};\n'.format(struct_name,f['NAME'],counter,def_val[idx])
-                    counter = counter+1
+                if len(def_val) == 1:
+                    ret = ret + T + 'for (ii=0; ii<{0}; ii++){{\n'.format(f['LENGTH'])
+                    ret = ret + T + T + 'p_{0}->{1}[ii] = {2};\n'.format(struct_name,f['NAME'],def_val[0])
+                    ret = ret + T + '}\n'
+                else:
+                    num_elements = len(def_val)
+                    counter=0
+                    for idx in range(len(def_val)):
+                        ret = ret + T + 'p_{0}->{1}[{2}] = {3};\n'.format(struct_name,f['NAME'],counter,def_val[idx])
+                        counter = counter+1
             elif f['IS_STRUCT']:
                 ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format( f['LENGTH'] )
                 ret = ret + T + '{\n'
