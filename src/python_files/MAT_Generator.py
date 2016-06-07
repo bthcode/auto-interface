@@ -85,6 +85,12 @@ end
 
 def create_set_defaults(basetypes,structs,struct_name):
     ret = 'function [ out ] = set_defaults_{0}()\n'.format( struct_name )
+    ret = ret + '%% Create a struct {0}\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% USAGE: ret = set_defaults_{0}()\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% See also set_defaults_{0}, calc_size_{0}, write_binary_{0}, read_binary_{0}, write_json_{0}, read_json_{0}, read_buf_{0}, write_buf_{0}\n\n'.format(struct_name)
+
     # set defaults
     struct_def = structs[struct_name]
     for f in struct_def['FIELDS']:
@@ -172,7 +178,12 @@ def create_struct_to_struct(basetypes, structs, struct_name):
 
 
 def create_read_binary(basetypes,structs,struct_name):
-    ret = 'function [ struct_in ] = read_binary_{0}( file_handle )\n'.format(struct_name)
+    ret = 'function [ struct_in ] = read_binary_{0}(file_handle)\n'.format(struct_name)
+    ret = ret + '%% Read one struct {0} from a binary file handle\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% USAGE: ret = read_binary_{0}(file_handle)\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% See also set_defaults_{0}, calc_size_{0}, write_binary_{0}, read_binary_{0}, write_json_{0}, read_json_{0}, read_buf_{0}, write_buf_{0}\n\n'.format(struct_name)
     struct_def = structs[struct_name]
     for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
@@ -215,6 +226,12 @@ def create_read_binary(basetypes,structs,struct_name):
 
 def create_read_buf(basetypes,structs,struct_name):
     ret = 'function [ pos, struct_out ] = read_buf_{0}( buf, pos )\n'.format(struct_name)
+    ret = ret + '%% Read a struct {0} from a buffer\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% USAGE: [ pos, ret ] = read_buf_{0}()\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% See also set_defaults_{0}, calc_size_{0}, write_binary_{0}, read_binary_{0}, write_json_{0}, read_json_{0}, read_buf_{0}, write_buf_{0}\n\n'.format(struct_name)
+
     struct_def = structs[struct_name]
     # create return struct
     ret = ret + T + 'struct_out = set_defaults_{0}();\n'.format(struct_name)
@@ -262,6 +279,12 @@ def create_read_buf(basetypes,structs,struct_name):
 
 def create_write_buf(basetypes,structs,struct_name):
     ret = 'function [ buf ] = write_buf_{0}(struct_out)\n'.format(struct_name)
+    ret = ret + '%% Write a struct {0} to a buffer\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% USAGE: [ buf ] = write_buf_{0}({0}_struct)\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% See also set_defaults_{0}, calc_size_{0}, write_binary_{0}, read_binary_{0}, write_json_{0}, read_json_{0}, read_buf_{0}, write_buf_{0}\n\n'.format(struct_name)
+
 
     # Empty uint8 buf
     ret = ret + T + "buf = zeros(1,0,'uint8');\n" 
@@ -301,6 +324,13 @@ def create_write_buf(basetypes,structs,struct_name):
 
 def create_write_binary(basetypes,structs,struct_name):
     ret = 'function [ success ] = write_binary_{0}(file_handle,struct_out)\n'.format(struct_name)
+    ret = ret + '%% Write a struct {0} to a binary file\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% USAGE: [ success ] = write_binary_{0}(file_handle, {0}_struct)\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% See also set_defaults_{0}, calc_size_{0}, write_binary_{0}, read_binary_{0}, write_json_{0}, read_json_{0}, read_buf_{0}, write_buf_{0}\n\n'.format(struct_name)
+
+
     ret = ret + T + 'success = 0;\n'
     struct_def = structs[struct_name]
     for f in struct_def['FIELDS']:
@@ -333,6 +363,12 @@ def create_write_binary(basetypes,structs,struct_name):
 
 def create_write_json(basetypes,structs,struct_name):
     ret = 'function write_json_{0}(fname, struct_out)\n'.format(struct_name)
+    ret = ret + '%% Write a struct {0} to a json file\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% USAGE: [ success ] = write_json_{0}(file_name, {0}_struct)\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% See also set_defaults_{0}, calc_size_{0}, write_binary_{0}, read_binary_{0}, write_json_{0}, read_json_{0}, read_buf_{0}, write_buf_{0}\n\n'.format(struct_name)
+
     ret = ret + T + "savejson('', struct_out, fname);\n"
     ret = ret + 'end\n'
     return ret
@@ -341,6 +377,12 @@ def create_write_json(basetypes,structs,struct_name):
 
 def create_read_json(basetypes,structs,struct_name):
     ret = 'function [ ret ] =  read_json_{0}(fname)\n'.format(struct_name)
+    ret = ret + '%% Read a struct {0} from a json file\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% USAGE: [ {0}_struct ] = read_json_{0}(file_name)\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% See also set_defaults_{0}, calc_size_{0}, write_binary_{0}, read_binary_{0}, write_json_{0}, read_json_{0}, read_buf_{0}, write_buf_{0}\n\n'.format(struct_name)
+
     ret = ret + T + "tmp = loadjson(fname);\n"
     ret = ret + T + "ret = struct_to_struct_{0}(tmp);\n".format(struct_name)
     ret = ret + 'end\n'
@@ -349,6 +391,12 @@ def create_read_json(basetypes,structs,struct_name):
 
 def create_calc_size(basetypes,structs,struct_name):
     ret = 'function [ struct_size ] = calc_size_{0}(struct_def)\n'.format(struct_name)
+    ret = ret + '%% Calculate the binary size of a struct {0}\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% USAGE: [ bytes ] = calc_size_{0}({0}_struct)\n'.format(struct_name)
+    ret = ret + '%% \n'
+    ret = ret + '%% See also set_defaults_{0}, calc_size_{0}, write_binary_{0}, read_binary_{0}, write_json_{0}, read_json_{0}, read_buf_{0}, write_buf_{0}\n\n'.format(struct_name)
+
     # If size has been calculated: just return it
     struct_def = structs[struct_name]
     if 'SIZE' not in struct_def or struct_def['SIZE'] == None:
