@@ -1,6 +1,0 @@
-[submodule "submodules/cJSON"]
-	path = submodules/cJSON
-	url = https://github.com/DaveGamble/cJSON.git
-[submodule "submodules/jsonlab"]
-	path = submodules/jsonlab
-	url = https://github.com/fangq/jsonlab
