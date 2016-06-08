@@ -28,6 +28,7 @@ stock_includes = \
 #include <vector>
 #include <fstream>
 #include <sstream>
+#include "cJSON.h"
 '''
 
 class_end = \
@@ -41,6 +42,9 @@ class_end = \
     std::size_t read_props( std::map< std::string, std::string>& r_params, std::string& r_prefix );
     void write_binary( std::ofstream& r_out_stream );
     void read_binary( std::ifstream& r_in_stream );
+    void read_json(std::ifstream& r_in_stream);
+    void write_json(std::ofstream& r_out_stream);
+    void parse_json_obj(cJSON * obj);
 
 };
 '''
@@ -128,8 +132,9 @@ def create_struct_generator( basetypes, structs, struct_name, project ):
     ret = ret + T + '%s tmp;\n' % ( struct_name )
     ret = ret + T + 'tmp.set_defaults();\n'
     ret = ret + T + 'std::ofstream out;\n'
-    ret = ret + T + 'out.open( argv[1], std::ios::binary );\n' 
-    ret = ret + T + 'tmp.write_binary(out);\n'
+    ret = ret + T + 'out.open( argv[1] );\n' 
+    #ret = ret + T + 'out.open( argv[1], std::ios::binary );\n' 
+    ret = ret + T + 'tmp.write_json(out);\n'
     ret = ret + T + 'out.close();\n'
     ret = ret + T + 'return 0;\n'
     ret = ret + '}\n'
@@ -155,8 +160,9 @@ def create_struct_printer( basetypes, structs, struct_name, project ):
     ret = ret + T + '}\n'
     ret = ret + T + '%s tmp;\n' % ( struct_name )
     ret = ret + T + 'std::ifstream in;\n'
-    ret = ret + T + 'in.open( argv[1], std::ios::binary );\n'
-    ret = ret + T + 'tmp.read_binary( in );\n'
+    ret = ret + T + 'in.open( argv[1] );\n'
+    #ret = ret + T + 'in.open( argv[1], std::ios::binary );\n'
+    ret = ret + T + 'tmp.read_json( in );\n'
     ret = ret + T + 'std::string prefix( "" );\n'
     ret = ret + T + 'tmp.write_props( std::cout, prefix );\n'
     ## READ IN DATA
@@ -210,6 +216,10 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
     ret = ret + '%s::%s(){}\n\n\n' % (struct_name,struct_name)
 
     ### Read Binary
+    ret = ret + "void %s::read_json( std::ifstream& r_stream ){\n\n" % (struct_name)
+    ret = ret + "}\n\n"
+
+    ### Read Binary
     ret = ret + "void %s::read_binary( std::ifstream& r_stream ){\n\n" % (struct_name)
     for f in struct_def['FIELDS']:
         # get type
@@ -246,6 +256,48 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
                 ret = ret + T + '}\n'
     ret = ret + "}\n\n"
 
+
+    ### Write JSON
+    ret = ret + "void %s::write_json( std::ofstream& r_stream ){\n\n" % (struct_name)
+    ret = ret + T + 'r_stream << "{\\n";\n' # open json
+    nfields = len(struct_def['FIELDS'])
+    for idx, f in enumerate(struct_def['FIELDS']):
+        if f['LENGTH']==1:
+            if f['IS_BASETYPE']:
+                b = basetypes[ f['TYPE'] ]
+                ret = ret + T + 'r_stream << "\\"{0}\\" : " << ({1})({2})'.format(f['NAME'],b['STREAM_CAST'],f['NAME'])
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'r_stream << "\\"{0}\\" : ";\n'.format(f['NAME'])
+                ret = ret + T + '{0}.write_json(r_stream);\n'.format(f['NAME'])
+                ret = ret + T + 'r_stream '
+        elif type(f['LENGTH']) == int or f['LENGTH'] == 'VECTOR':
+            if f['LENGTH'] == 'VECTOR':
+                size_str = '{0}.size()'.format(f['NAME'])
+            else:
+                size_str = '{0}'.format(f['LENGTH'])
+            ret = ret + T + 'r_stream << "\\"{0}\\" : [";\n'.format(f['NAME'])
+            if f['IS_BASETYPE']:
+                b = basetypes[ f['TYPE'] ]
+                ret = ret + T + 'for ( std::size_t ii = 0; ii < {0}-1; ii++ )\n'.format(size_str)
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'r_stream << ({0})({1}[ii]) << ",";\n'.format(b['STREAM_CAST'],f['NAME'])
+                ret = ret + T + '}\n'
+                ret = ret + T + 'r_stream << ({0})({1}[{2}-1]) << "]"'.format(b['STREAM_CAST'],f['NAME'],size_str)
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'for ( std::size_t ii = 0; ii < {0}-1; ii++ )\n'.format(size_str)
+                ret = ret + T + '{\n'
+                ret = ret + T + T + '{0}[ii].write_json( r_stream );\n'.format(f['NAME'])
+                ret = ret + T + T + 'r_stream << ",\\n";\n'
+                ret = ret + T + '}\n'
+                ret = ret + T + '{0}[{1}-1].write_json(r_stream);\n'.format(f['NAME'], size_str)
+                ret = ret + T + 'r_stream << "]" '
+        if idx < nfields-1: 
+            ret = ret + T + ' << ",\\n";\n'
+        else:
+            ret = ret + T + ' << "\\n";\n'
+
+    ret = ret + T + 'r_stream << "}\\n";\n' # close
+    ret = ret + "}\n\n"
 
     ### Write Binary
     ret = ret + "void %s::write_binary( std::ofstream& r_stream ){\n\n" % (struct_name)
@@ -603,19 +655,21 @@ FILE( GLOB GPB_FILES "*.pb.h" "*.pb.cc" )
 
     ret = ret + '\nADD_LIBRARY( {0}_classes ${{CPP_FILES}} ${{GPB_FILES}} )\n\n'.format(proj_name)
 
+    ret = ret + '\nADD_LIBRARY(cJSON cJSON.c)\n\n'
+
     # Sample executables
 
 
     for struct_name, struct_def in structs.items():
         ret = ret + 'ADD_EXECUTABLE( print_{0} print_{0}.cpp )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} {1}_classes {2} )\n\n'.format(struct_name,proj_name,gpb_links) 
+        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} {1}_classes {2} cJSON )\n\n'.format(struct_name,proj_name,gpb_links) 
 
         ret = ret + 'ADD_EXECUTABLE( generate_{0} generate_{0}.cpp )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} {1}_classes {2} )\n\n'.format(struct_name,proj_name,gpb_links) 
+        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} {1}_classes {2} cJSON )\n\n'.format(struct_name,proj_name,gpb_links) 
         
         if gpb:
             ret = ret + 'ADD_EXECUTABLE( test_gpb_{0} test_gpb_{0}.cpp )\n'.format(struct_name)
-            ret = ret + 'TARGET_LINK_LIBRARIES( test_gpb_{0} {1}_classes {2} )\n\n'.format(struct_name,proj_name,gpb_links) 
+            ret = ret + 'TARGET_LINK_LIBRARIES( test_gpb_{0} {1}_classes {2} cJSON )\n\n'.format(struct_name,proj_name,gpb_links) 
 
 
 
@@ -639,12 +693,12 @@ def generate_CPP( cpp_src_dir, cpp_inc_dir, basetypes, structs, struct_order, pr
 
     python_repo_dir = os.path.dirname(os.path.realpath(__file__))
 
-    # utils
-    #shutil.copy( python_repo_dir + os.sep + 'props_parser.cpp', 
-    #             cpp_src_dir + os.sep + 'props_parser.cpp' )
+    support_dir = python_repo_dir + os.sep  + '..' + os.sep + 'support_files'
+    cJSON_dir = python_repo_dir + os.sep + '..' + os.sep + \
+                '..' + os.sep + 'submodules' + os.sep + 'cJSON'
 
-    #shutil.copy( python_repo_dir + os.sep + 'props_parser.h', 
-    #             cpp_inc_dir + os.sep + 'props_parser.h' )
+    shutil.copy(cJSON_dir + os.sep + 'cJSON.h', cpp_inc_dir )
+    shutil.copy(cJSON_dir + os.sep + 'cJSON.c', cpp_src_dir )
 
     # proto file
     if gpb:
