@@ -43,7 +43,7 @@ class_end = \
     void write_binary( std::ofstream& r_out_stream );
     void read_binary( std::ifstream& r_in_stream );
     void read_json(std::ifstream& r_in_stream);
-    void write_json(std::ofstream& r_out_stream);
+    void write_json(std::ofstream& r_out_stream, int indent);
     void parse_json_obj(cJSON * obj);
 
 };
@@ -134,7 +134,7 @@ def create_struct_generator( basetypes, structs, struct_name, project ):
     ret = ret + T + 'std::ofstream out;\n'
     ret = ret + T + 'out.open( argv[1] );\n' 
     #ret = ret + T + 'out.open( argv[1], std::ios::binary );\n' 
-    ret = ret + T + 'tmp.write_json(out);\n'
+    ret = ret + T + 'tmp.write_json(out, 0);\n'
     ret = ret + T + 'out.close();\n'
     ret = ret + T + 'return 0;\n'
     ret = ret + '}\n'
@@ -162,6 +162,7 @@ def create_struct_printer( basetypes, structs, struct_name, project ):
     ret = ret + T + 'std::ifstream in;\n'
     ret = ret + T + 'in.open( argv[1] );\n'
     #ret = ret + T + 'in.open( argv[1], std::ios::binary );\n'
+    ret = ret + T + 'tmp.set_defaults();\n'
     ret = ret + T + 'tmp.read_json( in );\n'
     ret = ret + T + 'std::string prefix( "" );\n'
     ret = ret + T + 'tmp.write_props( std::cout, prefix );\n'
@@ -215,8 +216,62 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
     ### Constructor
     ret = ret + '%s::%s(){}\n\n\n' % (struct_name,struct_name)
 
-    ### Read Binary
-    ret = ret + "void %s::read_json( std::ifstream& r_stream ){\n\n" % (struct_name)
+    ### Read JSON
+    ret = ret + "void {0}::read_json( std::ifstream& r_stream ){{\n".format(struct_name)
+    ret = ret + T + "//Read File into Buffer\n"
+    ret = ret + T + "std::stringstream ss;\n"
+    ret = ret + T + "ss << r_stream.rdbuf();\n"
+    ret = ret + T + "cJSON * json;\n"
+    ret = ret + T + "json = cJSON_Parse(ss.str().c_str());\n"
+    ret = ret + T + "parse_json_obj(json);\n".format(struct_name)
+    ret = ret + T + "cJSON_Delete(json);\n"
+    ret = ret + "}\n\n"
+
+    ### Parse JSON Object
+    ret = ret + "void {0}::parse_json_obj(cJSON * json){{\n".format(struct_name)
+    ret = ret + T + "int ii;\n"
+    ret = ret + T + "int size;\n"
+    ret = ret + T + "cJSON * item;\n"
+    ret = ret + T + "cJSON * subitem;\n"
+    for f in struct_def['FIELDS']:
+        if f['LENGTH'] == 1:
+            if f['IS_BASETYPE']:
+                ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME']) 
+                ret = ret + T + 'if (item) {0} = item->valuedouble;\n'.format(f['NAME'])
+            elif f['IS_STRUCT']:
+                # get json sub obj, call this function
+                ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME'])
+                ret = ret + T + 'if (item) {0}.parse_json_obj(item);\n'.format(f['NAME'])
+                ret = ret + "\n"
+        elif type(f['LENGTH']) == int or f['LENGTH'] == 'VECTOR':
+            ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME'])
+            ret = ret + T + 'if (item) {\n'
+            ret = ret + T + 'ii=0;\n'
+            ret = ret + T + 'size = cJSON_GetArraySize(item);\n'
+            if f['IS_BASETYPE']:
+                if type(f['LENGTH']) == int:
+                    ret = ret + T + T + 'if (size > {0})\n'.format(f['LENGTH'])
+                    ret = ret + T + T + T  + 'size = {0};\n'.format(f['LENGTH'])
+                else:
+                    ret = ret + T + T + '{0}.resize(size);\n'.format(f['NAME'])
+                ret = ret + T + T + 'for (ii = 0 ; ii < size; ii++){\n'
+                ret = ret + T + T + T + '{0}[ii] = cJSON_GetArrayItem(item, ii)->valuedouble;'.format(f['NAME'])
+                ret = ret + T + T + '}\n'
+            elif f['IS_STRUCT']:
+                ret = ret + T + T + 'ii=0;\n'
+                #ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME'])
+                #ret = ret + T + 'size = cJSON_GetArraySize(item);\n'
+                if type(f['LENGTH']) == int:
+                    ret = ret + T + T + 'if (size > {0})\n'.format(f['LENGTH'])
+                    ret = ret + T + T + T + 'size = {0};\n'.format(f['LENGTH'])
+                else:
+                    ret = ret + T + T + '{0}.resize(size);\n'.format(f['NAME'])
+                ret = ret + T + T + 'for (ii = 0 ; ii < size; ii++){\n'
+                ret = ret + T + T + T + 'subitem = cJSON_GetArrayItem(item, ii);\n'
+                ret = ret + T + T + T + '{0}[ii].parse_json_obj(subitem);\n'.format(f['NAME'])
+                ret = ret + T + T + '}\n'
+            ret = ret + T + '} // if (item)\n'
+
     ret = ret + "}\n\n"
 
     ### Read Binary
@@ -258,45 +313,51 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
 
 
     ### Write JSON
-    ret = ret + "void %s::write_json( std::ofstream& r_stream ){\n\n" % (struct_name)
+    ret = ret + "void %s::write_json( std::ofstream& r_stream, int indent ){\n\n" % (struct_name)
     ret = ret + T + 'r_stream << "{\\n";\n' # open json
+    ret = ret + T + "std::string sp(indent, ' ');\n"
+    ret = ret + T + "std::string sp2(indent+2, ' ');\n"
+    ret = ret + T + 'int new_indent = 0;'
     nfields = len(struct_def['FIELDS'])
     for idx, f in enumerate(struct_def['FIELDS']):
         if f['LENGTH']==1:
             if f['IS_BASETYPE']:
                 b = basetypes[ f['TYPE'] ]
-                ret = ret + T + 'r_stream << "\\"{0}\\" : " << ({1})({2})'.format(f['NAME'],b['STREAM_CAST'],f['NAME'])
+                ret = ret + T + 'r_stream << sp2 << "\\"{0}\\" : " << ({1})({2})'.format(f['NAME'],b['STREAM_CAST'],f['NAME'])
             elif f['IS_STRUCT']:
-                ret = ret + T + 'r_stream << "\\"{0}\\" : ";\n'.format(f['NAME'])
-                ret = ret + T + '{0}.write_json(r_stream);\n'.format(f['NAME'])
+                ret = ret + T + 'r_stream << sp2 << "\\"{0}\\" : ";\n'.format(f['NAME'])
+                # 7 spaces = 2 at the beginning + 2 quotes + " : "
+                ret = ret + T + 'new_indent = indent + {0} + 7;\n'.format(len(f['NAME']))
+                ret = ret + T + '{0}.write_json(r_stream, new_indent);\n'.format(f['NAME'])
                 ret = ret + T + 'r_stream '
         elif type(f['LENGTH']) == int or f['LENGTH'] == 'VECTOR':
             if f['LENGTH'] == 'VECTOR':
                 size_str = '{0}.size()'.format(f['NAME'])
             else:
                 size_str = '{0}'.format(f['LENGTH'])
-            ret = ret + T + 'r_stream << "\\"{0}\\" : [";\n'.format(f['NAME'])
+            ret = ret + T + 'r_stream << sp2 <<  "\\"{0}\\" : [";\n'.format(f['NAME'])
             if f['IS_BASETYPE']:
                 b = basetypes[ f['TYPE'] ]
                 ret = ret + T + 'for ( std::size_t ii = 0; ii < {0}-1; ii++ )\n'.format(size_str)
                 ret = ret + T + '{\n'
-                ret = ret + T + T + 'r_stream << ({0})({1}[ii]) << ",";\n'.format(b['STREAM_CAST'],f['NAME'])
+                ret = ret + T + T + 'r_stream << sp2 << ({0})({1}[ii]) << ",";\n'.format(b['STREAM_CAST'],f['NAME'])
                 ret = ret + T + '}\n'
-                ret = ret + T + 'r_stream << ({0})({1}[{2}-1]) << "]"'.format(b['STREAM_CAST'],f['NAME'],size_str)
+                ret = ret + T + 'r_stream << sp2 << ({0})({1}[{2}-1]) << "]"'.format(b['STREAM_CAST'],f['NAME'],size_str)
             elif f['IS_STRUCT']:
+                ret = ret + T + 'new_indent = indent + {0} + 7;\n'.format(len(f['NAME']))
                 ret = ret + T + 'for ( std::size_t ii = 0; ii < {0}-1; ii++ )\n'.format(size_str)
                 ret = ret + T + '{\n'
-                ret = ret + T + T + '{0}[ii].write_json( r_stream );\n'.format(f['NAME'])
-                ret = ret + T + T + 'r_stream << ",\\n";\n'
+                ret = ret + T + T + '{0}[ii].write_json( r_stream, new_indent );\n'.format(f['NAME'])
+                ret = ret + T + T + 'r_stream << sp2 << ",";\n'
                 ret = ret + T + '}\n'
-                ret = ret + T + '{0}[{1}-1].write_json(r_stream);\n'.format(f['NAME'], size_str)
-                ret = ret + T + 'r_stream << "]" '
+                ret = ret + T + '{0}[{1}-1].write_json(r_stream, new_indent);\n'.format(f['NAME'], size_str)
+                ret = ret + T + 'r_stream << sp << "]" '
         if idx < nfields-1: 
-            ret = ret + T + ' << ",\\n";\n'
+            ret = ret + T + ' << "," << sp << "\\n";\n'
         else:
             ret = ret + T + ' << "\\n";\n'
 
-    ret = ret + T + 'r_stream << "}\\n";\n' # close
+    ret = ret + T + 'r_stream << sp << "}";\n' # close
     ret = ret + "}\n\n"
 
     ### Write Binary
