@@ -698,7 +698,7 @@ def generate_c( src_dir, inc_dir, basetypes, structs, project,struct_order):
                 '..' + os.sep + 'submodules' + os.sep + 'cJSON'
 
     shutil.copy(cJSON_dir + os.sep + 'cJSON.h', inc_dir )
-    shutil.copy(cJSON_dir + os.sep + 'cJSON.c', inc_dir )
+    shutil.copy(cJSON_dir + os.sep + 'cJSON.c', src_dir )
 
     create_c_headers(inc_dir, basetypes, structs, struct_order, project)
     create_c_impls(src_dir, basetypes, structs,project )
