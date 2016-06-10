@@ -103,7 +103,7 @@
               {
                "NAME"  : "m_big_array",
                 "TYPE"  : "UINT_8",
-                "LENGTH" : "2048",
+                "LENGTH" : "12",
                 "DESCRIPTION" : "fixed length basetype array",
                 "DEFAULT_VALUE" : 0
               },
