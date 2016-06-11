@@ -419,32 +419,30 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
     for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
-                ret = ret + T + 'p_{0}->{1} = cJSON_GetObjectItem(json, "{1}")->valuedouble;\n'.format(struct_name, f['NAME'])
+                ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME'])
+                ret = ret + T + 'if (item) p_{0}->{1} = item->valuedouble;\n'.format(struct_name, f['NAME'])
             elif f['IS_STRUCT']:
                 # get json sub obj, call this function
                 ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME'])
-                ret = ret + T + 'parse_json_obj_{0}(item, &(p_{1}->{2}));\n'.format(f['TYPE'], struct_name, f['NAME'])
+                ret = ret + T + 'if (item) parse_json_obj_{0}(item, &(p_{1}->{2}));\n'.format(f['TYPE'], struct_name, f['NAME'])
                 ret = ret + "\n"
         elif type(f['LENGTH']) == int:
+            ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME'])
+            ret = ret + T + 'if (item) {\n'
+            ret = ret + T + T + 'ii=0;\n'
+            ret = ret + T + T + 'size = cJSON_GetArraySize(item);\n'
+            ret = ret + T + T + 'if (size > {0})\n'.format(f['LENGTH'])
+            ret = ret + T + T + T + 'size = {0};\n'.format(f['LENGTH'])
             if f['IS_BASETYPE']:
-                ret = ret + T + 'ii=0;\n'
-                ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME'])
-                ret = ret + T + 'size = cJSON_GetArraySize(item);\n'
-                ret = ret + T + 'if (size > {0})\n'.format(f['LENGTH'])
-                ret = ret + T + T + 'size = {0};\n'.format(f['LENGTH'])
-                ret = ret + T + 'for (ii = 0 ; ii < size; ii++){\n'
-                ret = ret + T + T + 'p_{0}->{1}[ii] = cJSON_GetArrayItem(item, ii)->valuedouble;'.format(struct_name, f['NAME'])
+                ret = ret + T + T + 'for (ii = 0 ; ii < size; ii++){\n'
+                ret = ret + T + T + T + 'p_{0}->{1}[ii] = cJSON_GetArrayItem(item, ii)->valuedouble;'.format(struct_name, f['NAME'])
                 ret = ret + T + '}\n'
             elif f['IS_STRUCT']:
-                ret = ret + T + 'ii=0;\n'
-                ret = ret + T + 'item = cJSON_GetObjectItem(json, "{0}");\n'.format(f['NAME'])
-                ret = ret + T + 'size = cJSON_GetArraySize(item);\n'
-                ret = ret + T + 'if (size > {0})\n'.format(f['LENGTH'])
-                ret = ret + T + T + 'size = {0};\n'.format(f['LENGTH'])
-                ret = ret + T + 'for (ii = 0 ; ii < size; ii++){\n'
-                ret = ret + T + T + 'subitem = cJSON_GetArrayItem(item, ii);\n'
-                ret = ret + T + T + 'parse_json_obj_{0}(subitem, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'], struct_name, f['NAME'])
+                ret = ret + T + T +  'for (ii = 0 ; ii < size; ii++){\n'
+                ret = ret + T + T + T + 'subitem = cJSON_GetArrayItem(item, ii);\n'
+                ret = ret + T + T + T + 'parse_json_obj_{0}(subitem, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'], struct_name, f['NAME'])
                 ret = ret + T + '}\n'
+            ret = ret + T + '}\n' # if item
     ret = ret + T + "}\n\n"
 
 
