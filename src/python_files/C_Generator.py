@@ -28,7 +28,7 @@ void write_binary_{0}( FILE * r_out_stream, {0} * p_{0} );
 void read_binary_{0}( FILE * r_in_stream, {0} * p_{0} );
 void alloc_{0}( {0} * p_{0} );
 void dealloc_{0}( {0} * p_{0} );
-void write_json_{0}(FILE * r_out_stream, {0} * p_{0});
+void write_json_{0}(FILE * r_out_stream, {0} * p_{0}, indent);
 void read_json_{0}(FILE * r_in_stream, {0} * p_{0});
 void parse_json_obj_{0}(cJSON * obj, {0} * p_{0});
 '''
@@ -360,24 +360,36 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 ret = ret + T + '}\n\n'
     ret = ret + '}\n\n'
 
-    ret = ret + "void write_json_{0}( FILE * r_stream, {0} * p_{0} )\n".format(struct_name)
+    ret = ret + "void write_json_{0}( FILE * r_stream, {0} * p_{0}, int indent )\n".format(struct_name)
     ret = ret + '{\n'
     ret = ret + T + 'char buf[1024];\n'
     ret = ret + T + 'int num_written;\n'
     ret = ret + T + 'int32_t ii=0;\n'
+    ret = ret + T + '// make spaces\n'
+    ret = ret + T + 'char * sp = (char*) malloc(indent+1);\n'
+    ret = ret + T + 'char * sp2 = (char*) malloc(indent+3);\n'
+    ret = ret + T + 'for (ii=0; ii< indent; ii++){\n'
+    ret = ret + T + T + "sp[ii] = ' ';\n"
+    ret = ret + T + '}\n'
+    ret = ret + T + "sp[indent] = '\0';\n"
+    ret = ret + T + 'for (ii=0; ii<indent+2; ii++){\n'
+    ret = ret + T + T + "sp2[ii] = ' ';\n"
+    ret = ret + T + '}\n'
+    ret = ret + T + "sp2[indent+2] = '\0';"
+
     ret = ret + T + 'fprintf(r_stream, "{\\n");\n'
     for idx, f in enumerate(struct_def['FIELDS']):
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
-                ret = ret + T + 'fprintf( r_stream, "\\"{0}\\" : " );\n'.format(f['NAME'])
+                ret = ret + T + 'fprintf( r_stream, "%s  \\"{0}\\" : ", sp );\n'.format(f['NAME'])
                 ret = ret + T + 'print_{0}( r_stream, 1, \',\', &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
                 if idx == len(struct_def['FIELDS'])-1:
                     ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
                 else:
                     ret = ret + T + 'fprintf( r_stream, ",\\n" );\n'
             elif f['IS_STRUCT']:
-                ret = ret + T + 'fprintf( r_stream, "\\"{0}\\" : " );\n'.format(f['NAME'])
-                ret = ret + T + 'write_json_{0}(r_stream,&(p_{1}->{2}));\n'.format(f['TYPE'],struct_name,f['NAME'])
+                ret = ret + T + 'fprintf( r_stream, "%s  \\"{0}\\" : ", sp );\n'.format(f['NAME'])
+                ret = ret + T + 'write_json_{0}(r_stream,&(p_{1}->{2}),indent+{3});\n'.format(f['TYPE'],struct_name,f['NAME'], len(f['NAME'])+7)
                 if idx == len(struct_def['FIELDS'])-1:
                     ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
                 else:
@@ -385,7 +397,7 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 ret = ret + "\n"
         elif type( f['LENGTH'] ) == int:
             if f['IS_BASETYPE']:
-                ret = ret + T + 'fprintf( r_stream, "\\"{0}\\" : [ " );\n'.format(f['NAME'])
+                ret = ret + T + 'fprintf( r_stream, "%s  \\"{0}\\" : [ ",sp );\n'.format(f['NAME'])
                 ret = ret + T + 'print_{0}( r_stream, {3}, \',\', &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME'],f['LENGTH']);
                 if idx == len(struct_def['FIELDS'])-1:
                     ret = ret + T + 'fprintf( r_stream, "]\\n" );\n'
@@ -393,10 +405,10 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                     ret = ret + T + 'fprintf( r_stream, "],\\n" );\n'
 
             elif f['IS_STRUCT']:
-                ret = ret + T + 'fprintf( r_stream, "\\"{0}\\" : [ " );\n'.format(f['NAME'])
+                ret = ret + T + 'fprintf( r_stream, "%s  \\"{0}\\" : [ ", sp );\n'.format(f['NAME'])
                 ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
                 ret = ret + T + '{\n'
-                ret = ret + T + T + 'write_json_{0}(r_stream, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'],struct_name,f['NAME'])
+                ret = ret + T + T + 'write_json_{0}(r_stream, &(p_{1}->{2}[ii]),indent+{3});\n'.format(f['TYPE'],struct_name,f['NAME'],len(f['NAME'])+7)
                 ret = ret + T + T + 'if (ii<{0})\n'.format(f['LENGTH']-1)
                 ret = ret + T + T + '    printf(",");\n'
                 ret = ret + T + '}\n'
@@ -407,7 +419,9 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 else:
                     ret = ret + T + 'fprintf( r_stream, "],\\n" );\n'
 
-    ret = ret + T + 'fprintf(r_stream, "}\\n");\n'
+    ret = ret + T + 'fprintf(r_stream, "%s}",sp);\n'
+    ret = ret + T + 'free(sp);\n'
+    ret = ret + T + 'free(sp2);\n'
     ret = ret + '}\n\n'
 
     # Read from json obj into struct
@@ -500,7 +514,7 @@ def create_json_reader_for_struct(basetypes, structs, struct_name, project):
     ret = ret + T + 'FILE * fin = fopen( argv[1], "rb" );\n'
     ret = ret + T + '{0} x;\n'.format(struct_name)
     ret = ret + T + 'read_json_{0}(fin,&x);\n'.format(struct_name)
-    ret = ret + T + 'write_json_{0}(stdout,&x);\n'.format(struct_name)
+    ret = ret + T + 'write_json_{0}(stdout,&x,0);\n'.format(struct_name)
     ret = ret + T + 'dealloc_{0}(&x);\n'.format(struct_name)
     ret = ret + T + 'fclose(fin);\n\n'
     ret = ret + T + 'return 0;\n'
