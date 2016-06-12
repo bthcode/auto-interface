@@ -139,42 +139,45 @@ def create_set_defaults(basetypes,structs,struct_name):
 # end create_set_defaults
 
 def create_struct_to_struct(basetypes, structs, struct_name):
-    ret = 'function [ struct_out ] =  struct_to_struct_{0}(struct_in)\n'.format(struct_name)
+    '''BTH HERE'''
+    ret = 'function [ struct_out ] =  struct_to_struct_{0}(json_struct)\n'.format(struct_name)
     struct_def = structs[struct_name]
     for f in struct_def['FIELDS']:
+        ret = ret + T + "if isfield(json_struct, '{0}')\n".format(f['NAME'])
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
-                ret = ret + T + "struct_out.{0} = {1}(struct_in.{0});\n".format(f['NAME'],b['MAT_TYPE'])
+                ret = ret + T + T + "struct_out.{0} = {1}(json_struct.{0});\n".format(f['NAME'],b['MAT_TYPE'])
             elif f['IS_STRUCT']:
-                ret = ret + T + 'struct_out.{0} = struct_to_struct_{1}(struct_in.{0});\n'.format(f['NAME'],f['TYPE']) 
+                ret = ret + T + T + 'struct_out.{0} = struct_to_struct_{1}(json_struct.{0});\n'.format(f['NAME'],f['TYPE']) 
         elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
             if f['LENGTH'] == 'VECTOR':
-                ret = ret + T + "num_elems = length(struct_in.{0});\n".format(f['NAME'])
+                ret = ret + T + T + "num_elems = length(json_struct.{0});\n".format(f['NAME'])
             else:
-                ret = ret + T + "num_elems = max({0},length(struct_in.{1}));\n".format(f['LENGTH'],f['NAME'])
+                ret = ret + T + T + "num_elems = max({0},length(json_struct.{1}));\n".format(f['LENGTH'],f['NAME'])
 
-            ret = ret + T + 'if num_elems > 0\n'
+            ret = ret + T + T + 'if num_elems > 0\n'
             # now read in that many types
             if f['IS_BASETYPE']:
                 b = basetypes[f['TYPE']]
-                ret = ret + T + T + "struct_out.{0} = {1}(struct_in.{0}(1:num_elems));\n".format(f['NAME'], b['MAT_TYPE'])
+                ret = ret + T + T + T + "struct_out.{0} = {1}(json_struct.{0}(1:num_elems));\n".format(f['NAME'], b['MAT_TYPE'])
             elif f['IS_STRUCT']:
                 # in the case of a vector of structs, 
                 #  we need to declare the vector using the struct 
                 #  (hence the if i==1 below)
-                ret = ret + T + T + 'struct_out.{0} = [];\n'.format(f['NAME'])
-                ret = ret + T + T + 'for ii=1:num_elems\n'   
-                ret = ret + T + T + T + 'tmp=struct_to_struct_{0}(struct_in.{1}{{ii}});\n'.format(f['TYPE'],f['NAME'])
-                ret = ret + T + T + T + 'if ii==1\n'
-                ret = ret + T + T + T + T + 'struct_out.{0} = [tmp];\n'.format(f['NAME'])
-                ret = ret + T + T + T + 'else\n'
-                ret = ret + T + T + T + T + 'struct_out.{0}(end+1)=tmp;\n'.format(f['NAME'])
+                ret = ret + T + T + T + 'struct_out.{0} = [];\n'.format(f['NAME'])
+                ret = ret + T + T + T + 'for ii=1:num_elems\n'   
+                ret = ret + T + T + T + T + 'tmp=struct_to_struct_{0}(json_struct.{1}{{ii}});\n'.format(f['TYPE'],f['NAME'])
+                ret = ret + T + T + T + T + 'if ii==1\n'
+                ret = ret + T + T + T + T + T + 'struct_out.{0} = [tmp];\n'.format(f['NAME'])
+                ret = ret + T + T + T + T + 'else\n'
+                ret = ret + T + T + T + T + T + 'struct_out.{0}(end+1)=tmp;\n'.format(f['NAME'])
+                ret = ret + T + T + T + T + 'end\n'
                 ret = ret + T + T + T + 'end\n'
-                ret = ret + T + T + 'end\n'
-            ret = ret + T + 'else\n' # if num_elems > 0
-            ret = ret + T + T + 'struct_in.{0} = [];\n'.format(f['NAME'])
-            ret = ret + T + 'end\n'
+            ret = ret + T + T + 'else\n' # if num_elems > 0
+            ret = ret + T + T + T + 'json_struct.{0} = [];\n'.format(f['NAME'])
+            ret = ret + T + T + 'end\n'
+        ret = ret + T + 'end % isfield\n\n'
     ret = ret + 'end\n'
     return ret
 # end struct_to_struct
