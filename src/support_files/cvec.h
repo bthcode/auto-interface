@@ -16,6 +16,8 @@ void cvec_delete(cvec *);
 int cvec_get(cvec * p, size_t index, void * res);
 int cvec_append(cvec *p, void * val);
 int cvec_set(cvec * p, size_t index, void* val);
+int cvec_resize(cvec *p, size_t size);
+size_t cvec_next_pwr_of_two(size_t start);
 
 
 #endif

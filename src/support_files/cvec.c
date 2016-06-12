@@ -4,11 +4,19 @@
 #define DEBUG_CVEC 0
 #define GROWTH_FACTOR 4
 
+size_t cvec_next_pwr_of_two(size_t start)
+{
+    size_t power = 1;
+    while(power <= start)
+        power*=2;
+    return power;
+}
+
 cvec * cvec_create(size_t size, size_t width)
 {
     cvec * ret = (cvec *) malloc(sizeof(cvec));
     ret->size = size;
-    ret->capacity = size*2;
+    ret->capacity = cvec_next_pwr_of_two(size);
     // always start with at least some capacity
     if (ret->capacity < 4)
     {
@@ -72,6 +80,21 @@ int cvec_append(cvec * p, void *val)
     memcpy( ((char*) (p->data)) + (p->size)*(p->width), 
             (char*) val, p->width);
     p->size++;
+    return 0;
+}
+
+int cvec_resize(cvec *p, size_t size)
+{
+    size_t new_capacity = cvec_next_pwr_of_two(size);
+    void * buf = (void*) malloc (new_capacity*p->width);
+    memcpy(buf, p->data, p->width*size);
+    p->capacity = new_capacity;
+
+    // 3. free the old one
+    free(p->data);
+    p->data = buf;
+    p->size = size;
+    if (DEBUG_CVEC) printf("new size = %lu:%lu\n", p->size, p->capacity);
     return 0;
 }
 
