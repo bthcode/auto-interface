@@ -1,20 +1,36 @@
 #include "cvec.h"
 #include <string.h> // memcpy
 
-#define DEBUG_CVEC 0
+#define DEBUG_CVEC 1
 #define GROWTH_FACTOR 4
 
-size_t cvec_next_pwr_of_two(size_t start)
+uint32_t cvec_next_pwr_of_two(size_t start)
 {
-    size_t power = 1;
+    uint32_t power = 1;
     while(power <= start)
         power*=2;
     return power;
 }
 
-cvec * cvec_create(size_t size, size_t width)
+void cvec_init(cvec* p, uint32_t size, size_t width)
+{
+    p->size = size;
+    p->capacity = cvec_next_pwr_of_two(size);
+    // always start with at least some capacity
+    if (p->capacity < 4)
+    {
+        p->capacity = 4;
+    }
+    p->width = width;
+    p->data = (void *) malloc( p->capacity*width );
+    memset((char*)(p->data), 0, p->capacity*width);
+}
+
+cvec * cvec_create(uint32_t size, size_t width)
 {
     cvec * ret = (cvec *) malloc(sizeof(cvec));
+    cvec_init(ret, size, width);
+    /*
     ret->size = size;
     ret->capacity = cvec_next_pwr_of_two(size);
     // always start with at least some capacity
@@ -25,10 +41,11 @@ cvec * cvec_create(size_t size, size_t width)
     ret->width = width;
     ret->data = (void *) malloc( ret->capacity*width );
     memset((char*)(ret->data), 0, ret->capacity*width);
+    */
     return ret;
 }
 
-int cvec_get(cvec * p, size_t index, void * res )
+int cvec_get(cvec * p, uint32_t index, void * res )
 {
     if (index+1 > p->size)
     {
@@ -44,7 +61,7 @@ int cvec_get(cvec * p, size_t index, void * res )
 
 }
 
-int cvec_set(cvec * p, size_t index, void * val)
+int cvec_set(cvec * p, uint32_t index, void * val)
 {
     if (index+1 > p->size)
     {
@@ -65,7 +82,7 @@ int cvec_append(cvec * p, void *val)
     {
         if (DEBUG_CVEC) printf("RESIZE OPERATION\n");
         // 1. create a new vector
-        size_t new_size = p->capacity*GROWTH_FACTOR;
+        uint32_t new_size = p->capacity*GROWTH_FACTOR;
         void * buf = (void*) malloc (new_size*p->width);
         // 2. memcpy
         memcpy(buf, p->data, p->width*p->size);
@@ -83,9 +100,9 @@ int cvec_append(cvec * p, void *val)
     return 0;
 }
 
-int cvec_resize(cvec *p, size_t size)
+int cvec_resize(cvec *p, uint32_t size)
 {
-    size_t new_capacity = cvec_next_pwr_of_two(size);
+    uint32_t new_capacity = cvec_next_pwr_of_two(size);
     void * buf = (void*) malloc (new_capacity*p->width);
     memcpy(buf, p->data, p->width*size);
     p->capacity = new_capacity;
@@ -98,13 +115,27 @@ int cvec_resize(cvec *p, size_t size)
     return 0;
 }
 
+void cvec_cleanup(cvec * p)
+{
+    if (NULL != p->data)
+    {
+        free(p->data);
+    }
+    p->size = 0;
+    p->capacity = 0;
+    p->width = 0;
+}
+
 void cvec_delete(cvec * p)
 {
+/*
     // Clear the data array
     if (NULL != p->data)
     {
         free(p->data);
     }
+*/
+    cvec_cleanup(p);
     // Clear the main pointer
     if (NULL != p)
     {

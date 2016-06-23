@@ -82,7 +82,8 @@
               },
               { "NAME"  : "m_empty_vector",
                 "TYPE"  : "DOUBLE",
-                "LENGTH" : "1",
+                "LENGTH" : "VECTOR",
+                "DEFAULT_VALUE" : [ 5,5,5,1,2,1,2],
                 "DESCRIPTION" : "vector of doubles"
               },
               { "NAME"  : "m_substruct1",
@@ -110,6 +111,12 @@
               { "NAME"  : "m_struct_array",
                 "TYPE"  : "substruct1",
                 "LENGTH" : 3,
+                "DESCRIPTION" : "fixed length struct array"
+              },
+
+              { "NAME"  : "m_struct_vector",
+                "TYPE"  : "substruct1",
+                "LENGTH" : "VECTOR",
                 "DESCRIPTION" : "fixed length struct array"
               }
 

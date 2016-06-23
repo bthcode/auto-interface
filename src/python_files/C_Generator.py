@@ -26,9 +26,10 @@ void set_defaults_{0}( {0} * p_{0} );
 void write_props_{0}( FILE * r_stream, const char * prefix, int prefix_len, {0} * p_{0} );
 void write_binary_{0}( FILE * r_out_stream, {0} * p_{0} );
 void read_binary_{0}( FILE * r_in_stream, {0} * p_{0} );
+void init_{0}( {0} * p_{0} );
 void alloc_{0}( {0} * p_{0} );
 void dealloc_{0}( {0} * p_{0} );
-void write_json_{0}(FILE * r_out_stream, {0} * p_{0}, indent);
+void write_json_{0}(FILE * r_out_stream, {0} * p_{0}, int indent);
 void read_json_{0}(FILE * r_in_stream, {0} * p_{0});
 void parse_json_obj_{0}(cJSON * obj, {0} * p_{0});
 '''
@@ -128,15 +129,7 @@ def create_c_struct_header( basetypes, structs, struct_name ):
         elif type(f['LENGTH']) == int:
             ret = ret + T + "{0} {1}[{2}]; ///<{3}\n".format(c_decl,f['NAME'],f['LENGTH'],f['DESCRIPTION'])
         elif f['LENGTH'] == 'VECTOR':
-            if f['IS_STRUCT']:
-                c_decl = '{0} *'.format(f['TYPE'])
-            elif f['IS_BASETYPE']:
-                c_decl = '{0} *'.format( basetypes[f['TYPE']]['C_TYPE'])
-            else:
-                print ('ERROR - vector with unknown type or no CONTAINED_TYPE key')
-                sys.exit(1)
-            ret = ret + T + "{0}  {1}; ///<{2}\n".format( c_decl, f['NAME'], f['DESCRIPTION'] )
-            ret = ret + T + "int32_t n_elements_{0};\n".format( f['NAME'] )
+            ret = ret + T + "cvec {0}; ///<{1}\n".format( f['NAME'], f['DESCRIPTION'] )
 
 
     ret = ret + "\n}} {0} ;\n".format( struct_name )
@@ -152,6 +145,24 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
     struct_def = structs[ struct_name ]
 
     ret = ''
+
+    ### Init
+    ret = ret + 'void init_{0} ( {0} * p_{0} )\n{{\n'.format(struct_name)
+    ret = ret + T + 'int32_t ii;\n'
+    for f in struct_def['FIELDS']:
+        if f['IS_STRUCT']:
+            if f['LENGTH'] == 1:
+                ret = ret + T + 'init_{0}( &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME'])
+            elif type(f['LENGTH']) == int:
+                ret = ret + T + 'for (ii=0; ii<{0}; ii++ )\n'.format(f['LENGTH'])
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'init_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
+                ret = ret + T + '}\n'
+            elif f['LENGTH'] == 'VECTOR':
+                ret = ret + T + 'cvec_init(&(p_{0}->{1}), 0, sizeof({2}));\n'.format(struct_name,f['NAME'], f['TYPE'])
+        elif f['LENGTH'] == 'VECTOR':
+                ret = ret + T + 'cvec_init(&(p_{0}->{1}), 0, sizeof({2}));\n'.format(struct_name,f['NAME'], basetypes[f['TYPE']]['C_TYPE'])
+    ret = ret + "}\n\n"
 
     ### Allocate
     ret = ret + 'void alloc_{0} ( {0} * p_{0} )\n{{\n'.format(struct_name)
@@ -175,13 +186,13 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 ret = ret + T + T + 'dealloc_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + T + '}\n'
             elif f['LENGTH'] == 'VECTOR':
-                ret = ret + T + 'for (ii=0; ii<p_{0}->n_elements_{1}; ii++ )\n'.format(struct_name,f['NAME'])
+                ret = ret + T + 'for (ii=0; ii<p_{0}->{1}.size; ii++ )\n'.format(struct_name,f['NAME'])
                 ret = ret + T + '{\n'
-                ret = ret + T + T + 'dealloc_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
+                ret = ret + T + T + '{0} * tmp = ({0} *) (p_{1}->{2}).data;\n'.format(f['TYPE'], struct_name, f['NAME'])
+                ret = ret + T + T + 'dealloc_{0}( &(tmp[ii]) );\n'.format(f['TYPE'])
                 ret = ret + T + '}\n'
-                ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 ){{free( p_{0}->{1} );}}\n'.format(struct_name,f['NAME'])
-                ret = ret + T + 'p_{0}->n_elements_{1} = 0;\n'.format(struct_name,f['NAME'])
-                ret = ret + T + 'p_{0}->{1} = 0x0;\n'.format(struct_name,f['NAME'])
+        if f['LENGTH'] == 'VECTOR':
+            ret = ret + T + 'cvec_cleanup( &(p_{0}->{1}) );\n'.format(struct_name,f['NAME'])
     ret = ret + "}\n\n"
 
     ### Read Binary 
@@ -203,34 +214,37 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 ret = ret + T + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + T + '}\n'
         elif f['LENGTH'] == 'VECTOR':
-            ret = ret + T + "int32_t n_elements_{0};\n".format(f['NAME'])
-            ret = ret + T + 'read_INT_32(r_stream,1,&(n_elements_{0}));\n'.format(f['NAME'])
-            ret = ret + T + 'p_{0}->n_elements_{1} = n_elements_{1};\n'.format(struct_name,f['NAME'])
+            ret = ret + T + "uint32_t n_elements_{0};\n".format(f['NAME'])
+            ret = ret + T + 'read_UINT_32(r_stream,1,&(n_elements_{0}));\n'.format(f['NAME'])
             if f['IS_BASETYPE']:
                 ctype = basetypes[f['TYPE']]['C_TYPE']
                 # ALLOC SPACE
-                ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
+                ret = ret + T + 'if (n_elements_{0} > 0 )'.format(f['NAME'])
                 ret = ret + T + '{\n'
-                ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
-                ret = ret + T + T + 'read_{0}(r_stream, n_elements_{2}, p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME'])
+                ret = ret + T + T + 'cvec_resize(&(p_{0}->{1}), n_elements_{1});\n'.format(struct_name,f['NAME'])
+                ret = ret + T + T + 'read_{0}(r_stream, n_elements_{1}, (p_{2}->{1}).data);\n'.format(f['TYPE'],f['NAME'], struct_name)
                 ret = ret + T + '}\n'
                 ret = ret + T + 'else\n'
-                ret = ret + T + T + 'p_{0}->{1} = 0x0;\n'.format(struct_name,f['NAME'])
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'p_{0}->{1}.size = 0;\n'.format(struct_name, f['NAME'])
+                ret = ret + T + '}\n'
                 ret = ret + "\n"
             elif f['IS_STRUCT']:
                 ctype = f['TYPE']
                 # Allocate space for pointers
-                ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
+                ret = ret + T + 'if (n_elements_{0} > 0 )'.format(f['NAME'])
                 ret = ret + T + '{\n'
-                ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
+                ret = ret + T + T + 'cvec_resize(&(p_{0}->{1}), n_elements_{1});\n'.format(struct_name,f['NAME']) 
+                ret = ret + T + T + 'for (ii=0; ii < n_elements_{0}; ii++) {{\n'.format(f['NAME'])
+                ret = ret + T + T + T + '{0} * tmp = ({0} *) (p_{1}->{2}).data;\n'.format(f['TYPE'], struct_name, f['NAME'])
+                ret = ret + T + T + T + 'read_binary_{0}(r_stream, &(tmp[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
+                ret = ret + T + T + '}\n'
                 ret = ret + T + '}\n'
                 ret = ret + T + 'else\n'
-                ret = ret + T + T + 'p_{0}->{1} = 0x0;\n\n'.format(struct_name,f['NAME'])
-                ret = ret + T + 'for (ii=0; ii < p_{0}->n_elements_{1}; ii++) {{\n'.format(struct_name,f['NAME'])
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'p_{0}->{1}.size = 0;\n'.format(struct_name, f['NAME'])
+                ret = ret + T + '}\n'
                 ret = ret + "\n"
-                # For each pointer, call read binary
-                ret = ret + T + T + 'read_binary_{0}(r_stream, &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
-                ret = ret + T + '}\n\n'
     ret = ret + "}\n\n"
 
     ### Write Binary 
@@ -253,14 +267,15 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 ret = ret + T + '}\n'
                 ret = ret + "\n"
         elif f['LENGTH'] == 'VECTOR':
-            ret = ret + T + 'write_INT_32(r_stream,1,&(p_{0}->n_elements_{1}));\n'.format(struct_name,f['NAME'])
+            ret = ret + T + 'write_UINT_32(r_stream,1,&((p_{0}->{1}).size));\n'.format(struct_name,f['NAME'])
             if f['IS_BASETYPE']:
-                ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
-                ret = ret + T + T + 'write_{0}(r_stream,p_{1}->n_elements_{2},p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME']) 
+                ret = ret + T + 'if (p_{0}->{1}.size > 0 )\n'.format(struct_name,f['NAME'])
+                ret = ret + T + T + 'write_{0}(r_stream,(p_{1}->{2}).size,(p_{1}->{2}).data);\n'.format(f['TYPE'],struct_name,f['NAME']) 
             elif f['IS_STRUCT']:
-                ret = ret + T + 'for (ii=0; ii< p_{0}->n_elements_{1}; ++ii )\n'.format(struct_name,f['NAME'])
+                ret = ret + T + 'for (ii=0; ii< p_{0}->{1}.size; ++ii )\n'.format(struct_name,f['NAME'])
                 ret = ret + T + '{\n'
-                ret = ret + T + T + 'write_binary_{0}(r_stream, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'], struct_name, f['NAME'])
+                ret = ret + T + T + '{0} * tmp = ({0} *) (p_{1}->{2}).data;\n'.format(f['TYPE'], struct_name, f['NAME'])
+                ret = ret + T + T + 'write_binary_{0}(r_stream, &(tmp[ii]));\n'.format(f['TYPE'])
                 ret = ret + T + '}\n\n'
     ret = ret + "}\n\n"
 
@@ -307,6 +322,29 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 ret = ret + T + '}\n'
 
         elif f['LENGTH'] == 'VECTOR':
+            if 'DEFAULT_VALUE' in f:
+                if f['IS_BASETYPE']:
+                    b = basetypes[f['TYPE']]
+                    # get default value
+                    if 'DEFAULT_VALUE' in f:
+                        def_val = f['DEFAULT_VALUE']
+                    if len(def_val) == 1:
+                        pass
+                    else:
+                        # format for complex or not
+                        num_elements = len(def_val)
+                        ret = ret + T + 'cvec_resize(&(p_{0}->{1}), {2});\n'.format(struct_name,f['NAME'],num_elements)
+                        ret = ret + T + '{0} * tmp = ({0} *) (p_{1}->{2}).data;\n'.format(b['C_TYPE'], struct_name, f['NAME'])
+                        counter=0
+                        for idx in range(len(def_val)):
+                            ret = ret + T + 'tmp[{0}] = {1};\n'.format(counter,def_val[idx])
+                            counter = counter+1
+
+                elif f['IS_STRUCT']:
+                    pass
+                else:
+                    print ("Unknown vector type: {0}".format(f['TYPE']))
+
             print ("WARNING: Setting Default Length for VECTOR Type in C not supported")
             
 
@@ -345,19 +383,21 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 ret = ret + "\n"
         elif f['LENGTH'] == 'VECTOR':
             if f['IS_BASETYPE']:
+                b = basetypes[f['TYPE']]
                 ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
                 ret = ret + T + 'fprintf( r_stream, "{0} :" );\n'.format(f['NAME'])
-                ret = ret + T + 'print_{0}(r_stream,p_{1}->n_elements_{2}, \' \', p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME']) 
+                ret = ret + T + '{0} * tmp = ({0} *) (p_{1}->{2}).data;\n'.format(b['C_TYPE'], struct_name, f['NAME'])
+                ret = ret + T + 'print_{0}(r_stream,p_{1}->{2}.size, \' \', tmp);\n'.format(f['TYPE'],struct_name,f['NAME']) 
                 ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
-            elif f['IS_STRUCT']:
-                ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
-                ret = ret + T + 'fprintf( r_stream, "{0} :\\n");\n'.format(f['NAME'])
-                ret = ret + T + 'for (ii=0; ii< p_{0}->n_elements_{1}; ++ii )\n'.format(struct_name,f['NAME'])
-                ret = ret + T + '{\n'
-                ret = ret + T + T + 'num_written = snprintf( buf, 1024, "%s.{0}[ %d ]", prefix, ii );\n'.format(f['NAME']) 
-                ret = ret + T + T + 'buf[ num_written ] = 0x0;\n'
-                ret = ret + T + T + 'write_props_{0}(r_stream, prefix, prefix_len,&(p_{1}->{2}[ii]));\n'.format(f['TYPE'], struct_name, f['NAME'])
-                ret = ret + T + '}\n\n'
+        #    elif f['IS_STRUCT']:
+        #        ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
+        #        ret = ret + T + 'fprintf( r_stream, "{0} :\\n");\n'.format(f['NAME'])
+        #        ret = ret + T + 'for (ii=0; ii< p_{0}->n_elements_{1}; ++ii )\n'.format(struct_name,f['NAME'])
+        #        ret = ret + T + '{\n'
+        #        ret = ret + T + T + 'num_written = snprintf( buf, 1024, "%s.{0}[ %d ]", prefix, ii );\n'.format(f['NAME']) 
+        #        ret = ret + T + T + 'buf[ num_written ] = 0x0;\n'
+        #        ret = ret + T + T + 'write_props_{0}(r_stream, prefix, prefix_len,&(p_{1}->{2}[ii]));\n'.format(f['TYPE'], struct_name, f['NAME'])
+        #        ret = ret + T + '}\n\n'
     ret = ret + '}\n\n'
 
     ret = ret + "void write_json_{0}( FILE * r_stream, {0} * p_{0}, int indent )\n".format(struct_name)
@@ -369,13 +409,13 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
     ret = ret + T + 'char * sp = (char*) malloc(indent+1);\n'
     ret = ret + T + 'char * sp2 = (char*) malloc(indent+3);\n'
     ret = ret + T + 'for (ii=0; ii< indent; ii++){\n'
-    ret = ret + T + T + "sp[ii] = ' ';\n"
+    ret = ret + T + T + "sp[ii] = 0x20;\n"
     ret = ret + T + '}\n'
-    ret = ret + T + "sp[indent] = '\0';\n"
+    ret = ret + T + "sp[indent] = '\\0';\n"
     ret = ret + T + 'for (ii=0; ii<indent+2; ii++){\n'
-    ret = ret + T + T + "sp2[ii] = ' ';\n"
+    ret = ret + T + T + "sp2[ii] = 0x20;\n"
     ret = ret + T + '}\n'
-    ret = ret + T + "sp2[indent+2] = '\0';"
+    ret = ret + T + "sp2[indent+2] = '\\0';"
 
     ret = ret + T + 'fprintf(r_stream, "{\\n");\n'
     for idx, f in enumerate(struct_def['FIELDS']):
@@ -493,6 +533,7 @@ def create_default_gen(basetypes,structs,struct_name,project):
     ret = ret + T + '}\n\n'
     ret = ret + T + 'FILE * fout = fopen( argv[1], "wb" );\n'
     ret = ret + T + '{0} x;\n'.format(struct_name)
+    ret = ret + T + 'init_{0}(&x);\n'.format(struct_name)
     ret = ret + T + 'set_defaults_{0}(&x);\n'.format(struct_name)
     ret = ret + T + 'write_binary_{0}(fout,&x);\n'.format(struct_name)
     ret = ret + T + 'dealloc_{0}(&x);\n'.format(struct_name)
@@ -533,6 +574,7 @@ def create_printer_for_struct(basetypes,structs,struct_name,project):
     ret = ret + T + '}\n\n'
     ret = ret + T + 'FILE * fin = fopen( argv[1], "rb" );\n'
     ret = ret + T + '{0} x;\n'.format(struct_name)
+    ret = ret + T + 'init_{0}(&x);\n'.format(struct_name)
     ret = ret + T + 'read_binary_{0}(fin,&x);\n'.format(struct_name)
     ret = ret + T + 'write_props_{0}(stdout,"test->",6,&x);\n'.format(struct_name)
     ret = ret + T + 'dealloc_{0}(&x);\n'.format(struct_name)
@@ -571,6 +613,7 @@ def create_c_headers( inc_dir, basetypes, structs, struct_order, project_struct)
     fOut.write( '#include <string.h>\n')
     fOut.write( '#include "cJSON.h"\n' )
     fOut.write( '#include "io_utils.h"\n')
+    fOut.write( '#include "cvec.h"\n')
 
 
     # CPP Guards
@@ -673,6 +716,8 @@ ENDFOREACH()
 
 ADD_LIBRARY( {3} ${{C_FILES}} )
 
+ADD_LIBRARY(cvec cvec.c)
+
 # JSMN Json Support Library
 ADD_LIBRARY(cJSON cJSON.c)
 
@@ -682,11 +727,11 @@ ADD_LIBRARY(io_utils io_utils.c)
 """.format( c_src_dir, c_inc_dir, project_name, libname )
     for struct_name, struct_def in structs.items():
         ret = ret + 'ADD_EXECUTABLE( print_{0} print_{0}.c )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} {1} cJSON io_utils )\n\n'.format(struct_name, libname) 
+        ret = ret + 'TARGET_LINK_LIBRARIES( print_{0} {1} cJSON io_utils cvec )\n\n'.format(struct_name, libname) 
         ret = ret + 'ADD_EXECUTABLE( generate_{0} generate_{0}.c )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} {1} cJSON io_utils )\n\n'.format(struct_name, libname)
+        ret = ret + 'TARGET_LINK_LIBRARIES( generate_{0} {1} cJSON io_utils cvec )\n\n'.format(struct_name, libname)
         ret = ret + 'ADD_EXECUTABLE( read_json_{0} read_json_{0}.c )\n'.format(struct_name)
-        ret = ret + 'TARGET_LINK_LIBRARIES( read_json_{0} {1} cJSON io_utils )\n\n'.format(struct_name, libname)
+        ret = ret + 'TARGET_LINK_LIBRARIES( read_json_{0} {1} cJSON io_utils cvec )\n\n'.format(struct_name, libname)
     return ret
 
 # end create_cmake_file
@@ -706,11 +751,15 @@ def generate_c( src_dir, inc_dir, basetypes, structs, project,struct_order):
     shutil.copy(support_dir + os.sep + 'io_utils.h', inc_dir )
     shutil.copy(support_dir + os.sep + 'io_utils.c', inc_dir )
 
+    shutil.copy(support_dir + os.sep + 'cvec.h', inc_dir )
+    shutil.copy(support_dir + os.sep + 'cvec.c', src_dir )
+
     cJSON_dir = python_repo_dir + os.sep + '..' + os.sep + \
                 '..' + os.sep + 'submodules' + os.sep + 'cJSON'
 
     shutil.copy(cJSON_dir + os.sep + 'cJSON.h', inc_dir )
     shutil.copy(cJSON_dir + os.sep + 'cJSON.c', src_dir )
+
 
     create_c_headers(inc_dir, basetypes, structs, struct_order, project)
     create_c_impls(src_dir, basetypes, structs,project )
