@@ -25,36 +25,6 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
     if project['PAD'] > -1:
         ret = ret + T + "_pack_ = {0}\n".format(project['PAD'])
 
-    # ctypes defs here
-    ret = ret + T + "_fields_ = [\n"
-    for f in struct_def['FIELDS']:
-        if f['LENGTH'] == 1:
-            if f['IS_STRUCT']:
-                t = f['TYPE']
-            else:
-                basetype = basetypes[f['TYPE']]
-                t = basetype['CTYPES_TYPE']
-        elif f['LENGTH'] == 'VECTOR': # LATER
-            if f['IS_STRUCT']:
-                t = 'ctypes.c_uint32' 
-            else:
-                basetype = basetypes[f['TYPE']]
-                t = basetype['CTYPES_TYPE']
-        elif type(f['LENGTH']) == int:
-            if f['IS_STRUCT']:
-                t = "{0} * {1}".format(f['TYPE'], f['LENGTH'])
-            else:
-                basetype = basetypes[f['TYPE']]
-                t = "{0} * {1}".format(basetype['CTYPES_TYPE'], f['LENGTH'])
-        ret = ret + T + T + '("{0}",{1}),\n'.format(f['NAME'],t)
-    ret = ret + T + "]\n\n"
-    
-
-    # slots here
-    ret = ret + T + "__slots__ = [\n"
-    for f in struct_def['FIELDS']:
-        ret = ret + T + T + '"{0}",\n'.format(f['NAME'])
-    ret = ret + T + "]\n\n"
 
     ret = ret + ctypes_basic_methods
 
@@ -108,6 +78,44 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
     # end create_class_def
 
 
+def create_slots_and_fields( basetypes, structs, struct_name, project ):
+
+    struct_def = structs[ struct_name ]
+    ret = ''
+    # slots here
+    ret = ret + "{0}.__slots__ = [\n".format(struct_name)
+    for f in struct_def['FIELDS']:
+        ret = ret + T + '"{0}",\n'.format(f['NAME'])
+    ret = ret + T + "]\n\n"
+
+    # ctypes defs here
+    ret = ret + "{0}._fields_ = [\n".format(struct_name)
+    for f in struct_def['FIELDS']:
+        if f['LENGTH'] == 1:
+            if f['IS_STRUCT']:
+                t = f['TYPE']
+            else:
+                basetype = basetypes[f['TYPE']]
+                t = basetype['CTYPES_TYPE']
+        elif f['LENGTH'] == 'VECTOR': # LATER
+            if f['IS_STRUCT']:
+                t = 'ctypes.c_uint32' 
+            else:
+                basetype = basetypes[f['TYPE']]
+                t = basetype['CTYPES_TYPE']
+        elif type(f['LENGTH']) == int:
+            if f['IS_STRUCT']:
+                t = "{0} * {1}".format(f['TYPE'], f['LENGTH'])
+            else:
+                basetype = basetypes[f['TYPE']]
+                t = "{0} * {1}".format(basetype['CTYPES_TYPE'], f['LENGTH'])
+        ret = ret + T + T + '("{0}",{1}),\n'.format(f['NAME'],t)
+    ret = ret + T + "]\n\n"
+    return ret
+
+# end create_slots_and_fields
+
+
 def generate_py( py_dir, basetypes, structs, project ):
     if not os.path.exists( py_dir ):
         os.mkdir( py_dir )
@@ -151,10 +159,10 @@ def todict(obj):
         return dict((key, todict(val)) for key, val in obj.items())             
     elif isinstance(obj, collections.Iterable) or isinstance(obj, ctypes.Array):
         return [todict(val) for val in obj]                                     
-    elif hasattr(obj, '__dict__'):                                              
-        return todict(vars(obj))                                                
     elif hasattr(obj, '__slots__'):                                             
         return todict(dict((name, getattr(obj, name)) for name in getattr(obj, '__slots__')))
+    elif hasattr(obj, '__dict__'):                                              
+        return todict(vars(obj))                                                
     return obj                                                                  
 # end todict 
 
@@ -183,6 +191,11 @@ def fromdict(s,d):
 
     for struct_name, struct_def in structs.items():
         ret = create_py_class_def( basetypes, structs, struct_name, project )
+        fOut.write( ret )
+        fOut.write( "\n\n" )
+    for struct_name, struct_def in structs.items():
+        ret = create_py_class_def( basetypes, structs, struct_name, project )
+        ret = create_slots_and_fields( basetypes, structs, struct_name, project )
         fOut.write( ret )
         fOut.write( "\n\n" )
     fOut.close()
