@@ -82,6 +82,7 @@ class AutoGenerator:
             self.project['DESCRIPTION'] = ''
 
         self.preprocess()
+        self.project['PAD'] = self.pad
     # end __init__
 
     def preprocess(self):
