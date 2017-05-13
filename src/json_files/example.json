@@ -90,16 +90,31 @@
                 "TYPE"  : "substruct1",
                 "DESCRIPTION" : "holds a substructure"
               },
+              {
+                "NAME" : "m_vector_of_structs_length",
+                "TYPE" : "UINT_32",
+                "DESCRIPTION" : "Number of valid elements in m_vector_of_structs",
+                "DEFAULT_VALUE" : 0
+              },
               { "NAME"  : "m_vector_of_structs",
                 "TYPE"  : "substruct1",
                 "LENGTH" : "5",
-                "DESCRIPTION" : "vector of doubles"
+                "DESCRIPTION" : "vector of doubles",
+                "LENGTH_FIELD" : "m_vector_of_structs_length"
               },
+              {
+                "NAME" : "m_basetype_array_length",
+                "TYPE" : "UINT_32",
+                "DESCRIPTION" : "Number of valid elements in m_vector_of_structs",
+                "DEFAULT_VALUE" : 5
+              },
+
               { "NAME"  : "m_basetype_array",
                 "TYPE"  : "UINT_8",
                 "LENGTH" : 8,
                 "DESCRIPTION" : "fixed length basetype array",
-                "DEFAULT_VALUE" : [ 1,2,3,4,3,2,1,0 ]
+                "DEFAULT_VALUE" : [ 1,2,3,4,3,2,1,0 ],
+                "LENGTH_FIELD" : "m_basetype_array_length"
               },
               {
                "NAME"  : "m_big_array",

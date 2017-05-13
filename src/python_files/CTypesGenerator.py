@@ -38,8 +38,8 @@ def get_struct_order( structs ):
 
 
 def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
-    struct_def = structs[ struct_name ]
-    ret = ctypes_class_template.format( struct_name )
+    struct_def = structs[struct_name]
+    ret = ctypes_class_template.format(struct_name)
 
     # set pack
     if project['PAD'] > -1:
@@ -75,6 +75,12 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
     for f in struct_def['FIELDS']:
         ret = ret + T + T + '"{0}",\n'.format(f['NAME'])
     ret = ret + T + "]\n\n"
+
+    # length fields
+    ret = ret + T + "length_fields = {\n"
+    for key, val in struct_def['LENGTH_FIELDS'].items():
+        ret = ret + T + T + '"{0}" : "{1}",\n'.format(key,val)
+    ret = ret + T + "}\n\n"
 
     ret = ret + ctypes_basic_methods
 
@@ -122,6 +128,7 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
                 # vector of struct default setting not suppported
     ret = ret + T + "# end set_defaults\n\n"
 
+
     ret = ret + "# end class {0}\n\n".format(struct_name)
 
     return ret
@@ -132,11 +139,6 @@ def generate_py( py_dir, basetypes, structs, project ):
     if not os.path.exists( py_dir ):
         os.mkdir( py_dir )
 
-    python_repo_dir = os.path.dirname(os.path.realpath(__file__))
-    shutil.copy( python_repo_dir + os.sep + 'io_support.py', 
-                 py_dir + os.sep + 'io_support.py' )
-
-
     fOut = open( py_dir + os.sep + "{0}_interface.py".format(project['PROJECT']), "w" )
     fOut.write( "#!/usr/bin/env python\n" )
     fOut.write( "import string\n" )
@@ -144,6 +146,8 @@ def generate_py( py_dir, basetypes, structs, project ):
     fOut.write( "import struct\n" )
     fOut.write( "import json\n" )
     fOut.write( "import ctypes\n" )
+    fOut.write( "import collections\n" )
+    fOut.write( "from collections import OrderedDict\n" )
     fOut.write( "\n\n\n" )
 
     fOut.write( '''"""
@@ -152,13 +156,114 @@ def generate_py( py_dir, basetypes, structs, project ):
 
 """
 
-import collections                                                              
+class Formatter(object):
+    """
+    Formatter for YAML-like printing
+    """
+    def __init__(self):
+        self.types = {}
+        self.htchar = '  '
+        self.lfchar = '\\n'
+        self.indent = 0
+        self.set_formater(object, self.__class__.format_object)
+        self.set_formater(dict, self.__class__.format_dict)
+        self.set_formater(list, self.__class__.format_list)
+        self.set_formater(tuple, self.__class__.format_list)
+        self.set_formater(OrderedDict, self.__class__.format_ordereddict)
+
+    def set_formater(self, obj, callback):
+        self.types[obj] = callback
+
+    def __call__(self, value, **args):
+        for key in args:
+            setattr(self, key, args[key])
+        formater = self.types[type(value) if type(value) in self.types else object]
+        return formater(self, value, self.indent)
+
+    def format_object(self, value, indent):
+        return repr(value)
+
+    def format_dict(self, value, indent):
+        items = [
+            self.lfchar + self.htchar * (indent + 1) + key + ': ' +
+            (self.types[type(value[key]) if type(value[key]) in self.types else object])(self, value[key], indent + 1)
+            for key in value
+        ]
+        return '{%s}' % (','.join(items))
+
+    def format_list(self, value, indent):
+        if len(value) > 8:
+            items1 = [
+                (self.types[type(item) if type(item) in self.types else object])(self, item, indent + 1)
+                for item in value[:3]
+            ]
+            items2 = [
+                (self.types[type(item) if type(item) in self.types else object])(self, item, indent + 1)
+                for item in value[-3:]
+            ]
+
+            return '[{0}...{1}]'.format(','.join(items1), ",".join(items2))
+        else:
+            items1 = [
+                (self.types[type(item) if type(item) in self.types else object])(self, item, indent + 1)
+                for item in value
+            ]
+            return '[{0}]'.format(','.join(items1))
+
+
+    def format_ordereddict(self, value, indent):
+        items = [
+
+           #self.lfchar + self.htchar * (indent + 1)
+           # + key + ': ' + (self.types[
+           #self.lfchar + self.htchar * (indent + 1)
+            key + ': ' + (self.types[
+                type(value[key]) if type(value[key]) in self.types else object
+            ])(self, value[key], indent + 1) 
+            for key in value
+        ]
+        join = ',\\n{0}'.format(self.htchar * (indent+1))
+        return '\\n{0}{{{1}}}'.format(self.htchar * (indent+1), join.join(items))
+# end class formatter
+
+
 try:                                                                            
     # Python 2.7+                                                               
     basestring                                                                  
 except NameError:                                                               
     # Python 3.3+                                                               
     basestring = str                                                            
+
+
+def to_ordered_dict(obj):
+    """                                                                         
+    Recursively convert a Python object graph to sequences (lists)              
+    and mappings (dicts) of primitives (bool, int, float, string, ...)          
+    """                                                                         
+    if isinstance(obj, basestring):                                             
+        return obj                                                              
+    elif isinstance(obj, dict):                                                 
+        return collections.OrderedDict((key, to_ordered_dict(val)) for key, val in obj.items())             
+    elif isinstance(obj, collections.Iterable) or isinstance(obj, ctypes.Array):
+        return [to_ordered_dict(val) for val in obj]                                     
+    elif hasattr(obj, '__dict__'):                                              
+        return to_ordered_dict(vars(obj))                                                
+    elif hasattr(obj, '__slots__'):                                             
+        d = collections.OrderedDict()
+        slots = getattr(obj, '__slots__')
+        lengths = getattr(obj, 'length_fields')
+        for name in slots:
+            if name in lengths:
+                vec = getattr(obj,name)
+                length = int(getattr(obj,lengths[name]))
+                d[name] = vec[length]
+            else:
+                d[name] = getattr(obj,name)
+        return to_ordered_dict(d)
+    return obj                                                                  
+# end to_ordered_dict
+
+    
                                                                                 
 def todict(obj):                                                                
     """                                                                         

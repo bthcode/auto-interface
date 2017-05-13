@@ -59,6 +59,12 @@ ctypes_basic_methods = '''
         pass 
     # end __init__
 
+    def pretty_print(self):
+        formatter = Formatter()
+        d = to_ordered_dict(self) 
+        return formatter(d)
+    # end pretty_print
+
     def to_dict(self):
         return todict(self)
     # end to_dict

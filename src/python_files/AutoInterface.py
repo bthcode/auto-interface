@@ -105,13 +105,18 @@ class AutoGenerator:
             struct_def['IS_PADDED'] = False
             struct_def['IS_VARIABLE_SIZE_TESTED'] = False
             struct_def['SIZE'] = None
+            struct_def['LENGTH_FIELDS'] = {}
             # inherit the namespace
             if self.project['NAMESPACE']:
                 struct_def['NAMESPACE'] = self.project['NAMESPACE']
+
             for idx, f in enumerate(struct_def['FIELDS']):
                 # move keys to upperclass
                 for key, val in f.items():
                     f[key.upper()] = f.pop(key)
+
+                if 'LENGTH_FIELD' in f:
+                    struct_def['LENGTH_FIELDS'][f['NAME']] = f['LENGTH_FIELD']
 
                 # SET LENGTH
                 if 'LENGTH' not in f:
