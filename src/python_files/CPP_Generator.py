@@ -40,10 +40,10 @@ class_end = \
     void set_defaults();
     void read_props( std::istream& r_in_stream, std::string& r_prefix );
     std::size_t read_props( std::map< std::string, std::string>& r_params, std::string& r_prefix );
-    void write_binary( std::ofstream& r_out_stream );
-    void read_binary( std::ifstream& r_in_stream );
-    void read_json(std::ifstream& r_in_stream);
-    void write_json(std::ofstream& r_out_stream, int indent);
+    void write_binary( std::ostream& r_out_stream );
+    void read_binary( std::istream& r_in_stream );
+    void read_json(std::istream& r_in_stream);
+    void write_json(std::ostream& r_out_stream, int indent);
     void parse_json_obj(cJSON * obj);
 
 };
@@ -217,7 +217,7 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
     ret = ret + '%s::%s(){}\n\n\n' % (struct_name,struct_name)
 
     ### Read JSON
-    ret = ret + "void {0}::read_json( std::ifstream& r_stream ){{\n".format(struct_name)
+    ret = ret + "void {0}::read_json( std::istream& r_stream ){{\n".format(struct_name)
     ret = ret + T + "//Read File into Buffer\n"
     ret = ret + T + "std::stringstream ss;\n"
     ret = ret + T + "ss << r_stream.rdbuf();\n"
@@ -275,7 +275,7 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
     ret = ret + "}\n\n"
 
     ### Read Binary
-    ret = ret + "void %s::read_binary( std::ifstream& r_stream ){\n\n" % (struct_name)
+    ret = ret + "void %s::read_binary( std::istream& r_stream ){\n\n" % (struct_name)
     for f in struct_def['FIELDS']:
         # get type
         if f['IS_BASETYPE']:
@@ -313,7 +313,7 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
 
 
     ### Write JSON
-    ret = ret + "void %s::write_json( std::ofstream& r_stream, int indent ){\n\n" % (struct_name)
+    ret = ret + "void %s::write_json( std::ostream& r_stream, int indent ){\n\n" % (struct_name)
     ret = ret + T + 'r_stream << "{\\n";\n' # open json
     ret = ret + T + "std::string sp(indent, ' ');\n"
     ret = ret + T + "std::string sp2(indent+2, ' ');\n"
@@ -361,7 +361,7 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
     ret = ret + "}\n\n"
 
     ### Write Binary
-    ret = ret + "void %s::write_binary( std::ofstream& r_stream ){\n\n" % (struct_name)
+    ret = ret + "void %s::write_binary( std::ostream& r_stream ){\n\n" % (struct_name)
     for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:

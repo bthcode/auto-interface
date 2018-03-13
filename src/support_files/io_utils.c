@@ -1,6 +1,6 @@
 
+#include <stdint.h>
 #include <stdio.h>
-#include <complex.h>
 #include "io_utils.h"
 /* --------------------- IO SUPPORT -------------------- */
 void read_UINT_8( FILE * p_in_file, int nElements, uint8_t * p_ret )
@@ -58,16 +58,6 @@ void read_DOUBLE( FILE * p_in_file, int nElements, double * p_ret )
     fread( p_ret, sizeof(double), nElements, p_in_file );
 }
 
-void read_COMPLEX_SINGLE( FILE * p_in_file, int nElements, float complex * p_ret )
-{
-    fread( p_ret, sizeof(float complex), nElements, p_in_file );
-}
-
-void read_COMPLEX_DOUBLE( FILE * p_in_file, int nElements, double complex * p_ret )
-{
-    fread( p_ret, sizeof(double complex), nElements, p_in_file );
-}
-
 void write_UINT_8( FILE * p_out_file, int nElements, uint8_t * p_val )
 {
     fwrite( p_val, sizeof(uint8_t), nElements, p_out_file );
@@ -121,16 +111,6 @@ void write_SINGLE( FILE * p_out_file, int nElements, float * p_val )
 void write_DOUBLE( FILE * p_out_file, int nElements, double * p_val )
 {
     fwrite( p_val, sizeof(double), nElements, p_out_file );
-}
-
-void write_COMPLEX_SINGLE( FILE * p_out_file, int nElements, float complex * p_val )
-{
-    fwrite( p_val, sizeof(float complex), nElements, p_out_file );
-}
-
-void write_COMPLEX_DOUBLE( FILE * p_out_file, int nElements, double complex * p_val )
-{
-    fwrite( p_val, sizeof(double complex), nElements, p_out_file );
 }
 
 void print_UINT_8( FILE * p_out_file, int nElements, char DELIM, uint8_t * p_val )
@@ -254,27 +234,4 @@ void print_DOUBLE( FILE * p_out_file, int nElements, char DELIM,double * p_val )
     fprintf( p_out_file, "%f", p_val[nElements-1] );
 }
 
-void print_COMPLEX_SINGLE( FILE * p_out_file, int nElements, char DELIM,float complex * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements-1; ii++ )
-    {
-        fprintf( p_out_file, "(%f,%f)", creal(p_val[ii]),cimag(p_val[ii]) );
-        fprintf( p_out_file, "%c", DELIM );
-    }
-    ii = nElements-1;
-    fprintf( p_out_file, "(%f,%f)", creal(p_val[ii]),cimag(p_val[ii]) );
-}
-
-void print_COMPLEX_DOUBLE( FILE * p_out_file, int nElements, char DELIM,double complex * p_val )
-{
-    int32_t ii;
-    for ( ii=0; ii < nElements-1; ii++ )
-    {
-        fprintf( p_out_file, "(%f,%f)", creal(p_val[ii]),cimag(p_val[ii]) );
-        fprintf( p_out_file, "%c", DELIM );
-    }
-    ii = nElements-1;
-    fprintf( p_out_file, "(%f,%f)", creal(p_val[ii]),cimag(p_val[ii]) );
-}
 /* --------------------- IO SUPPORT -------------------- */
