@@ -507,7 +507,7 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
     ret = ret + T + "fseek(r_stream, 0, SEEK_END);\n"
     ret = ret + T + "long fsize = ftell(r_stream);\n"
     ret = ret + T + "fseek(r_stream, 0, SEEK_SET);\n"  
-    ret = ret + T + "char *buf = malloc(fsize + 1);\n"
+    ret = ret + T + "char *buf = (char *) malloc(fsize + 1);\n"
     ret = ret + T + "fread(buf, fsize, 1, r_stream);\n"
     ret = ret + T + "fclose(r_stream);\n"
     ret = ret + T + "buf[fsize] = 0;\n"
