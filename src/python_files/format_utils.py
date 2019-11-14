@@ -38,4 +38,4 @@ if __name__=="__main__":
     x = np.zeros(1024)
     x[512]=1
     out = print_list_summary(x)
-    print out
+    print (out)

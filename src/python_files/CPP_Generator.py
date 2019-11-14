@@ -22,6 +22,7 @@ stock_includes = \
 #include <cstddef>
 #include <stdint.h>
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <map>
 #include <complex>
@@ -318,12 +319,18 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
     ret = ret + T + "std::string sp(indent, ' ');\n"
     ret = ret + T + "std::string sp2(indent+2, ' ');\n"
     ret = ret + T + 'int new_indent = 0;'
+    ret = ret + T + 'std::streamsize orig_precision = r_stream.precision();\n'
+
     nfields = len(struct_def['FIELDS'])
     for idx, f in enumerate(struct_def['FIELDS']):
         if f['LENGTH']==1:
             if f['IS_BASETYPE']:
                 b = basetypes[ f['TYPE'] ]
+                if f['TYPE'] == 'DOUBLE':
+                    ret = ret + T + 'r_stream << std::setprecision(17);\n'
                 ret = ret + T + 'r_stream << sp2 << "\\"{0}\\" : " << ({1})({2})'.format(f['NAME'],b['STREAM_CAST'],f['NAME'])
+                if f['TYPE'] == 'DOUBLE':
+                    ret = ret + T + '<< std::setprecision(orig_precision)'
             elif f['IS_STRUCT']:
                 ret = ret + T + 'r_stream << sp2 << "\\"{0}\\" : ";\n'.format(f['NAME'])
                 # 7 spaces = 2 at the beginning + 2 quotes + " : "
@@ -338,11 +345,15 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
             ret = ret + T + 'r_stream << sp2 <<  "\\"{0}\\" : [";\n'.format(f['NAME'])
             if f['IS_BASETYPE']:
                 b = basetypes[ f['TYPE'] ]
+                if f['TYPE'] == 'DOUBLE':
+                    ret = ret + T + 'r_stream << std::setprecision(17);\n'
                 ret = ret + T + 'for ( std::size_t ii = 0; ii < {0}-1; ii++ )\n'.format(size_str)
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'r_stream << sp2 << ({0})({1}[ii]) << ",";\n'.format(b['STREAM_CAST'],f['NAME'])
                 ret = ret + T + '}\n'
                 ret = ret + T + 'r_stream << sp2 << ({0})({1}[{2}-1]) << "]"'.format(b['STREAM_CAST'],f['NAME'],size_str)
+                if f['TYPE'] == 'DOUBLE':
+                    ret = ret + T + '<< std::setprecision(orig_precision)'
             elif f['IS_STRUCT']:
                 ret = ret + T + 'new_indent = indent + {0} + 7;\n'.format(len(f['NAME']))
                 ret = ret + T + 'for ( std::size_t ii = 0; ii < {0}-1; ii++ )\n'.format(size_str)
@@ -352,7 +363,7 @@ def create_struct_impl(basetypes,structs,struct_name,project,gpb=False):
                 ret = ret + T + '}\n'
                 ret = ret + T + '{0}[{1}-1].write_json(r_stream, new_indent);\n'.format(f['NAME'], size_str)
                 ret = ret + T + 'r_stream << sp << "]" '
-        if idx < nfields-1: 
+        if idx < nfields-1:
             ret = ret + T + ' << "," << sp << "\\n";\n'
         else:
             ret = ret + T + ' << "\\n";\n'
@@ -746,7 +757,7 @@ FILE( GLOB GPB_FILES "*.pb.h" "*.pb.cc" )
 #
 ##################################################################################
 
-def generate_CPP( cpp_src_dir, cpp_inc_dir, basetypes, structs, struct_order, project, gpb=False ):
+def generate_CPP( cpp_src_dir, cpp_inc_dir, basetypes, structs, struct_order, project, gpb=False, pad=8 ):
     if not os.path.exists( cpp_src_dir ):
         os.mkdir(cpp_src_dir)
     if not os.path.exists( cpp_inc_dir ):
@@ -794,14 +805,18 @@ def generate_CPP( cpp_src_dir, cpp_inc_dir, basetypes, structs, struct_order, pr
 
     fOut.write('''
 
-void parse_param_stream( std::istream& r_in_stream, 
+void parse_param_stream( std::istream& r_in_stream,
                          std::map< std::string, std::string >& r_params );
     ''')
 
 
+    fOut.write('#pragma pack(push)\n')
+    fOut.write('#pragma pack({})\n'.format(args.pad))
 
     for struct_name in struct_order:
-        fOut.write( create_struct_header(basetypes,structs,struct_name,project,gpb)) 
+        fOut.write( create_struct_header(basetypes,structs,struct_name,project,gpb))
+
+    fOut.write('#pragma pack(pop)\n')
 
     ### End Namespace
     fOut.write('} // namepsace\n\n')
@@ -961,4 +976,4 @@ if __name__ == "__main__":
     structs   = A.structs
     project   = A.project
     struct_order = get_struct_order(structs)
-    generate_CPP( args.src_dir, args.inc_dir, basetypes, structs,struct_order,project,gpb=args.gpb )
+    generate_CPP( args.src_dir, args.inc_dir, basetypes, structs,struct_order,project,gpb=args.gpb,pad=args.pad )

@@ -28,7 +28,7 @@ def create_struct_table(basetypes,structs,struct_order):
     for struct_name in struct_order:
         struct_def = structs[struct_name]
         names.append(struct_def['NAME'])
-        if struct_def.has_key('DESCRIPTION'):
+        if 'DESCRIPTION' in struct_def:
             descriptions.append(struct_def['DESCRIPTION'])
         else:
             descriptions.append('') 
@@ -58,7 +58,7 @@ def create_rst( basetypes, structs, struct_name ):
 
     struct_def = structs[struct_name]
 
-    if struct_def.has_key( 'DESCRIPTION' ):
+    if 'DESCRIPTION' in struct_def:
         ret = ret + struct_def[ 'DESCRIPTION' ] + "\n\n"
 
 
@@ -101,7 +101,7 @@ def create_rst( basetypes, structs, struct_name ):
                 bytes_.append(str(basetypes[f['TYPE']]['LENGTH']))
             elif f['IS_STRUCT']:
                 child = structs[f['TYPE']]
-                if child.has_key('SIZE'):
+                if 'SIZE' in child:
                     bytes_.append(str(child['SIZE']))
                 else:
                     bytes_.append('STRUCTURE')
@@ -117,7 +117,7 @@ def create_rst( basetypes, structs, struct_name ):
             child = structs[f['TYPE']]
             length = f['LENGTH']
             lengths.append(str(length))
-            if child.has_key('SIZE'):
+            if 'SIZE' in child:
                 width  = int(child['SIZE'])
                 total  = length * width
                 bytes_.append('{0}/{1}'.format(width,total))
