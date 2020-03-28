@@ -19,151 +19,6 @@ T="    "
 
 
 
-def generate_gpb_for_class(basetypes, structs, struct_name, project):
-    struct_def = structs[struct_name]
-    # namespace does not appear to be used in python version
-    gpb_namespace = '{0}_GPB'.format(project['NAMESPACE'])
-    gpb_classname = struct_def['NAME']
-
-    #
-    # get gpb parser
-    #
-    ret = '\n' + T + 'def read_gpb_from_buf(self, buf):\n'
-    ret = ret + T + T + 'gpb_obj = gpb.{0}()\n'.format(struct_name)
-    ret = ret + T + T + 'gpb_obj.ParseFromString(buf)\n'
-    ret = ret + T + T + 'self.read_gpb(gpb_obj)\n'
-    ret = ret + T + '# end read_gpb_from_buf\n\n'
-
-    ret = ret + T + 'def write_gpb_to_buf(self):\n'
-    ret = ret + T + T + 'gpb_obj = self.write_gpb()\n'
-    ret = ret + T + T + 'return gpb_obj.SerializeToString()\n\n'
-    ret = ret + T + '# end write_gpb_to_buf\n'
-
-
-    #
-    # read gpb
-    #
-    ret = ret + T + 'def read_gpb(self, gpb_obj):\n'
-
-    for f in struct_def['FIELDS']:
-        field    = f['NAME']
-    
-        # need max count for fixed length fields
-        if type(f['LENGTH']) == int and f['LENGTH'] > 1:
-            ret = ret + T + T + 'max_count = min({0}, len(gpb_obj.{1}))\n'.format(f['LENGTH'],field)
-        elif f['LENGTH'] == 'VECTOR':
-            ret = ret + T + T +  'max_count = len(gpb_obj.{0})\n'.format(field)
-
-        # get type
-        if f['IS_BASETYPE']:
-            basetype = basetypes[f['TYPE']]
-            gpb_type = basetype['GPB_TYPE']
-
-        if f['LENGTH']==1:
-            if f['IS_BASETYPE']:
-                ret = ret + T + T + 'self.{0} = gpb_obj.{0}\n'.format(field)
-            elif f['IS_STRUCT']:
-                ret = ret + T + T + 'self.{0}.read_gpb(gpb_obj.{0})\n'.format(field)
-
-        elif f['LENGTH'] == 'VECTOR':
-            if f['IS_BASETYPE']:
-                ret = ret + T + T + 'self.{0} = []\n'.format(field)
-                ret = ret + T + T + 'for ii in range(max_count):\n'
-                ret = ret + T + T + T + 'self.{0}.append( gpb_obj.{0}[ii] )\n'.format(field)
-            elif f['IS_STRUCT']:
-                ret = ret + T + T + 'self.{0} = []\n'.format(field)
-                ret = ret + T + T + 'for ii in range(max_count):\n'
-                ret = ret + T + T + T + 'tmp = {0}()\n'.format(f['TYPE'])
-                ret = ret + T + T + T + 'tmp.read_gpb(gpb_obj.{0}[ii])\n'.format(field)
-                ret = ret + T + T + T + 'self.{0}.append(tmp)\n'.format(field)
-
-        elif type(f['LENGTH']) == int:
-            if f['IS_BASETYPE']:
-                # TODO: replace warning with set default
-                ret = ret + T + T + 'if len(self.{0}) != {1}:\n'.format(field, f['LENGTH'])
-                ret = ret + T + T + T + 'print( "WARNING: bad field size on {0}\\n" )\n'.format(field)
-                ret = ret + T + T + 'for ii in range(max_count):\n'
-                ret = ret + T + T + T + 'self.{0}[ii] = gpb_obj.{0}[ii]\n'.format(field)
-            elif f['IS_STRUCT']:
-                ret = ret + T + T + 'if len(self.{0}) != {1}:\n'.format(field, f['LENGTH'])
-                ret = ret + T + T + T + 'print( "WARNING: bad field size on {0}\\n" )\n'.format(field)
-                ret = ret + T + T + 'for ii in range(max_count):\n'
-                #ret = ret + T + T + T + 'tmp = {0}()\n'.format(f['TYPE'])
-                #ret = ret + T + T + T + 'tmp.read_gpb(gpb_obj.{0}[ii])\n'.format(field)
-                ret = ret + T + T + T + 'self.{0}[ii].read_gpb(gpb_obj.{0}[ii])\n'.format(field)
-
-
-    ret = ret + T + '# end read_gpb\n\n'
-
-    #
-    # write gpb
-    #
-    ret = ret + '\n\n' + T + 'def write_gpb(self,gpb_obj=None):\n'
-
-    ret = ret + T + T + 'if gpb_obj == None:\n'
-    ret = ret + T + T + T + 'gpb_obj = gpb.{0}()\n'.format(struct_name)
-
-    for f in struct_def['FIELDS']:
-        field    = f['NAME']
-    
-        # need max count for fixed length fields
-        if type(f['LENGTH']) == int and f['LENGTH'] > 1:
-            ret = ret + T + T + 'max_count = min({0}, len(self.{1}))\n'.format(f['LENGTH'],field)
-        elif f['LENGTH'] == 'VECTOR':
-            ret = ret + T + T +  'max_count = len(self.{0})\n'.format(field)
-
-        # get type
-        if f['IS_BASETYPE']:
-            basetype = basetypes[f['TYPE']]
-            gpb_type = basetype['GPB_TYPE']
-
-        if f['LENGTH']==1:
-            if f['IS_BASETYPE']:
-                ret = ret + T + T + 'gpb_obj.{0} = self.{0}\n'.format(field)
-            elif f['IS_STRUCT']:
-                ret = ret + T + T + 'tmp = gpb_obj.{0}\n'.format(field)
-                ret = ret + T + T + 'self.{0}.write_gpb(tmp)\n'.format(field)
-
-        elif type(f['LENGTH']) == int or f['LENGTH'] == 'VECTOR':
-            if f['IS_BASETYPE']:
-                ret = ret + T + T + 'for ii in range(max_count):\n'
-                ret = ret + T + T + T + 'gpb_obj.{0}.append( self.{0}[ii] )\n'.format(field)
-            elif f['IS_STRUCT']:
-                ret = ret + T + T + 'for ii in range(max_count):\n'
-                ret = ret + T + T + T + 'tmp = gpb_obj.{0}.add()\n'.format(field)
-                ret = ret + T + T + T + 'self.{0}[ii].write_gpb(tmp)\n'.format(field)
-    ret = ret + T + T + 'return gpb_obj\n'
-
-    ret = ret + T + '# end write_gpb\n\n'
-
-
-    return ret
-# end generate_gpb_for_class
-
-def create_gpb_test_for_class( basetypes, structs, struct_name, project ):
-    ret = ''
-    ret = ret + 'import {0}_interface\n\n'.format(project['PROJECT'])
-    ret = ret + 'x = {0}_interface.{1}()\n'.format(project['PROJECT'],struct_name)
-    
-    struct_def = structs[struct_name]
-    for ii, f in enumerate(struct_def['FIELDS']):
-        if f['IS_BASETYPE'] and f['LENGTH'] == 1:
-            ret = ret + 'x.{0} = {1}\n'.format(f['NAME'],ii)
-    ret = ret + 'fout = open("out.bin", "wb")\n'
-    ret = ret + 'fout.write(x.write_gpb_to_buf())\n'
-    ret = ret + 'fout.close()\n'
-    ret = ret + 'fin = open("out.bin", "rb" )\n'
-    ret = ret + 'buf = fin.read()\n'
-    ret = ret + 'y = {0}_interface.{1}()\n'.format(project['PROJECT'],struct_name)
-    ret = ret + 'y.read_gpb_from_buf(buf)\n'
-    ret = ret + 'print ("ORIGNAL:")\n'
-    ret = ret + 'print (x)\n'
-    ret = ret + 'print ("GPB:")\n'
-    ret = ret + 'print (y)\n'
-    return ret
-# end create_gpb_test_for_class
-
-
 def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
     struct_def = structs[ struct_name ]
     ret = py_class_template.format( struct_name )
@@ -406,37 +261,13 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
     # end create_class_def
 
 
-def generate_py( py_dir, basetypes, structs, project, gpb=False ):
+def generate_py( py_dir, basetypes, structs, project ):
     if not os.path.exists( py_dir ):
         os.mkdir( py_dir )
 
     python_repo_dir = os.path.dirname(os.path.realpath(__file__))
     shutil.copy( python_repo_dir + os.sep + 'io_support.py', 
                  py_dir + os.sep + 'io_support.py' )
-
-    # proto file
-    if gpb:
-        print ("Creating GPB Proto File")
-        import GPB_Generator as gg
-        proto_file = gg.generate_gpb(py_dir,py_dir,basetypes,structs,project)
-        proto_file = os.path.split(proto_file)[-1]
-        # Call protoc - need to be in the directory with it
-        here = os.getcwd()
-        os.chdir(py_dir)
-        cmd = '''protoc --python_out={0} {1}'''.format('.',proto_file)
-        print ("Calling {0}".format(cmd))
-        os.popen(cmd)
-        os.chdir(here)
-
-        # gpb tests
-        for struct_name, struct_def in structs.items():
-            ret = create_gpb_test_for_class( basetypes, structs, struct_name, project )
-            print ("creating test_gpb_{0}.py".format(struct_name))
-            fOut = open( '{0}/test_gpb_{1}.py'.format(py_dir,struct_name), "w")
-            fOut.write(ret)
-            fOut.close
-        # end for each struct
-
 
     fOut = open( py_dir + os.sep + "{0}_interface.py".format(project['PROJECT']), "w" )
     fOut.write( "#!/usr/bin/env python\n" )
@@ -470,7 +301,6 @@ if __name__ == "__main__":
     parser.add_argument( 'json_basetypes_file' )
     parser.add_argument( 'json_structures_file' )
     parser.add_argument( 'output_directory' )
-    parser.add_argument( '--gpb', action='store_true', help='If selected, generate google protocol buffers serializer')
     parser.add_argument( '--pad', default=-1, type=int, help='Insert Padding For Explicit 64-Bit Word Alignment (Warning: Does Not Work With VECTOR Data Type)')
 
     args = parser.parse_args()
@@ -482,4 +312,4 @@ if __name__ == "__main__":
     basetypes = A.basetypes
     structs   = A.structs
     project   = A.project
-    generate_py( out_dir, basetypes, structs, project, args.gpb )
+    generate_py( out_dir, basetypes, structs, project )

@@ -9,6 +9,7 @@ import pprint
 import sys
 import os
 import shutil
+import copy
 
 
 __author__ = "Brian Hone"
@@ -99,6 +100,7 @@ class AutoGenerator:
         any_variable_fields = False
         # go through keys, setting length
         for struct_name, struct_def in self.structs.items():
+            print (struct_name)
             # if this struct has any vectors, this will be set to false
             struct_def['IS_VARIABLE_SIZE'] = False
             # track padding and size information
@@ -110,8 +112,10 @@ class AutoGenerator:
                 struct_def['NAMESPACE'] = self.project['NAMESPACE']
             for idx, f in enumerate(struct_def['FIELDS']):
                 # move keys to upperclass
+                tmp = {}
                 for key, val in f.items():
-                    f[key.upper()] = f.pop(key)
+                    tmp[key.upper()] = val
+                f = tmp
 
                 # SET LENGTH
                 if 'LENGTH' not in f:
@@ -162,7 +166,7 @@ class AutoGenerator:
                     # only other ok value is default value is correct length
                     elif len(f['DEFAULT_VALUE']) != f['LENGTH']:
                         print ("Bad Default for {0}: {1}".format(f['NAME'], f['DEFAULT_VALUE']))
-                struct_def[idx] = f
+                struct_def['FIELDS'][idx] = copy.deepcopy(f)
                 # set missing types
                 # handle default values
             if 'DESCRIPTION' not in struct_def:
@@ -177,6 +181,7 @@ class AutoGenerator:
             if 'STREAM_CAST' not in basetype:
                 basetype['STREAM_CAST'] = basetype['CPP_TYPE']
             self.basetypes[base_name] = basetype
+
 
         # find variable fields
         # any_variable_fields = self.find_variable_fields(struct_name)

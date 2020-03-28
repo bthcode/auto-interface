@@ -22,11 +22,6 @@ py_basic_methods = '''
         self.set_defaults() 
     # end __init__
 
-    
-    def read_props(self):
-        pass
-    # end write_props
-
     def validate(self):
         pass
     # end validate
