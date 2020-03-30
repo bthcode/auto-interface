@@ -23,7 +23,6 @@ T = '    '
 funcs_template = '''
 int validate_{0}( {0} * p_{0} );
 void set_defaults_{0}( {0} * p_{0} );
-void write_props_{0}( FILE * r_stream, const char * prefix, int prefix_len, {0} * p_{0} );
 void write_binary_{0}( FILE * r_out_stream, {0} * p_{0} );
 void read_binary_{0}( FILE * r_in_stream, {0} * p_{0} );
 void alloc_{0}( {0} * p_{0} );
@@ -44,7 +43,6 @@ void parse_json_obj_{0}(cJSON * obj, {0} * p_{0});
 # read/write: call c read_binary, c write_binary
 # alloc/dealloc: call c alloc, dealloc
 # set_defaults / validate: call c
-# write props, read props, call c -> maybe update later
 def create_cpp_wrapper_for_class( basetypes, structs, struct_name ):
     class_name = "{0}_class".format(struct_name)
     ### Class Def
@@ -57,7 +55,6 @@ def create_cpp_wrapper_for_class( basetypes, structs, struct_name ):
     ret = ret + T + 'void set_defaults(){{set_defaults_{0}(&m_data);}};\n'.format(struct_name)
     ret = ret + T + 'void read_binary(FILE * r_in_stream){{read_binary_{0}(r_in_stream,&m_data);}};\n'.format(struct_name)
     ret = ret + T + 'void write_binary(FILE * r_out_stream){{write_binary_{0}(r_out_stream,&m_data);}};\n'.format(struct_name)
-    ret = ret + T + 'void write_props(FILE * r_out_stream, const char * prefix, int prefix_len){{write_props_{0}(r_out_stream,prefix,prefix_len,&m_data); }};\n'.format(struct_name)
     ret = ret + '};\n\n\n'
     return ret
 # end create_cpp_wrapper_for_class
@@ -135,8 +132,8 @@ def create_c_struct_header( basetypes, structs, struct_name ):
             else:
                 print ('ERROR - vector with unknown type or no CONTAINED_TYPE key')
                 sys.exit(1)
-            ret = ret + T + "{0}  {1}; ///<{2}\n".format( c_decl, f['NAME'], f['DESCRIPTION'] )
             ret = ret + T + "int32_t n_elements_{0};\n".format( f['NAME'] )
+            ret = ret + T + "{0}  {1}; ///<{2}\n".format( c_decl, f['NAME'], f['DESCRIPTION'] )
 
 
     ret = ret + "\n}} {0} ;\n".format( struct_name )
@@ -177,15 +174,18 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
     # Walk any structs that might have malloc'd data and free it
     #------------------------------------------------------------- 
     for f in struct_def['FIELDS']:
+        print (f['NAME'], f['LENGTH'])
         if f['IS_STRUCT']:
             if f['LENGTH'] == 1:
                 ret = ret + T + 'dealloc_{0}( &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME'])
             elif type(f['LENGTH']) == int:
+                print ("NO Dealloc {}".format(f['NAME']))
                 ret = ret + T + 'for (ii=0; ii<{0}; ii++ )\n'.format(f['LENGTH'])
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'dealloc_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + T + '}\n'
             elif f['LENGTH'] == 'VECTOR':
+                print ("Dealloc {}".format(f['NAME']))
                 ret = ret + T + 'for (ii=0; ii<p_{0}->n_elements_{1}; ii++ )\n'.format(struct_name,f['NAME'])
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'dealloc_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
@@ -193,6 +193,12 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 ){{free( p_{0}->{1} );}}\n'.format(struct_name,f['NAME'])
                 ret = ret + T + 'p_{0}->n_elements_{1} = 0;\n'.format(struct_name,f['NAME'])
                 ret = ret + T + 'p_{0}->{1} = 0x0;\n'.format(struct_name,f['NAME'])
+        if f['LENGTH'] == 'VECTOR':
+            ret = ret + T + 'if (p_{0}->n_elements_{1} > 0)\n'.format(struct_name, f['NAME'])
+            ret = ret + T + '{\n'
+            ret = ret + T + T + 'free(p_{0}->{1});\n'.format(struct_name, f['NAME'])
+            ret = ret + T + '}\n'
+            ret = ret + T + 'p_{0}->n_elements_{1} = 0;\n'.format(struct_name,f['NAME'])
     ret = ret + "}\n\n"
 
     ### Read Binary 
@@ -318,58 +324,60 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 ret = ret + T + '}\n'
 
         elif f['LENGTH'] == 'VECTOR':
-            print ("WARNING: Setting Default Length for VECTOR Type in C not supported")
+            #print ("WARNING: Setting Default Length for VECTOR Type in C not supported")
+            if f['IS_BASETYPE']:
+                b = basetypes[f['TYPE']]
+                ctype = basetypes[f['TYPE']]['C_TYPE']
+                # get default value
+                def_val = f['DEFAULT_VALUE']
+                if len(def_val) == 1:
+                    ret = ret + T + 'p_{0}->n_elements_{1} = {2};\n'.format(struct_name, f['NAME'], def_val)
+                    ret = ret + T + 'p_{0}->{1} = ({2}*) malloc({3} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype, def_val);
+                    ret = ret + T + 'for (ii=0; ii<{0}; ii++){{\n'.format(f['LENGTH'])
+                    ret = ret + T + T + 'p_{0}->{1}[ii] = {2};\n'.format(struct_name,f['NAME'],def_val[0])
+                    ret = ret + T + '}\n'
+                else:
+                    num_elements = len(def_val)
+                    counter=0
+                    ret = ret + T + 'p_{0}->n_elements_{1} = {2};\n'.format(struct_name, f['NAME'], num_elements)
+                    ret = ret + T + 'p_{0}->{1} = ({2}*) malloc({3} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype, num_elements);
+                    for idx in range(len(def_val)):
+                        ret = ret + T + 'p_{0}->{1}[{2}] = {3};\n'.format(struct_name,f['NAME'],counter,def_val[idx])
+                        counter = counter+1
+            elif f['IS_STRUCT']:
+            #    ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format( f['LENGTH'] )
+            #    ret = ret + T + '{\n'
+            #    ret = ret + T + T + 'set_defaults_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
+            #    ret = ret + T + '}\n'
+                ctype = f['TYPE']
+                if len(def_val) == 1:
+                    ret = ret + T + 'p_{0}->n_elements_{1} = {2};\n'.format(struct_name, f['NAME'], def_val[0])
+                    ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
+                    ret = ret + T + '{\n'
+                    ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(p_{0}->n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
+                    ret = ret + T + T + 'set_defaults_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
+                    ret = ret + T + '}\n'
+                    ret = ret + T + 'else\n'
+                    ret = ret + T + T + 'p_{0}->{1} = 0x0;\n\n'.format(struct_name,f['NAME'])
+                else:
+                    ret = ret + T + 'p_{0}->n_elements_{1} = {2};\n'.format(struct_name, f['NAME'], len(def_val))
+                    ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
+                    ret = ret + T + '{\n'
+                    ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(p_{0}->n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
+                    ret = ret + T + T + 'for (ii=0; ii < p_{0}->n_elements_{1}; ii++) \n'.format(struct_name,f['NAME'])
+                    ret = ret + T + T + '{\n'
+                    ret = ret + T + T + T + 'set_defaults_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
+                    ret = ret + T + T + '}\n'
+                    ret = ret + T + T + 'else\n'
+                    ret = ret + T + T + T + 'p_{0}->{1} = 0x0;\n\n'.format(struct_name,f['NAME'])
+                    ret = ret + T + '}\n'
+
+
+
+
             
 
     ret = ret + "}\n\n"
-
-    ret = ret + "void write_props_{0}( FILE * r_stream, const char * prefix, int prefix_len, {0} * p_{0} )\n".format(struct_name)
-    ret = ret + '{\n'
-    ret = ret + T + 'char buf[1024];\n'
-    ret = ret + T + 'int num_written;\n'
-    ret = ret + T + 'int32_t ii=0;\n'
-    for f in struct_def['FIELDS']:
-        if f['LENGTH'] == 1:
-            if f['IS_BASETYPE']:
-                ret = ret + T + 'fprintf( r_stream, "%s", prefix );\n'
-                ret = ret + T + 'fprintf( r_stream, "{0} :" );\n'.format(f['NAME'])
-                ret = ret + T + 'print_{0}( r_stream, 1, \' \', &(p_{1}->{2}) );\n'.format(f['TYPE'],struct_name,f['NAME']);
-                ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
-            elif f['IS_STRUCT']:
-                ret = ret + T + 'num_written = snprintf( buf, 1024, "%s.{0}.", prefix );\n'.format(f['NAME']) 
-                ret = ret + T + 'buf[ num_written ] = 0x0;\n'
-                ret = ret + T + 'write_props_{0}(r_stream,buf,num_written,&(p_{1}->{2}));\n'.format(f['TYPE'],struct_name,f['NAME'])
-                ret = ret + "\n"
-        elif type( f['LENGTH'] ) == int:
-            if f['IS_BASETYPE']:
-                ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
-                ret = ret + T + 'fprintf( r_stream, "{0} :" );\n'.format(f['NAME'])
-                ret = ret + T + 'print_{0}( r_stream, {3}, \' \', &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME'],f['LENGTH']);
-                ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
-            elif f['IS_STRUCT']:
-                ret = ret + T + 'for (ii=0; ii < {0}; ii++ )\n'.format(f['LENGTH'])
-                ret = ret + T + '{\n'
-                ret = ret + T + T + 'num_written = snprintf( buf, 1024, "%s.{0}[ %d ]", prefix, ii );\n'.format(f['NAME']) 
-                ret = ret + T + T + 'buf[ num_written ] = 0x0;\n'
-                ret = ret + T + T + 'write_props_{0}(r_stream, buf, num_written, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'],struct_name,f['NAME'])
-                ret = ret + T + '}\n'
-                ret = ret + "\n"
-        elif f['LENGTH'] == 'VECTOR':
-            if f['IS_BASETYPE']:
-                ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
-                ret = ret + T + 'fprintf( r_stream, "{0} :" );\n'.format(f['NAME'])
-                ret = ret + T + 'print_{0}(r_stream,p_{1}->n_elements_{2}, \' \', p_{1}->{2});\n'.format(f['TYPE'],struct_name,f['NAME']) 
-                ret = ret + T + 'fprintf( r_stream, "\\n" );\n'
-            elif f['IS_STRUCT']:
-                ret = ret + T + 'fprintf( r_stream, "%s",  prefix );\n'
-                ret = ret + T + 'fprintf( r_stream, "{0} :\\n");\n'.format(f['NAME'])
-                ret = ret + T + 'for (ii=0; ii< p_{0}->n_elements_{1}; ++ii )\n'.format(struct_name,f['NAME'])
-                ret = ret + T + '{\n'
-                ret = ret + T + T + 'num_written = snprintf( buf, 1024, "%s.{0}[ %d ]", prefix, ii );\n'.format(f['NAME']) 
-                ret = ret + T + T + 'buf[ num_written ] = 0x0;\n'
-                ret = ret + T + T + 'write_props_{0}(r_stream, prefix, prefix_len,&(p_{1}->{2}[ii]));\n'.format(f['TYPE'], struct_name, f['NAME'])
-                ret = ret + T + '}\n\n'
-    ret = ret + '}\n\n'
 
     ret = ret + "void write_json_{0}( FILE * r_stream, {0} * p_{0} )\n".format(struct_name)
     ret = ret + '{\n'
@@ -409,6 +417,30 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
                 ret = ret + T + '{\n'
                 ret = ret + T + T + 'write_json_{0}(r_stream, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'],struct_name,f['NAME'])
                 ret = ret + T + T + 'if (ii<{0})\n'.format(f['LENGTH']-1)
+                ret = ret + T + T + '    printf(",");\n'
+                ret = ret + T + '}\n'
+                ret = ret + "\n"
+
+                if idx == len(struct_def['FIELDS'])-1:
+                    ret = ret + T + 'fprintf( r_stream, "]\\n" );\n'
+                else:
+                    ret = ret + T + 'fprintf( r_stream, "],\\n" );\n'
+        elif f['LENGTH'] == 'VECTOR':
+            if f['IS_BASETYPE']:
+                ret = ret + T + 'fprintf( r_stream, "\\"{0}\\" : [ " );\n'.format(f['NAME'])
+                #ret = ret + T + "int32_t n_elements_{0};\n".format( f['NAME'] )
+                ret = ret + T + 'print_{0}( r_stream, p_{1}->n_elements_{2}, \',\', &(p_{1}->{2}[0]) );\n'.format(f['TYPE'],struct_name,f['NAME']);
+                if idx == len(struct_def['FIELDS'])-1:
+                    ret = ret + T + 'fprintf( r_stream, "]\\n" );\n'
+                else:
+                    ret = ret + T + 'fprintf( r_stream, "],\\n" );\n'
+
+            elif f['IS_STRUCT']:
+                ret = ret + T + 'fprintf( r_stream, "\\"{0}\\" : [ " );\n'.format(f['NAME'])
+                ret = ret + T + 'for (ii=0; ii < p_{0}->n_elements_{1}; ii++ )\n'.format(struct_name,f['NAME'])
+                ret = ret + T + '{\n'
+                ret = ret + T + T + 'write_json_{0}(r_stream, &(p_{1}->{2}[ii]));\n'.format(f['TYPE'],struct_name,f['NAME'])
+                ret = ret + T + T + 'if (ii<p_{0}->n_elements_{1}-1)\n'.format(struct_name,f['NAME'])
                 ret = ret + T + T + '    printf(",");\n'
                 ret = ret + T + '}\n'
                 ret = ret + "\n"
@@ -536,7 +568,7 @@ def create_printer_for_struct(basetypes,structs,struct_name,project):
     ret = ret + T + 'FILE * fin = fopen( argv[1], "rb" );\n'
     ret = ret + T + '{0} x;\n'.format(struct_name)
     ret = ret + T + 'read_binary_{0}(fin,&x);\n'.format(struct_name)
-    ret = ret + T + 'write_props_{0}(stdout,"test->",6,&x);\n'.format(struct_name)
+    ret = ret + T + 'write_json_{0}(stdout,&x);\n'.format(struct_name)
     ret = ret + T + 'dealloc_{0}(&x);\n'.format(struct_name)
     ret = ret + T + 'fclose(fin);\n\n'
     ret = ret + T + 'return 0;\n'
@@ -706,7 +738,7 @@ SET( AUTOGEN_SRC_DIR  "{0}" )
 SET( AUTOGEN_INC_DIR  "{1}" )
 
 # Basic Library
-SET( C_FILES "{2}_struct_defs.c"  )
+SET( C_FILES "{2}_struct_funcs.c"  )
 
 ########### VERBOSE DEBUG ##########
 MESSAGE( STATUS "C_FILES:" )

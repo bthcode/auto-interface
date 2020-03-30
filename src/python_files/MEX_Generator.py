@@ -9,6 +9,7 @@ __author__="Brian Hone"
 import json, string, pprint, sys, os
 import shutil
 
+from AutoInterface import AutoGenerator
 
 
 
@@ -17,12 +18,12 @@ USAGE="""
 USAGE: AutoGenerator.py <basetypes json file> <class definition json file> <output directory>
 """
 
-class AutoGenerator:
+class MexGenerator:
     """
 Code Generation System:
 
 Usage:
-  - A = AutoGenerator( basetypes_json_filename, structures_json_filename, output_directory )
+  - A = MexGenerator( basetypes_json_filename, structures_json_filename, output_directory )
   - A.create_struct_headers()
   - A.create_struct_impls()
 
@@ -36,9 +37,9 @@ Usage:
       <foo>_mex_impl.cpp     - Front-end MEX Code
   
     """
-    def __init__(self, json_basetypes, json_file, output_directory ):
-        self.basetypes = json.load( open( json_basetypes,  'r' ) )
-        self.structs   = json.load( open( json_file, 'r' ) )
+    def __init__(self, basetypes, struct_defs, output_directory ):
+        self.basetypes = basetypes
+        self.structs   = struct_defs
         self.out_dir   = output_directory
         self.create_directory_structure()
     # end __init__
@@ -100,9 +101,6 @@ Usage:
     disp( 'copying from mat to new c pointer...' );
     {0}_mex_impl( 9, ref2, foo  );
 
-    disp( 'writing {0}.props...' );
-    {0}_mex_impl( 2, ref2, '{0}.props', 'out.' );
-
     disp( 'writing binary {0}.bin...');
     {0}_mex_impl( 4, ref2, 'barf.bin' );
 
@@ -126,10 +124,6 @@ Usage:
         name, impl = self.create_mat_write_binary( struct_name )
         ret[ name ] = impl
         name, impl = self.create_mat_read_binary( struct_name )
-        ret[ name ] = impl
-        name, impl = self.create_mat_write_props( struct_name )
-        ret[ name ] = impl
-        name, impl = self.create_mat_read_props( struct_name )
         ret[ name ] = impl
 
         return ret
@@ -196,87 +190,6 @@ end
 
     # end create_mat_write_binary
 
-    def create_mat_write_props( self, struct_name ):
-        ret = ''' function [] = write_props_{0}( fname, prefix, {0}_struct )
-    
-    % create c instance
-    ref = {0}_mex_impl(0);
-
-    % copy mat to c
-    {0}_mex_impl( 9, ref, {0}_struct  );
-
-    % write props
-    {0}_mex_impl( 2, ref, fname, prefix );
-
-    % delete the c structure
-    {0}_mex_impl(1, ref );
-end
-'''.format( struct_name )
-    
-        return 'write_props_{0}.m'.format( struct_name ), ret
-    # end create_mat_write_props
-
-    def create_mat_read_props( self, struct_name ):
-        ret = ''' function [ {0}_struct ] = read_props_{0}( fname, prefix )
-    
-    % create c instance
-    ref = {0}_mex_impl(0);
-
-    % set defaults
-    {0}_mex_impl( 6, ref );
-
-    % read props
-    {0}_mex_impl( 3, ref, fname, prefix );
-
-    % copy to matlab
-    {0}_struct = {0}_mex_impl( 8, ref );
-
-    % delete the c structure
-    {0}_mex_impl(1, ref );
-end
-'''.format( struct_name )
-    
-        return 'read_props_{0}.m'.format( struct_name ), ret
-    # end create_mat_read_props
-
-
-##################################################################################
-#
-# Doxygen
-#
-##################################################################################
-
-
-    def create_doxygen_mainpage(self):
-        table = '<table><tr><th>Structure</th><th>Description</th></tr>\n'
-        for struct_name, struct_def in self.structs.items():
-            doc = ''
-            ns = ''
-            if struct_def.has_key( "NAMESPACE" ):
-                ns = struct_def["NAMESPACE"]
-            if struct_def.has_key( "DESCRIPTION" ):
-                doc = struct_def['DESCRIPTION']
-            table = table + T + '<tr><td>%s::%s</td><td>%s</td></tr>\n'  % ( ns, struct_name, doc )
-        table = table + '</table>'
-        ret = '''
-/**
-\\mainpage
-\\section INTRO Introduction
-\\section HOWTO HOWTO
-\\section GeneratedClasses Generated Classes
-%s
-\\section GeneratedMatlab Generated Matlab
-\\section Example
-\\code 
-foo
-bar
-\\endcode
-*//
-        ''' % ( table )
-        return ret
-    # end create_doxygen_mainpage
-                
-
 
 ##################################################################################
 #
@@ -309,12 +222,6 @@ void  mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     case 1:
         destroy_{0}( nlhs, plhs, nrhs, prhs );
         break;
-    case 2:
-        write_props_{0}( nlhs, plhs, nrhs, prhs );
-        break;
-    case 3:
-        read_props_{0}( nlhs, plhs, nrhs, prhs );
-        break;
     case 4:
         write_binary_{0}( nlhs, plhs, nrhs, prhs );
         break;
@@ -323,9 +230,6 @@ void  mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         break;
     case 6:
         set_defaults_{0}( nlhs, plhs, nrhs, prhs );
-        break;
-    case 7:
-        validate_{0}( nlhs, plhs, nrhs, prhs );
         break;
     case 8:
         {0}_cpp_to_mat( nlhs, plhs, nrhs, prhs );
@@ -404,16 +308,6 @@ void destroy_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 /**
  * @brief Copy data stored in p to new\'d mxArray
  */
-void write_props_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
-
-/**
- *  @brief Copy data stored in p to new\'d mxArray
- */ 
-void read_props_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
-
-/**
- * @brief Copy data stored in p to new\'d mxArray
- */
 void write_binary_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
 /**
@@ -425,11 +319,6 @@ void read_binary_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs
  * @brief Copy data stored in p to new\'d mxArray
  */
 void set_defaults_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
-
-/**
- * @brief Copy data stored in p to new\'d mxArray
- */
-void validate_{0}( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]);
 
 /**
  * @brief Copy data stored in p to new\'d mxArray
@@ -550,25 +439,6 @@ return p_ret;
                 ret = ret + T + T + 'mxArray * p_tmp = %s_to_mat( &(p_%s->%s) );\n' % ( f["STRUCT_TYPE"], struct_name, f['NAME'] )
                 ret = ret + T + T + 'mxSetFieldByNumber( p_ret, nth_element, %s, p_tmp );\n' % ( count )
                 ret = ret + T + '}\n\n'
-            elif f['TYPE'] == "COMPLEX" :
-                c_type = self.basetypes[ f['COMPLEX_TYPE'] ]['C_TYPE']
-                mat_type = self.basetypes[ f['COMPLEX_TYPE'] ]['MAT_TYPE']
-                # 1. Create numeric array
-                ret = ret + T + '{\n'
-                ret = ret + T + T + 'mxArray * p_tmp;\n'
-                ret = ret + T + T + 'mwSize tmp_dims[2] = { 1, 1 };\n'
-                ret = ret + T + T + '\n'
-                ret = ret + T + T + 'p_tmp = mxCreateNumericArray (2, tmp_dims, %s, mxCOMPLEX);\n' % ( mat_type )
-                # 2. Get pointer
-                ret = ret + T + T + '%s * p_real = ( %s * ) mxGetPr( p_tmp );\n' % ( c_type, c_type )
-                ret = ret + T + T + '%s * p_imag = ( %s * ) mxGetPi( p_tmp );\n' % ( c_type, c_type )
-                # 3. Copy c data to that pointer
-                ret = ret + T + T + 'p_real[0] = p_%s->%s.real();\n' % ( struct_name, f['NAME'] )
-                ret = ret + T + T + 'p_imag[0] = p_%s->%s.imag();\n' % ( struct_name, f['NAME'] )
-                # 4. Set the mat struct element's point to the numeric array
-                ret = ret + T + T + 'mxSetFieldByNumber (p_ret, nth_element, %s, p_tmp) ;\n' % ( count )
-                ret = ret + T + '}\n\n'
-
             elif f['TYPE'] == 'VECTOR':
                 if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
                     c_type = self.basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
@@ -601,44 +471,6 @@ return p_ret;
                     ret = ret + T + T + 'mxSetFieldByNumber (p_ret, nth_element, %s, p_tmp) ;\n' % ( count )
                     ret = ret + T + '}\n\n'
 
-                elif f['CONTAINED_TYPE'] == 'COMPLEX':
-                    c_type = self.basetypes[ f['COMPLEX_TYPE'] ]['C_TYPE']
-                    mat_type = self.basetypes[ f['COMPLEX_TYPE'] ]['MAT_TYPE']
-                    # 1. Create numeric array
-                    ret = ret + T + 'if ( p_%s->%s.size() ) {\n' % ( struct_name, f['NAME'] )
-                    ret = ret + T + T + 'mxArray * p_tmp;\n'
-                    ret = ret + T + T + 'mwSize tmp_dims[2] = { p_%s->%s.size(), 1 };\n' % ( struct_name, f['NAME'] )
-                    ret = ret + T + T + '\n'
-                    ret = ret + T + T + 'p_tmp = mxCreateNumericArray (2, tmp_dims, %s, mxCOMPLEX);\n' % ( mat_type )
-                    # 2. Get pointer
-                    ret = ret + T + T + '%s * real_ptr = ( %s * ) mxGetPr( p_tmp );\n' % ( c_type, c_type )
-                    ret = ret + T + T + '%s * imag_ptr = ( %s * ) mxGetPi( p_tmp );\n' % ( c_type, c_type )
-                    # 3. Copy c data to that pointer
-                    ret = ret + T + T + 'for ( std::size_t ii=0; ii < p_%s->%s.size(); ii++ ) {\n' % ( struct_name, f['NAME'] )
-                    ret = ret + T + T + T + 'real_ptr[ii] = p_%s->%s[ii].real();\n' % ( struct_name, f['NAME'] )
-                    ret = ret + T + T + T + 'imag_ptr[ii] = p_%s->%s[ii].imag();\n' % ( struct_name, f['NAME'] )
-                    ret = ret + T + T + '}\n'
-                    # 4. Set the mat struct element's point to the numeric array
-                    ret = ret + T + T + 'mxSetFieldByNumber (p_ret, nth_element, %s, p_tmp) ;\n' % ( count )
-                    ret = ret + T + '}\n'
-                    ret = ret + T + 'else'
-                    ret = ret + T + '{ // placeholder for empty vector\n'
-                    ret = ret + T + T + 'mexPrintf( "empty vector for %s\\n" );\n' % f['NAME']
-                    ret = ret + T + T + 'mxArray * p_tmp;\n'
-                    ret = ret + T + T + 'mwSize tmp_dims[2] = { 1, 1 };\n'
-                    ret = ret + T + T + '\n'
-                    ret = ret + T + T + 'p_tmp = mxCreateNumericArray (2, tmp_dims, %s, mxCOMPLEX);\n' % ( mat_type )
-                    # 2. Get pointer
-                    ret = ret + T + T + '%s * real_ptr = ( %s * ) mxGetPr( p_tmp );\n' % ( c_type, c_type )
-                    ret = ret + T + T + '%s * imag_ptr = ( %s * ) mxGetPr( p_tmp );\n' % ( c_type, c_type )
-                    # 3. Copy c data to that pointero       
-                    ret = ret + T + T + 'real_ptr[0] = 0;\n'
-                    ret = ret + T + T + 'imag_ptr[0] = 0;\n'
-                    # 4. Set the mat struct element's point to the numeric array
-                    ret = ret + T + T + 'mxSetFieldByNumber (p_ret, nth_element, %s, p_tmp) ;\n' % ( count )
-                    ret = ret + T + '}\n\n'
-
-     
                 elif f['CONTAINED_TYPE'] == 'STRUCT':
                     ret = ret + T + 'if ( p_%s->%s.size() )\n' % ( struct_name, f['NAME'] )
                     ret = ret + T + '{\n'
@@ -692,20 +524,6 @@ return p_ret;
                 ret = ret + T + T + T + 'mat_to_%s( p_tmp, &(p_%s->%s), 0 );\n' % ( f['STRUCT_TYPE'], struct_name, f['NAME'] )
                 ret = ret + T + T + '}\n'
                 ret = ret + T + '}\n\n'
-            elif f['TYPE'] == "COMPLEX":
-                c_type = self.basetypes[ f['COMPLEX_TYPE'] ]['C_TYPE']
-                mat_type = self.basetypes[ f['COMPLEX_TYPE'] ]['MAT_TYPE']
-                # 1. Get a pointer to the right place in the mxArray
-                ret = ret + T + '{\n'
-                ret = ret + T + T + 'mxArray * p_tmp = mxGetField (pMat, nth_element, "%s");\n' % ( f['NAME'] )
-                ret = ret + T + T + 'if ( p_tmp )\n'
-                ret = ret + T + T + '{\n'
-                ret = ret + T + T + T + '%s * p_tmp1 = mxGetPr( p_tmp );\n' % ( c_type )
-                ret = ret + T + T + T + '%s * p_tmp2 = mxGetPi( p_tmp );\n' % ( c_type )
-                ret = ret + T + T + T + 'if ( p_tmp1 ) p_%s->%s.real( *p_tmp1 );\n' % ( struct_name, f['NAME'] )
-                ret = ret + T + T + T + 'if ( p_tmp2 ) p_%s->%s.imag( *p_tmp2 );\n' % ( struct_name, f['NAME'] )
-                ret = ret + T + T + '}\n'
-                ret = ret + T + '}\n\n'
             elif f['TYPE'] == 'VECTOR':
                 if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
                     c_type = self.basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
@@ -725,29 +543,6 @@ return p_ret;
                     ret = ret + T + T + T + 'for (size_t i=0; i < num_elements; i++ )\n'
                     ret = ret + T + T + T + '{\n'
                     ret = ret + T + T + T + T + 'p_%s->%s[ i ] = (ptr[i]);\n' % ( struct_name, f['NAME'] )
-                    ret = ret + T + T + T + '}\n'
-                    ret = ret + T + T + '}\n'
-                    ret = ret + T + '}\n\n'
-                elif f['CONTAINED_TYPE'] == "COMPLEX" :
-                    c_type = self.basetypes[ f['COMPLEX_TYPE'] ]['C_TYPE']
-                    mat_type = self.basetypes[ f['COMPLEX_TYPE'] ]['MAT_TYPE']
-                    ret = ret + T + '{\n'
-                    # 1. Clear the output vector
-                    ret = ret + T + 'p_%s->%s.clear();\n' % ( struct_name, f['NAME'] )
-                    # 2. Get the new array size and resize the vector
-                    ret = ret + T + T + 'mxArray * p_tmp = mxGetField (pMat, nth_element, "%s");\n' % ( f['NAME'] )
-                    ret = ret + T + T + 'if ( p_tmp )\n'
-                    ret = ret + T + T + '{\n'
-                    ret = ret + T + T + T + 'mwSize num_elements = mxGetNumberOfElements (p_tmp);\n'
-                    ret = ret + T + T + T + 'p_%s->%s.resize( num_elements );\n' % ( struct_name, f['NAME'] )
-                    ret = ret + T + T + T + '// Get a raw pointer to the matlab storage\n'
-                    ret = ret + T + T + T + '%s * real_ptr = mxGetPr( p_tmp );\n' % ( c_type )
-                    ret = ret + T + T + T + '%s * imag_ptr = mxGetPi( p_tmp );\n' % ( c_type )
-                    ret = ret + T + T + T + '// Copy the data into c\n'
-                    ret = ret + T + T + T + 'for (size_t i=0; i < num_elements; i++ )\n'
-                    ret = ret + T + T + T + '{\n'
-                    ret = ret + T + T + T + T + 'if ( real_ptr ) p_%s->%s[ i ].real( real_ptr[ i ] );\n' % ( struct_name, f['NAME'] )
-                    ret = ret + T + T + T + T + 'if ( imag_ptr ) p_%s->%s[ i ].imag( imag_ptr[ i ] );\n' % ( struct_name, f['NAME'] )
                     ret = ret + T + T + T + '}\n'
                     ret = ret + T + T + '}\n'
                     ret = ret + T + '}\n\n'
@@ -816,78 +611,6 @@ return p_ret;
         ret = ret + T + 'delete p;\n'
         ret = ret + '}\n\n'
 
-        ### Write Props
-        ret = ret + 'void write_props_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[])\n{\n' % (struct_name )
-        ret = ret + T + '// call a %s object\'s write_props\n\n' % ( struct_name)
-        ret = ret + T + 'char * file_name;\n'
-        ret = ret + T + 'char * prefix;\n'
-        ret = ret + T + 'int  buflen;\n'
-        ret = ret + T + 'if ( nrhs != 4 )\n'
-        ret = ret + T + '{\n'
-        ret = ret + T + T + '// print error\n'
-        ret = ret + T + T + 'return;\n'
-        ret = ret + T + '}\n\n'
-        ret = ret + T + 'if (mxIsChar(prhs[2]) != 1)\n'
-        ret = ret + T + '{\n'
-        ret = ret + T + T + 'mexErrMsgTxt("Filename must be a string.");'
-        ret = ret + T + T + 'return;\n'
-        ret = ret + T + '}\n\n'
-        ret = ret + T + 'if (mxIsChar(prhs[3]) != 1)\n'
-        ret = ret + T + '{\n'
-        ret = ret + T + T + 'mexErrMsgTxt("Prefix must be a string.");'
-        ret = ret + T + T + 'return;\n'
-        ret = ret + T + '}\n\n'
-        ret = ret + T + '// copy file name and prefix into c strings\n'
-        ret = ret + T + 'buflen = (mxGetM(prhs[2]) * mxGetN(prhs[2])) + 1;\n'
-        ret = ret + T + 'file_name = (char * )mxCalloc(buflen, sizeof(char));\n'
-        ret = ret + T + 'mxGetString(prhs[2], file_name, buflen);\n\n'
-        ret = ret + T + 'buflen = (mxGetM(prhs[3]) * mxGetN(prhs[3])) + 1;\n'
-        ret = ret + T + 'prefix = (char *)mxCalloc(buflen, sizeof(char));\n'
-        ret = ret + T + 'mxGetString(prhs[3], prefix, buflen);\n\n'
-        ret = ret + T + 'std::string pre( prefix );\n\n'
-        ret = ret + T + '// cast to class pointer\n'
-        ret = ret + T + '%s * p = %s_pointer_from_mxArray( prhs[1] );\n\n' % ( struct_name, struct_name )
-        ret = ret + T + 'std::ofstream f_out;\n'
-        ret = ret + T + 'f_out.open( file_name );\n'
-        ret = ret + T + 'p->write_props( f_out, pre );\n'
-        ret = ret + '}\n\n'
-
-        ### Read Props
-        ret = ret + 'void read_props_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[]) {\n' % ( struct_name )
-        ret = ret + T + '// call a %s object\'s read_props\n' % ( struct_name )
-        ret = ret + T + 'char * file_name;\n'
-        ret = ret + T + 'char * prefix;\n'
-        ret = ret + T + 'int  buflen;\n'
-        ret = ret + T + 'if ( nrhs != 4 )\n'
-        ret = ret + T + '{\n'
-        ret = ret + T + T + '// print error\n'
-        ret = ret + T + T + 'return;\n'
-        ret = ret + T + '}\n'
-        ret = ret + T + 'if (mxIsChar(prhs[2]) != 1)\n'
-        ret = ret + T + '{\n'
-        ret = ret + T + T + 'mexErrMsgTxt("Filename must be a string.");'
-        ret = ret + T + T + 'return;\n'
-        ret = ret + T + '}\n'
-        ret = ret + T + T + 'if (mxIsChar(prhs[3]) != 1)\n'
-        ret = ret + T + T + '{\n'
-        ret = ret + T + T + 'mexErrMsgTxt("Prefix must be a string.");'
-        ret = ret + T + T + 'return;\n'
-        ret = ret + T + '}\n'
-        ret = ret + T + '// copy file name and prefix into c strings\n'
-        ret = ret + T + 'buflen = (mxGetM(prhs[2]) * mxGetN(prhs[2])) + 1;\n'
-        ret = ret + T + 'file_name = (char * )mxCalloc(buflen, sizeof(char));\n'
-        ret = ret + T + 'mxGetString(prhs[2], file_name, buflen);\n'
-        ret = ret + T + 'buflen = (mxGetM(prhs[3]) * mxGetN(prhs[3])) + 1;\n'
-        ret = ret + T + 'prefix = (char *)mxCalloc(buflen, sizeof(char));\n'
-        ret = ret + T + 'mxGetString(prhs[3], prefix, buflen);\n'
-        ret = ret + T + 'std::string pre( prefix );\n'
-        ret = ret + T + '// cast to class pointer\n'
-        ret = ret + T + '%s * p = %s_pointer_from_mxArray( prhs[1] );\n\n' % ( struct_name, struct_name )
-        ret = ret + T + 'std::ifstream if_in;\n'
-        ret = ret + T + 'if_in.open( file_name );\n'
-        ret = ret + T + 'p->read_props( if_in, pre );\n'
-        ret = ret + '}\n\n'
-
         ### Write Binary
         ret = ret + 'void write_binary_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[])\n{\n' % (struct_name )
         ret = ret + T + '// call a %s object\'s write_binary\n' % ( struct_name )
@@ -954,23 +677,6 @@ return p_ret;
         ret = ret + T + 'p->set_defaults();\n'
         ret = ret + '}\n\n'
 
-        ### Validate
-        ret = ret + 'void validate_%s( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[])\n{\n' % (struct_name )
-        ret = ret + T + '// call a %s object\'s validate\n' % ( struct_name )
-        ret = ret + T + 'if ( nrhs != 2 )\n'
-        ret = ret + T + '{\n'
-        ret = ret + T + T + '// print error\n'
-        ret = ret + T + T + 'return;\n'
-        ret = ret + T + '}\n'
-        ret = ret + T + '// cast to class pointer\n'
-        ret = ret + T + '%s * p = %s_pointer_from_mxArray( prhs[1] );\n\n' % ( struct_name, struct_name )
-        ret = ret + T + 'std::string err_msg;\n'
-        ret = ret + T + 'int err_count = p->validate( err_msg );\n'
-        ret = ret + T + 'plhs[0] = mxCreateDoubleMatrix( 1, 1, mxREAL );\n'
-        ret = ret + T + 'double * ptr = mxGetPr( plhs[0] );\n'
-        ret = ret + T + '*ptr = double( err_count );\n' 
-        ret = ret + '}\n\n'
-
         ### Cpp to Mat
         ret = ret + 'void %s_cpp_to_mat( int nlhs, mxArray * plhs[], int nrhs, const mxArray * prhs[])\n{\n' % (struct_name )
         ret = ret + T + '// copy %s object to matlab object\n' % ( struct_name )
@@ -1001,563 +707,6 @@ return p_ret;
         return ret
     # end create_mat_impl
 
-
-##################################################################################
-# Python Files
-##################################################################################
-
-# Class Defs
-    def create_py_class_def( self, struct_name ):
-
-        struct_def = self.structs[ struct_name ]
-        ret = '''class {0}:
-    def __init__(self):
-        self.set_defaults() 
-    # end __init__
-
-    
-    def write_binary(self):
-        pass
-    # end write_binary
-
-    def read_props(self):
-        pass
-    # end write_props
-
-    def validate(self):
-        pass
-    # end validate
-
-    def __repr__(self):
-        for key, val in sorted(vars(self).items()):
-            ret = ret + "{{0}}: {{1}}\\n".format( key, val )
-        return ret
-    # end __repr__
-
-    def set_defaults(self):
-'''.format( struct_name )
-
-        # set defaults
-        for f in struct_def['FIELDS']:
-            if self.basetypes.has_key( f['TYPE'] ):
-                if f.has_key('DEFAULT_VALUE'):
-                    ret = ret + T + T + "self.{0} = {1};\n".format( f['NAME'], f['DEFAULT_VALUE'] )
-                else:
-                    ret = ret + T + T +  "self.{0} = {1};\n".format( f['NAME'], b['DEFAULT_VALUE'] )
-            elif f['TYPE'] == 'STRUCT':
-                ret = ret + T + T + 'self.{0} = {1}()\n'.format( f['NAME'], f['STRUCT_TYPE'] )
-                ret = ret + T + T + 'self.{0}.set_defaults();\n'.format( f['NAME'] )
-            elif f['TYPE'] == 'VECTOR':
-                ret = ret + T + T + 'self.{0} = []\n'.format( f['NAME'] )
-        ret = ret + T + "# end set_defaults\n"
-
-        # read binary
-        # BTH HERE
-        ret = ret + T + "def read_binary( self, r_stream ):\n"
-        for f in struct_def['FIELDS']:
-            if self.basetypes.has_key( f['TYPE'] ):
-                print self.basetypes[ f['TYPE'] ]
-                pytype = self.basetypes[ f['TYPE'] ][ 'PY_TYPE' ]
-                ret = ret + T + """
-        struct_fmt = '={0}'
-        struct_len = struct.calcsize( struct_fmt )
-        struct_unpack = struct.Struct( struct_fmt ).unpack_from
-        data = r_stream.read( struct_len )
-        if len(data) != struct_len:
-            print( "Error 1" )
-            return
-        self.{1} = struct_unpack(data)[0]
-        print "type = {2}, size = {{0}}".format( struct_len )
-""".format( pytype, f['NAME'], self.basetypes[ f['TYPE'] ]['C_TYPE'] )
-            elif f['TYPE'] == 'COMPLEX':
-                pytype = self.basetypes[ f['COMPLEX_TYPE'] ]['PY_TYPE']
-                ret = ret + """
-        struct_fmt = '={0}{0}'
-        struct_len = struct.calcsize( struct_fmt )
-        struct_unpack = struct.Struct( struct_fmt ).unpack_from
-        data = r_stream.read( struct_len )
-        if not data:
-            print( "Error 1" )
-            return
-        r,i = struct_unpack(data)
-        self.{1} = r + 1j * i
-""".format( pytype, f['NAME'] )
-            elif f['TYPE'] == 'STRUCT':
-                ret = ret + T + T + 'self.{0}.read_binary( r_stream );\n'.format( f['NAME'] )
-            elif f['TYPE'] == 'VECTOR':
-                ret = ret + T + T + "self.{0} = []".format( f['NAME'] )
-                # TODO - this needs to be uint32_t
-                ret = ret + """
-        struct_fmt = '=i'
-        struct_len = struct.calcsize( struct_fmt )
-        struct_unpack = struct.Struct( struct_fmt ).unpack_from
-        data = r_stream.read( struct_len )
-        if not data:
-            print( "Error 1" )
-            return
-        num_elems = struct_unpack(data)
-"""
-                if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
-                    pytype = self.basetypes[ f['CONTAINED_TYPE'] ]['PY_TYPE'] 
-                    ret = ret + """
-        struct_fmt = '={{0}}'.format(num_elems) + '{0}'
-        struct_len = struct.calcsize( struct_fmt )
-        struct_unpack = struct.Struct( struct_fmt ).unpack_from
-        data = r_stream.read( struct_len )
-        if not data:
-            print( "Error 1" )
-            return
-        self.{1} = struct_unpack(data)
-""".format( pytype, f['NAME'] )
-
-                elif f['CONTAINED_TYPE'] == 'STRUCT':
-                    ret = ret + T + T + 'for idx in range( num_elems ):\n'
-                    ret = ret + T + T + T + 'tmp = {0}()\n'.format( f['STRUCT_TYPE'] )
-                    ret = ret + T + T + T + 'self.{0}.append( tmp )\n'.format( f['NAME'] )
-
-                elif f['CONTAINED_TYPE'] == 'COMPLEX':
-                    pytype = self.basetypes[ f['COMPLEX_TYPE'] ]['PY_TYPE']
-                    ret = ret + T + T + "struct_fmt = '{{0}}{0}{0}'.format( num_elems )\n".format( pytype )
-                    ret = ret + T + T + "len = struct.calcsize( struct_fmt )\n"
-                    ret = ret + T + T + "struct_unpack = struct.Struct( struct_fmt ).unpack_from\n"
-                    ret = ret + T + T + "data = r_stream.read( struct_len )\n"
-                    ret = ret + T + T + "arr = struct_unpack( data )\n"
-                    ret = ret + T + T + "for i in range( 0, num_elems-1, 2 ):\n"
-                    ret = ret + T + T + "    self.{0}.append( arr[i] + 1j*arr[i+1] )\n".format( f['NAME'] )
-        ret = ret + "# end class {0}".format(  struct_name )
-
-
-        return ret
-    # end create_class_def
-
-
-
-##################################################################################
-#
-# C STRUCTURE DEFINITIONS AND IMPLEMENTATIONS
-#
-##################################################################################
-
-    def create_struct_header( self, struct_name ):
-        '''Creates the Primary Structure Header'''
-        struct_def = self.structs[ struct_name ]
-
-        ### HEADER Guards
-        ret =       '#ifndef %s_H\n' % ( struct_name )
-        ret = ret + '#define %s_H\n\n' % ( struct_name )
-
-        ### Stock Includes
-        ret = ret + '#include <stdlib.h>\n'
-        ret = ret + '#include <cstddef>\n'
-        ret = ret + '#include <stdint.h>\n'
-        ret = ret + '#include <iostream>\n'
-        ret = ret + '#include <string>\n'
-        ret = ret + '#include <map>\n'
-        ret = ret + '#include <complex>\n'
-        ret = ret + '#include <vector>\n'
-        ret = ret + '#include <fstream>\n'
-        ret = ret + '#include <sstream>\n\n'
-        ret = ret + '#include <props_parser.h>\n\n'
-
-        ### Other generated deps
-        deps = self.get_dependencies_for_struct( struct_name )
-        for dep in deps:
-            ret = ret + '#include "%s"' % dep + "\n"
-
-        ### Namespace
-        if struct_def.has_key( 'NAMESPACE'  ):
-            ret = ret + '\nnamespace %s {\n\n' % ( struct_def[ 'NAMESPACE' ] )
-    
-        ret = ret + "\n/**\n * @brief %s\n */\n" % ( struct_def[ 'DESCRIPTION' ] )
-
-        ### Class Def
-        ret = ret + "class %s {\n\n" % ( struct_def[ 'NAME' ] )
-        ret = ret + T + 'public :\n\n'
-        ret = ret + T + T + '%s();\n\n' % ( struct_def[ 'NAME' ] )
-        ret = ret + T + T + '~%s(){};' % ( struct_def[ 'NAME' ] )
-
-
-        ### Member Data
-        ret = ret + '\n\n    // Member Fields\n\n'
-        for f in struct_def['FIELDS']:
-            if self.basetypes.has_key( f['TYPE'] ):
-                c_decl = self.basetypes[ f['TYPE'] ]['C_TYPE']
-            elif f['TYPE'] == 'STRUCT':
-                c_decl = '%s' % ( f['STRUCT_TYPE'] )
-            elif f['TYPE'] == 'VECTOR':
-                if f['CONTAINED_TYPE'] == 'STRUCT':
-                    c_decl = 'std::vector< %s >' % ( f['STRUCT_TYPE'] )
-                elif self.basetypes.has_key( f['CONTAINED_TYPE'] ):
-                    c_decl = 'std::vector< %s >' % ( self.basetypes[ f['CONTAINED_TYPE'] ][ 'C_TYPE' ] )
-                elif f['CONTAINED_TYPE'] == 'COMPLEX':
-                    c_decl = 'std::vector< std::complex< %s > >' % ( self.basetypes[ f['COMPLEX_TYPE' ] ][ 'C_TYPE' ] )
-                else:
-                    print 'ERROR - vector with unknown type or no CONTAINED_TYPE key'
-                    sys.exit(1)
-            elif f['TYPE'] == 'COMPLEX':
-                c_decl = 'std::complex< %s >' % ( self.basetypes[ f['COMPLEX_TYPE' ] ][ 'C_TYPE' ] )
-            else:
-                print 'ERROR - vector with no TYPE'
-                sys.exit(1)
-            ret = ret + T + "%s  %s; ///<%s\n" % ( c_decl, f['NAME'], f['DESCRIPTION'] )
-
-        ret = ret + T + 'std::size_t num_fields;\n'
-
-        ### Member Functions
-        ret = ret + "\n\n" + T + '// Member Functions\n\n'
-        ret = ret + T + "void write_props( std::ostream& r_stream, std::string& r_prefix );\n\n"
-        ret = ret + T + "int validate( std::string& err_msg );\n\n"
-        ret = ret + T + "void set_defaults();\n\n"
-        ret = ret + T + "void read_props( std::istream& r_in_stream, std::string& r_prefix );\n\n"
-        ret = ret + T + "std::size_t read_props( std::map< std::string, std::string>& r_params, std::string& r_prefix );\n\n"
-
-        ## TODO: read/write to/from json
-
-        ret = ret + T + "void write_binary( std::ofstream& r_out_stream );\n\n"
-        ret = ret + T + "void read_binary( std::ifstream& r_in_stream );\n\n"
-
-        ### End Class
-        ret = ret + "};\n\n"
-
-        ### End Namespace
-        if struct_def.has_key( 'NAMESPACE' ):
-            ret = ret + '} // namepsace\n\n'
-
-
-        ret = ret + "#endif\n"
-        return ret
-    # end create_struct_headers
-
-    def create_struct_generator( self, struct_name ):
-        struct_def = self.structs[ struct_name ]
-
-        ret = '#include "%s_class_def.h"\n\n' % ( struct_name )
-        ret = ret + '#include <iostream>\n'
-        ret = ret + '#include <fstream>\n'
-
-        ### Namespace
-        if struct_def.has_key( 'NAMESPACE'  ):
-            ret = ret + '\n using %s::%s;\n' %( struct_def[ 'NAMESPACE' ], struct_name )
-
-        ret = ret + 'int main( int argc, char* argv[] ) {\n'
-        ret = ret + T + 'if (argc != 2) {\n'
-        ret = ret + T + T + 'std::cout << "USAGE: print_%s < binfile >" << std::endl;\n' % struct_name
-        ret = ret + T + T + 'exit(1);\n'
-        ret = ret + T + '}\n'
-        ## GENERATE DATA
-        ret = ret + T + '%s tmp;\n' % ( struct_name )
-        ret = ret + T + 'tmp.set_defaults();\n'
-        ret = ret + T + 'std::ofstream out;\n'
-        ret = ret + T + 'out.open( argv[1], std::ios::binary );\n' 
-        ret = ret + T + 'tmp.write_binary(out);\n'
-        ret = ret + T + 'out.close();\n'
-        ret = ret + T + 'return 0;\n'
-        ret = ret + '}\n'
-        return ret
-    # end create_struct printer
-
-
-    def create_struct_printer( self, struct_name ):
-        struct_def = self.structs[ struct_name ]
-
-        ret = '#include "%s_class_def.h"\n\n' % ( struct_name )
-        ret = ret + '#include <iostream>\n'
-        ret = ret + '#include <fstream>\n'
-        ret = ret + '#include <string>\n'
-
-        ### Namespace
-        if struct_def.has_key( 'NAMESPACE'  ):
-            ret = ret + '\n using %s::%s;\n' %( struct_def[ 'NAMESPACE' ], struct_name )
-
-        ret = ret + 'int main( int argc, char* argv[] ) {\n'
-        ret = ret + T + 'if (argc != 2) {\n'
-        ret = ret + T + T + 'std::cout << "USAGE: print_%s < binfile >" << std::endl;\n' % struct_name
-        ret = ret + T + T + 'exit(1);\n'
-        ret = ret + T + '}\n'
-        ret = ret + T + '%s tmp;\n' % ( struct_name )
-        ret = ret + T + 'std::ifstream in;\n'
-        ret = ret + T + 'in.open( argv[1], std::ios::binary );\n'
-        ret = ret + T + 'tmp.read_binary( in );\n'
-        ret = ret + T + 'std::string prefix( "" );\n'
-        ret = ret + T + 'tmp.write_props( std::cout, prefix );\n'
-        ## READ IN DATA
-        ret = ret + T + 'return 0;'
-        ret = ret + '}\n'
-        return ret
-    # end create_struct printer
-        
-
-
-    def create_struct_impl( self, struct_name ):
-        '''Creates the Primary Structure CPP Implementation'''
-
-        struct_def = self.structs[ struct_name ]
-
-        ret = '#include "%s_class_def.h"\n\n' % ( struct_name )
-
-        ### Namespace
-        if struct_def.has_key( 'NAMESPACE'  ):
-            ret = ret + '\nnamespace %s {\n\n' % ( struct_def[ 'NAMESPACE' ] )
-
-        ### Constructor
-        ret = ret + '%s::%s() : num_fields(%s){}\n\n\n' % ( struct_name, struct_name, len( struct_def['FIELDS'] ) )
-
-        ### Read Binary
-        ret = ret + "void %s::read_binary( std::ifstream& r_stream ){\n\n" % ( struct_name )
-        for f in struct_def['FIELDS']:
-            if self.basetypes.has_key( f['TYPE'] ) or f['TYPE'] == 'COMPLEX':
-                ret = ret + T + 'r_stream.read( (char*)&(%s), sizeof(%s) );\n' %( f['NAME'], f['NAME'] )
-            elif f['TYPE'] == 'STRUCT':
-                ret = ret + T + '%s.read_binary( r_stream );\n' % ( f['NAME'] )
-            elif f['TYPE'] == 'VECTOR':
-                ret = ret + T + 'uint32_t tmp_%s_size;\n' % ( f['NAME'] )
-                ret = ret + T + 'r_stream.read( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % ( f['NAME'], f['NAME'] )
-                if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
-                    ctype = self.basetypes[ f['CONTAINED_TYPE'] ]['C_TYPE']
-                    ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
-                    ret = ret + T + T + '%s tmp_%s;\n' % ( ctype, ctype )
-                    ret = ret + T + T + 'r_stream.read( (char*)&(tmp_%s), sizeof(tmp_%s));\n' % ( ctype, ctype )
-                    ret = ret + T + T + '%s.push_back( tmp_%s );\n' % ( f['NAME'], ctype )
-                    ret = ret + T + '}\n'
-                elif f['CONTAINED_TYPE'] == 'STRUCT':
-                    ctype = f['STRUCT_TYPE']
-                    ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
-                    ret = ret + T + T + '%s tmp_%s;\n' % ( ctype, ctype )
-                    ret = ret + T + T + 'tmp_%s.read_binary( r_stream );\n' % ( ctype )
-                    ret = ret + T + T + '%s.push_back( tmp_%s );\n' % ( f['NAME'], ctype )
-                    ret = ret + T + '}\n'
-                elif f['CONTAINED_TYPE'] == 'COMPLEX':
-                    ctype = 'std::complex< %s >' % self.basetypes[f['COMPLEX_TYPE']]['C_TYPE']
-                    ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % ( f['NAME'] )
-                    ret = ret + T + T + '%s tmp_cmplx;\n' % ( ctype )
-                    ret = ret + T + T + 'r_stream.read( (char*)&(tmp_cmplx), sizeof(tmp_cmplx));\n' 
-                    ret = ret + T + T + '%s.push_back( tmp_cmplx );\n' % ( f['NAME'] )
-                    ret = ret + T + '}\n'
-        ret = ret + "}\n\n"
-
-
-        ### Write Binary
-        ret = ret + "void %s::write_binary( std::ofstream& r_stream ){\n\n" % ( struct_name )
-        for f in struct_def['FIELDS']:
-            if self.basetypes.has_key( f['TYPE'] ) or f['TYPE'] == 'COMPLEX':
-                ret = ret + T + 'r_stream.write( (char*)&(%s), sizeof(%s) );\n' %( f['NAME'], f['NAME'] )
-            elif f['TYPE'] == 'STRUCT':
-                ret = ret + T + '%s.write_binary( r_stream );\n' % ( f['NAME'] )
-            elif f['TYPE'] == 'VECTOR':
-                ret = ret + T + 'uint32_t tmp_%s_size = %s.size();\n' % ( f['NAME'], f['NAME'] )
-                ret = ret + T + 'r_stream.write( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % ( f['NAME'], f['NAME'] )
-                if self.basetypes.has_key( f['CONTAINED_TYPE'] ) or f['CONTAINED_TYPE'] == 'COMPLEX':
-                    ret = ret + T + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
-                    ret = ret + T + T + 'r_stream.write( (char*)&(%s[ii]), sizeof(%s[ii]));\n' % ( f['NAME'], f['NAME'] )
-                    ret = ret + T + '}\n'
-                elif f['CONTAINED_TYPE'] == 'STRUCT':
-                    ret = ret + T + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % ( f['NAME'] )
-                    ret = ret + T + T + '%s[ii].write_binary( r_stream );\n' % ( f['NAME'] )
-                    ret = ret + T + '}\n'
-        ret = ret + "}\n\n"
-
-
-
-        ### Write Props
-        ret = ret + "void %s::write_props( std::ostream& r_stream, std::string& r_prefix ){\n\n" % ( struct_name )
-        ret = ret + T + "std::string tmp;\n"
-        for f in struct_def['FIELDS']:
-            if self.basetypes.has_key( f['TYPE'] ):
-                b = self.basetypes[ f['TYPE'] ]
-                if b.has_key('STREAM_CAST'):
-                    c_print = T + 'r_stream << r_prefix << "%s = " << (%s)(%s) << "\\n";\n' % ( f['NAME'], b['STREAM_CAST'], f['NAME'] )
-                else:
-                    c_print = T + 'r_stream << r_prefix << "%s = " << %s << "\\n";\n' % ( f['NAME'], f['NAME'] )
-                ret = ret + c_print
-            elif f['TYPE'] == 'STRUCT':
-                ret = ret + T + 'tmp = r_prefix + "%s.";\n' % ( f['NAME'] )
-                c_print = T + '%s.write_props( r_stream, tmp );\n' % ( f['NAME'] )
-                ret = ret + c_print
-            elif f['TYPE'] == 'VECTOR':
-                if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
-                    b = self.basetypes[ f['CONTAINED_TYPE'] ]
-                    iter_decl  = T + T + 'std::vector< %s >::iterator ii;\n' % ( b['C_TYPE'] )
-                    if b.has_key( 'STREAM_CAST' ):
-                        print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << %s((*ii)) << "\\n";\n' % ( f['NAME'], b['STREAM_CAST'] )
-                    else:
-                        print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << (*ii) << "\\n";\n' % ( f['NAME'] )
-                elif f['CONTAINED_TYPE'] == 'COMPLEX':
-                    b = self.basetypes[ f['COMPLEX_TYPE'] ]
-                    iter_decl  = T + T + 'std::vector< std::complex< %s > >::iterator ii;\n' % ( b['C_TYPE'] )
-                    if b.has_key( 'STREAM_CAST' ):
-                        print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << %s((*ii)) << "\\n";\n' % ( f['NAME'], b['STREAM_CAST'] )
-                    else:
-                        print_decl = T + T + T + 'r_stream << r_prefix << "%s[ " << count << " ] = "  << (*ii) << "\\n";\n' % ( f['NAME'] )
-                
-                elif f['CONTAINED_TYPE'] == 'STRUCT':
-                    iter_decl = T + T + 'std::vector< %s >::iterator ii;\n' % ( f['STRUCT_TYPE'] )
-                    print_decl = T + T + T + 'std::stringstream ss;\n'
-                    print_decl = print_decl + T + T + T + 'ss << r_prefix << "%s[ " << count << " ].";\n' % ( f['NAME'] )
-                    print_decl = print_decl + T + T + T + 'std::string tmp( ss.str() );\n'
-                    print_decl = print_decl + T + T + T + 'ii->write_props( r_stream, tmp );\n'
-                
-                ret = ret + T + '{\n'
-                ret = ret + iter_decl
-                ret = ret + T + T +  'std::size_t count = 0;\n'
-                ret = ret + T + T +  'for ( ii = %s.begin(); ii != %s.end(); ii++ )\n' %( f['NAME'], f['NAME'] )
-                ret = ret + T + T +  '{\n'
-                ret = ret + print_decl
-                ret = ret + T + T +T +   'count++;\n'
-                ret = ret + T + T +  '}\n'
-                ret = ret + T + '}\n'
-        ret = ret + "}\n\n"
-
-        ### Read Props From Params
-        ret = ret + "std::size_t %s::read_props( std::map< std::string, std::string>& r_params, std::string& r_prefix ){\n\n" % ( struct_name )
-        ret = ret + T + 'std::string key;\n'
-        ret = ret + T + 'std::map< std::string, std::string >::iterator param_iter;\n'
-        ret = ret + T + 'std::size_t fields_found=0;\n'
-
-        for f in struct_def['FIELDS']:
-            if self.basetypes.has_key( f['TYPE'] ):
-                b = self.basetypes[ f['TYPE'] ]
-                ret = ret + T + 'key = r_prefix + "%s";\n\n' % ( f['NAME'] )
-                ret = ret + T + 'param_iter = r_params.find( key );\n'
-                ret = ret + T + 'if ( param_iter != r_params.end() )\n'
-                ret = ret + T + '{\n'
-                ret = ret + T +T +  'std::stringstream ss( param_iter->second );\n'
-                if b.has_key('STREAM_CAST'):
-                    ret = ret + T +T +  '%s u;\n' % ( b[ 'STREAM_CAST' ] )
-                    ret = ret + T +T +  'ss >> u;\n'
-                    ret = ret + T +T +  '%s = (%s)( u );\n' % ( f['NAME'], b['STREAM_CAST' ] )
-                else:
-                    ret = ret + T +T +  'ss >> %s;\n' % ( f['NAME'] )
-                ret = ret + T +T +  'fields_found++;\n'
-                ret = ret + T + '}\n'
-            elif f['TYPE'] == 'STRUCT':
-                ret = ret + T + 'key = r_prefix + "%s.";\n' % ( f['NAME'] )
-                ret = ret + T + 'fields_found += %s.read_props( r_params, key );\n' % ( f['NAME'] )
-            elif f['TYPE'] == 'VECTOR':
-                if self.basetypes.has_key( f['CONTAINED_TYPE'] ):
-                    # 1. Get the prefix
-                    # 2. Go into a while loop incrementing count until no more keys 
-                    #       are found
-                    b = self.basetypes[ f['CONTAINED_TYPE'] ]
-                    ret = ret + T + '{\n'
-                    ret = ret + T + 'std::size_t count=0;\n'
-                    ret = ret + T + 'while( 1 )\n'
-                    ret = ret + T + '{\n'
-                    ret = ret + T +T + 'std::stringstream ss;\n'
-                    ret = ret + T +T + 'ss << r_prefix << "%s" << "[ " << count << " ]";\n' % ( f['NAME'] )
-                    ret = ret + T +T + 'param_iter = r_params.find( ss.str() );\n' 
-                    ret = ret + T +T + 'if ( param_iter == r_params.end() )\n'
-                    ret = ret + T +T + T + 'break;\n'
-                    ret = ret + T +T + 'else {\n'
-                    ret = ret + T +T + T + 'std::stringstream ss2( param_iter->second );\n'
-                    if b.has_key( 'STREAM_CAST' ):
-                        ret = ret + T +T +T + '%s u;\n' % ( b[ 'STREAM_CAST' ] )
-                        ret = ret + T +T +T + 'ss2 >> u;\n'
-                        ret = ret + T +T +T + '%s.push_back(%s( u ));\n' % ( f['NAME'], b['STREAM_CAST' ] )
-                    else:
-                        ret = ret + T +T +T + '%s u;\n' % ( b[ 'C_TYPE' ] )
-                        ret = ret + T +T +T + 'ss2 >> u;\n'
-                        ret = ret + T +T +T + '%s.push_back(u);\n' % ( f['NAME'] ) 
-                    ret = ret + T +T +T + 'count++;\n'
-                    ret = ret + T +T + '}\n'
-                    ret = ret + T +T + 'fields_found += count;\n'
-                    ret = ret + T +T + '}\n'
-                    ret = ret + T + '}\n'
-                elif f['CONTAINED_TYPE'] == 'COMPLEX':
-                    # 1. Get the prefix
-                    # 2. Go into a while loop incrementing count until no more keys 
-                    #       are found
-                    b = self.basetypes[ f['COMPLEX_TYPE'] ]
-                    ret = ret + T + '{\n'
-                    ret = ret + T + 'std::size_t count=0;\n'
-                    ret = ret + T + 'while( 1 )\n'
-                    ret = ret + T + '{\n'
-                    ret = ret + T +T + 'std::stringstream ss;\n'
-                    ret = ret + T +T + 'ss << r_prefix << "%s" << "[ " << count << " ]";\n' % ( f['NAME'] )
-                    ret = ret + T +T + 'param_iter = r_params.find( ss.str() );\n' 
-                    ret = ret + T +T + 'if ( param_iter == r_params.end() )\n'
-                    ret = ret + T +T + T + 'break;\n'
-                    ret = ret + T +T + 'else {\n'
-                    ret = ret + T +T + T + 'std::stringstream ss2( param_iter->second );\n'
-                    ret = ret + T +T +T + 'std::complex< %s > u;\n' % ( b[ 'C_TYPE' ] )
-                    ret = ret + T +T +T + 'ss2 >> u;\n'
-                    ret = ret + T +T +T + '%s.push_back(u);\n' % ( f['NAME'] ) 
-                    ret = ret + T +T +T + 'count++;\n'
-                    ret = ret + T +T + '}\n'
-                    ret = ret + T +T + 'fields_found += count;\n'
-                    ret = ret + T +T + '}\n'
-                    ret = ret + T + '}\n'
-
-                elif f['CONTAINED_TYPE'] == 'STRUCT':
-                    ret = ret + T + '{\n'
-                    ret = ret + T + 'std::size_t count=0;\n'
-                    ret = ret + T + 'while( 1 )\n'
-                    ret = ret + T + '{\n'
-                    ret = ret + T + T + 'std::stringstream ss;\n'
-                    ret = ret + T + T + 'ss << r_prefix << "%s" << "[ " << count << " ].";\n' % ( f['NAME'] )
-                    ret = ret + T + T + '%s tmp_%s;\n' % ( f[ 'STRUCT_TYPE' ], f['STRUCT_TYPE' ] )
-                    ret = ret + T + T + 'tmp_%s.set_defaults();\n' % ( f['STRUCT_TYPE'] )
-                    ret = ret + T + T + 'std::string s ( ss.str() );\n'
-                    ret = ret + T + T + 'if ( tmp_%s.read_props( r_params, s )) {\n' % ( f['STRUCT_TYPE'] )
-                    ret = ret + T + T + T + '%s.push_back( tmp_%s );\n' % ( f['NAME'], f['STRUCT_TYPE' ] )
-                    ret = ret + T + T + '}\n'
-                    ret = ret + T + T +  'else { break; }\n'
-                    ret = ret + T + T + T + 'count++;\n'
-                    ret = ret + T + T + '}\n'
-                    ret = ret + T + 'fields_found += count;\n'
-                    ret = ret + T + '}\n'
-                
-        ret = ret + T + 'return fields_found;\n'
-        ret = ret + "}\n\n"
-
-
-        ### Read Props From Stream
-        ret = ret + "void %s::read_props( std::istream& r_in_stream, std::string& r_prefix ){\n\n" % ( struct_name )
-        ret = ret + T + 'std::map< std::string, std::string > params;\n\n'
-        ret = ret + T + 'parse_param_stream( r_in_stream, params );\n\n' 
-        ret = ret + T + 'std::string key;\n'
-        ret = ret + T + 'read_props( params, r_prefix );\n' 
-        ret = ret + "}\n\n"
-
-        ### Defaults
-        ret = ret + "void %s::set_defaults( ){\n\n" % ( struct_name )
-        for f in struct_def['FIELDS']:
-            if self.basetypes.has_key( f['TYPE'] ):
-                b = self.basetypes[ f['TYPE'] ]
-                if f.has_key('DEFAULT_VALUE'):
-                    ret = ret + T + "%s = %s;\n" % ( f['NAME'], f['DEFAULT_VALUE'] )
-                else:
-                    ret = ret + T + "%s = %s;\n" % ( f['NAME'], b['DEFAULT_VALUE'] )
-            elif f['TYPE'] == 'STRUCT':
-                ret = ret + T + '%s.set_defaults( );\n' % ( f['NAME'] )
-        ret = ret + "}\n\n"
-
-        ### Validate 
-        ret = ret + "int %s::validate( std::string& err_msg ){\n\n" % ( struct_name )
-        ret = ret + T + "int num_errs=0;\n"
-        for f in struct_def['FIELDS']:
-            if self.basetypes.has_key( f['TYPE'] ):
-                b = self.basetypes[ f['TYPE'] ]
-                if f.has_key('VALID_MIN'):
-                    ret = ret + T + "if ( %s < %s ) {\n" % ( f['NAME'], f['VALID_MIN'] )
-                    ret = ret + T + T + 'err_msg +=  "Failed field: %s is less than %s\\n";\n' % ( f['NAME'], f['VALID_MIN'])
-                    ret = ret + T + T + 'num_errs++;\n'
-                    ret = ret + T + '}\n'
-                if f.has_key('VALID_MAX'):
-                    ret = ret + T + "if ( %s > %s ) {\n" % ( f['NAME'], f['VALID_MAX'] )
-                    ret = ret + T + T + 'err_msg +=  "Failed field: %s is greater than %s\\n";\n' % ( f['NAME'], f['VALID_MAX'])
-                    ret = ret + T + T + 'num_errs++;\n'
-                    ret = ret + T + '}\n'
-            elif f['TYPE'] == 'STRUCT':
-                ret = ret + T + 'num_errs += %s.validate( err_msg );\n' % ( f['NAME'] )
-        ret = ret + T + 'return num_errs;\n';
-        ret = ret + "}\n\n"
-
-        ### End Namespace
-        if struct_def.has_key( 'NAMESPACE' ):
-            ret = ret + '} // namepsace\n\n'
-
-        return ret
-    # end create_struct_impl
 
 
 ##################################################################################
@@ -1759,41 +908,11 @@ SET_TARGET_PROPERTIES( auto_interface_mat_support PROPERTIES COMPILE_FLAGS "-fPI
                 fOut.close()
     # end create_mat_files
 
-    def create_py_files( self ):
-        fOut = open( self.py_dir + os.sep + "interface.py", "w" )
-        fOut.write( """#!/usr/bin/env python
-
-import string
-import pprint
-import struct
-""" )
-        for struct_name, struct_def in self.structs.items():
-            ret = self.create_py_class_def( struct_name )
-            fOut.write( ret )
-            fOut.write( "\n\n" )
-        fOut.close()
-    # end create_py_files
-
-
-
     def create_struct_impls(self):
         '''Creates all structure and matlab support cpp files'''
 
         python_dir = os.path.dirname(os.path.realpath(__file__))
         c_files_res_dir  = python_dir + os.sep + '..' + os.sep + 'c_files'
-
-        shutil.copy( c_files_res_dir + os.sep + 'props_parser.cpp', 
-                     self.src_dir + os.sep + 'props_parser.cpp' )
-
-        shutil.copy( c_files_res_dir + os.sep + 'props_parser.h', 
-                     self.src_dir + os.sep + 'props_parser.h' )
-
-        # TODO: why am I copying this twice?
-        shutil.copy( c_files_res_dir + os.sep + 'props_parser.h', 
-                     self.mex_dir + os.sep + 'props_parser.h' )
-
-        shutil.copy( c_files_res_dir + os.sep + 'props_parser.cpp', 
-                     self.mex_dir + os.sep + 'props_parser.cpp' )
 
         fOut = open( self.out_dir + os.sep + "CMakeLists.txt", "w" )
         fOut.write( self.create_cmake_lists() )
@@ -1840,20 +959,26 @@ import struct
         shutil.copy( cmake_res_dir + '/Findmatlab.cmake', self.cmake_dir + '/Findmatlab.cmake' )
     # end create_directory_structure
 
+def generate_mex( out_dir, basetypes, structs, project ):
+    pass
+
 
 
 if __name__ == "__main__":
-    # TODO: parse tools
-    if len( sys.argv ) != 4:
-        print USAGE
-        sys.exit(1)
-    json_basetypes = sys.argv[1]
-    json_file = sys.argv[2]
-    out_dir = sys.argv[3]
-    A = AutoGenerator( json_basetypes, json_file, out_dir  )
-    A.create_struct_headers()
-    A.create_struct_impls()
-    A.create_struct_printers()
-    A.create_struct_generators()
-    A.create_mat_files() 
-    A.create_py_files()
+    import argparse 
+    parser = argparse.ArgumentParser( 'AutoInterface MEX Generator' )
+    parser.add_argument( 'json_basetypes_file' )
+    parser.add_argument( 'json_structures_file' )
+    parser.add_argument( 'output_directory' )
+    parser.add_argument( '--pad', default=-1, type=int, help='Insert Padding For Explicit 64-Bit Word Alignment (Warning: Does Not Work With VECTOR Data Type)')
+    args = parser.parse_args()
+
+    # Preprocess and fill in missing fields
+    A = AutoGenerator( args.json_basetypes_file, 
+                       args.json_structures_file,
+                       pad=args.pad )
+
+    generate_mex( args.output_directory, 
+                  A.basetypes,
+                  A.structs,
+                  A.project )

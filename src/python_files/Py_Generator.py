@@ -19,7 +19,7 @@ T="    "
 
 
 
-def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
+def create_py_class_def( basetypes, structs, struct_name, project ):
     struct_def = structs[ struct_name ]
     ret = py_class_template.format( struct_name )
 
@@ -251,8 +251,6 @@ def create_py_class_def( basetypes, structs, struct_name, project, gpb=False ):
                 ret = ret + T + T + T + T + T + 'return\n'
                 ret = ret + T + T + T + 'self.{0}[idx].write_binary(r_stream)\n'.format(f['NAME'])
 
-    if gpb:
-        ret = ret + generate_gpb_for_class(basetypes, structs, struct_name, project)
     ret = ret + T + "# end write_binary\n\n"
     ret = ret + "# end class {0}\n\n".format(struct_name)
  
@@ -284,11 +282,8 @@ def generate_py( py_dir, basetypes, structs, project ):
 """
     ''')
 
-    if gpb:
-        fOut.write( "\nimport {0}_structs_pb2 as gpb\n\n".format(project['PROJECT']))
-
     for struct_name, struct_def in structs.items():
-        ret = create_py_class_def( basetypes, structs, struct_name, project, gpb )
+        ret = create_py_class_def( basetypes, structs, struct_name, project )
         fOut.write( ret )
         fOut.write( "\n\n" )
     fOut.close()
