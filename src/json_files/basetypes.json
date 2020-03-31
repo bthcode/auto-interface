@@ -7,7 +7,6 @@
          "STREAM_CAST" : "int",
          "MEX_TYPE" : "mxUINT8_CLASS",
          "MAT_TYPE" : "uint8",
-         "GPB_TYPE" : "uint32",
          "LENGTH" : 1,
          "DOC_NAME": "u8"
       },
@@ -19,7 +18,6 @@
          "STREAM_CAST" : "int",
          "MEX_TYPE" : "mxUINT16_CLASS",
          "MAT_TYPE" : "uint16",
-         "GPB_TYPE" : "uint32",
          "LENGTH" : 2,
          "DOC_NAME": "u16"
       },
@@ -31,7 +29,6 @@
          "STREAM_CAST" : "long int",
          "MEX_TYPE" : "mxUINT32_CLASS",
          "MAT_TYPE" : "uint32",
-         "GPB_TYPE" : "uint32",
          "LENGTH" : 4,
          "DOC_NAME": "u32"
       },
@@ -43,7 +40,6 @@
          "STREAM_CAST" : "long int",
          "MEX_TYPE" : "mxUINT64_CLASS",
          "MAT_TYPE" : "uint64",
-         "GPB_TYPE" : "uint64",
          "LENGTH" : 8,
          "DOC_NAME": "u64"
       },
@@ -55,7 +51,6 @@
          "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT8_CLASS",
          "MAT_TYPE" : "int8",
-         "GPB_TYPE" : "sint32",
          "LENGTH" : 1,
          "DOC_NAME": "i8"
       },
@@ -67,7 +62,6 @@
          "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT16_CLASS",
          "MAT_TYPE" : "int16",
-         "GPB_TYPE" : "sint32",
          "LENGTH" : 2,
          "DOC_NAME": "i16"
       },
@@ -78,7 +72,6 @@
          "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT32_CLASS",
          "MAT_TYPE" : "int32",
-         "GPB_TYPE" : "sint32",
          "LENGTH" : 4,
          "DOC_NAME": "i32"
       },
@@ -89,7 +82,6 @@
          "DEFAULT_VALUE" : 0,
          "MEX_TYPE" : "mxINT64_CLASS",
          "MAT_TYPE" : "int64",
-         "GPB_TYPE" : "sint64",
          "LENGTH" : 8,
          "DOC_NAME": "i64"
       },
@@ -100,7 +92,6 @@
          "DEFAULT_VALUE" : 1.0,
          "MEX_TYPE" : "mxSINGLE_CLASS",
          "MAT_TYPE" : "single",
-         "GPB_TYPE" : "float",
          "LENGTH" : 4,
          "DOC_NAME": "float"
       },
@@ -111,7 +102,6 @@
          "DEFAULT_VALUE" : 0.0,
          "MEX_TYPE" : "mxDOUBLE_CLASS",
          "MAT_TYPE" : "double",
-         "GPB_TYPE" : "double",
          "LENGTH" : 8,
          "DOC_NAME": "double"
       }
