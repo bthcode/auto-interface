@@ -197,7 +197,10 @@ def create_py_class_def( basetypes, structs, struct_name, project ):
             ret = ret + T + T + "self.{0} = []\n".format(f['NAME'])
             # TODO - this needs to be uint32_t
             if f['LENGTH'] == 'VECTOR':
-                ret = ret + T + T + "num_elems = io.read_INT_32( r_stream )\n"
+                if 'LENGTH_FIELD' in f:
+                    ret = ret + T + T + "num_elems = self.{0}\n".format(f['LENGTH_FIELD'])
+                else:
+                    ret = ret + T + T + "num_elems = io.read_INT_32( r_stream )\n"
             else: # fixed length, no num_elems
                 ret = ret + T + T + "num_elems = {0}\n".format(f['LENGTH'])
             if f['IS_BASETYPE']:
@@ -222,6 +225,13 @@ def create_py_class_def( basetypes, structs, struct_name, project ):
     ret = ret + T + '   :typecheck if True, verify structures are correct type before including in arrays\n'
     ret = ret + T + '   :rtype None\n\n'
 
+    #-------------------------------------
+    # - fill out variable length fields
+    #-------------------------------------
+    for f in struct_def['FIELDS']:
+        if 'LENGTH_FIELD' in f:
+            ret = ret + T + T + 'self.{0} = len(self.{1})\n'.format(f['LENGTH_FIELD'], f['NAME'])
+
     ret = ret + T + T + '"""\n'
     for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
@@ -235,9 +245,10 @@ def create_py_class_def( basetypes, structs, struct_name, project ):
                 ret = ret + T + T + 'self.{0}.write_binary(r_stream);\n'.format(f['NAME'])
         elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
             if f['LENGTH'] == 'VECTOR':
-                # TODO - this needs to be uint32_t
-                ret = ret + T + T + "num_elems = len( self.{0} )\n".format(f['NAME'])
-                ret = ret + T + T + "io.write_INT_32( r_stream, num_elems )\n"
+                if not 'LENGTH_FIELD' in f:
+                    # TODO - this needs to be uint32_t
+                    ret = ret + T + T + "num_elems = len( self.{0} )\n".format(f['NAME'])
+                    ret = ret + T + T + "io.write_INT_32( r_stream, num_elems )\n"
             else:
                 ret = ret + T + T + "num_elems = {0}\n".format(f['LENGTH'])
             if f['IS_BASETYPE']:

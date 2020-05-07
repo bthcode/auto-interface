@@ -349,29 +349,7 @@ def create_c_struct_impl( basetypes, structs, struct_name,project ):
             #    ret = ret + T + '{\n'
             #    ret = ret + T + T + 'set_defaults_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
             #    ret = ret + T + '}\n'
-                ctype = f['TYPE']
-                if len(def_val) == 1:
-                    ret = ret + T + 'p_{0}->n_elements_{1} = {2};\n'.format(struct_name, f['NAME'], def_val[0])
-                    ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
-                    ret = ret + T + '{\n'
-                    ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(p_{0}->n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
-                    ret = ret + T + T + 'set_defaults_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
-                    ret = ret + T + '}\n'
-                    ret = ret + T + 'else\n'
-                    ret = ret + T + T + 'p_{0}->{1} = 0x0;\n\n'.format(struct_name,f['NAME'])
-                else:
-                    ret = ret + T + 'p_{0}->n_elements_{1} = {2};\n'.format(struct_name, f['NAME'], len(def_val))
-                    ret = ret + T + 'if (p_{0}->n_elements_{1} > 0 )'.format(struct_name,f['NAME'])
-                    ret = ret + T + '{\n'
-                    ret = ret + T + T + 'p_{0}->{1} = ({2}*) malloc(p_{0}->n_elements_{1} * sizeof({2}));\n'.format(struct_name,f['NAME'],ctype);
-                    ret = ret + T + T + 'for (ii=0; ii < p_{0}->n_elements_{1}; ii++) \n'.format(struct_name,f['NAME'])
-                    ret = ret + T + T + '{\n'
-                    ret = ret + T + T + T + 'set_defaults_{0}( &(p_{1}->{2}[ii]) );\n'.format(f['TYPE'],struct_name,f['NAME'])
-                    ret = ret + T + T + '}\n'
-                    ret = ret + T + T + 'else\n'
-                    ret = ret + T + T + T + 'p_{0}->{1} = 0x0;\n\n'.format(struct_name,f['NAME'])
-                    ret = ret + T + '}\n'
-
+                pass
 
 
 

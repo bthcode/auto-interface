@@ -80,9 +80,15 @@
                 "DESCRIPTION" : "vector of doubles",
                 "DEFAULT_VALUE" : [ 1,2,3,4,5 ]
               },
+              {
+                "NAME" : "m_empty_length", 
+                "TYPE" : "UINT_32",
+                "LENGTH" : 1 
+              },
               { "NAME"  : "m_empty_vector",
                 "TYPE"  : "DOUBLE",
                 "LENGTH" : "VECTOR",
+                "LENGTH_FIELD" : "m_empty_length",
                 "DEFAULT_VALUE" : [ 5,5,5,1,2,1,2],
                 "DESCRIPTION" : "vector of doubles"
               },
@@ -98,7 +104,7 @@
               },
               { "NAME"  : "m_vector_of_structs",
                 "TYPE"  : "substruct1",
-                "LENGTH" : "5",
+                "LENGTH" : "VECTOR",
                 "DESCRIPTION" : "vector of doubles",
                 "LENGTH_FIELD" : "m_vector_of_structs_length"
               },
@@ -111,7 +117,7 @@
 
               { "NAME"  : "m_basetype_array",
                 "TYPE"  : "UINT_8",
-                "LENGTH" : 8,
+                "LENGTH" : "VECTOR",
                 "DESCRIPTION" : "fixed length basetype array",
                 "DEFAULT_VALUE" : [ 1,2,3,4,3,2,1,0 ],
                 "LENGTH_FIELD" : "m_basetype_array_length"

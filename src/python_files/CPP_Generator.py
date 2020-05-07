@@ -27,6 +27,7 @@ stock_includes = \
 #include <vector>
 #include <fstream>
 #include <sstream>
+#include <array>
 #include "json.hpp"
 '''
 
@@ -78,17 +79,19 @@ def create_struct_header( basetypes, structs, struct_name,project ):
 
         # handle scalar v. array v. vector
         if f['LENGTH'] == 1:
-            pass
+            # write declaration
+            ret = ret + T + "{0}  {1}{2}; ///<{3}\n".format( c_decl, f['NAME'], n_elements,f['DESCRIPTION'] )
         elif f['LENGTH'] == 'VECTOR':
-            c_decl = 'std::vector< {0} >'.format( c_decl )
+            ret = ret + T + 'std::vector<{0}> {1}; ///<{2}\n'.format( c_decl, f['NAME'], f['DESCRIPTION'] )
         elif type(f['LENGTH']) == int:
-            n_elements ='[{0}]'.format(f['LENGTH'])
+            #n_elements ='[{0}]'.format(f['LENGTH'])
+            # write declaration
+            #ret = ret + T + "{0}  {1}{2}; ///<{3}\n".format( c_decl, f['NAME'], n_elements,f['DESCRIPTION'] )
+            ret = ret + T + "std::array<{0},{1}> {2};///<{3}\n".format(c_decl, f['LENGTH'], f['NAME'], f['DESCRIPTION'])
         else:
             print ('ERROR - vector with no TYPE')
             sys.exit(1)
 
-        # write declaration
-        ret = ret + T + "{0}  {1}{2}; ///<{3}\n".format( c_decl, f['NAME'], n_elements,f['DESCRIPTION'] )
 
     ret = ret + class_end.format(struct_name)
 
@@ -222,14 +225,17 @@ def create_struct_impl(basetypes,structs,struct_name,project):
 
         elif f['LENGTH'] == 'VECTOR':
             ret = ret + T + 'int32_t tmp_%s_size;\n' % (f['NAME'])
-            ret = ret + T + 'r_stream.read( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % (f['NAME'],f['NAME'])
+            if 'LENGTH_FIELD' in f:
+                ret = ret + T + T + "tmp_{0}_size = {1};\n".format(f['NAME'], f['LENGTH_FIELD']);
+            else:
+                ret = ret + T + 'r_stream.read( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % (f['NAME'],f['NAME'])
             if f['IS_BASETYPE']:
                 ret = ret + T + '{0}.resize( tmp_{0}_size );\n'.format(f['NAME'])
                 ret = ret + T + 'if (tmp_{0}_size > 0)\n'.format(f['NAME'])
                 ret = ret + T + T + 'r_stream.read( reinterpret_cast<char*>(&{0}[0]), tmp_{0}_size * sizeof({1}));\n'.format(f['NAME'],ctype)
             elif f['IS_STRUCT']:
                 ctype = f['TYPE']
-                ret = ret + T + 'for ( uint32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % (f['NAME'])
+                ret = ret + T + 'for ( int32_t ii=0; ii < tmp_%s_size; ii++ ) {\n' % (f['NAME'])
                 ret = ret + T + T + '%s tmp_%s;\n' % (ctype,ctype)
                 ret = ret + T + T + 'tmp_%s.read_binary( r_stream );\n' % (ctype)
                 ret = ret + T + T + '%s.push_back( tmp_%s );\n' % (f['NAME'],ctype)
@@ -252,6 +258,10 @@ def create_struct_impl(basetypes,structs,struct_name,project):
     ### Write Binary
     ret = ret + "void %s::write_binary( std::ofstream& r_stream ){\n\n" % (struct_name)
     for f in struct_def['FIELDS']:
+        if 'LENGTH_FIELD' in f:
+            ret = ret + T + '{0} = {1}.size();\n'.format(f['LENGTH_FIELD'], f['NAME'])
+
+    for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
                 ret = ret + T + 'r_stream.write( (char*)&(%s), sizeof(%s) );\n' %(f['NAME'],f['NAME'])
@@ -269,8 +279,9 @@ def create_struct_impl(basetypes,structs,struct_name,project):
                 ret = ret + T + T + '{0}[ii].write_binary( r_stream );\n'.format(f['NAME'])
                 ret = ret + T + '}\n'
         elif f['LENGTH'] == 'VECTOR':
-            ret = ret + T + 'int32_t tmp_%s_size = %s.size();\n' % (f['NAME'],f['NAME'])
-            ret = ret + T + 'r_stream.write( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % (f['NAME'],f['NAME'])
+            if not 'LENGTH_FIELD' in f:
+                ret = ret + T + 'int32_t tmp_%s_size = %s.size();\n' % (f['NAME'],f['NAME'])
+                ret = ret + T + 'r_stream.write( (char*)&(tmp_%s_size), sizeof( tmp_%s_size ) );\n' % (f['NAME'],f['NAME'])
             # TODO: This write should be faster
             if f['IS_BASETYPE']:
                 ret = ret + T + 'for ( uint32_t ii=0; ii < %s.size(); ii++ ) {\n' % (f['NAME'])

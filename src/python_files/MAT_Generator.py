@@ -198,7 +198,10 @@ def create_read_binary(basetypes,structs,struct_name):
         elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
             if f['LENGTH'] == 'VECTOR':
                 # get number of elements
-                ret = ret + T + "num_elems = fread(file_handle,1,'int32');\n"
+                if 'LENGTH_FIELD' in f:
+                    ret = ret + T + "num_elems = struct_in.{0};\n".format(f['LENGTH_FIELD'])
+                else:
+                    ret = ret + T + "num_elems = fread(file_handle,1,'int32');\n"
             else:
                 ret = ret + T + "num_elems = {0};\n".format(f['LENGTH'])
             ret = ret + T + 'if num_elems > 0\n'
@@ -250,7 +253,10 @@ def create_read_buf(basetypes,structs,struct_name):
         elif f['LENGTH'] == 'VECTOR' or type(f['LENGTH']) == int:
             if f['LENGTH'] == 'VECTOR':
                 # get number of elements
-                ret = ret + T + "[ pos, num_elems ] = bufread(pos, buf 'int32', 1);\n"
+                if 'LENGTH_FIELD' in f:
+                    ret = ret + T + "num_elems = struct_in.{0};\n".format(f['LENGTH_FIELD'])
+                else:
+                    ret = ret + T + "[ pos, num_elems ] = bufread(pos, buf 'int32', 1);\n"
             else:
                 ret = ret + T + "num_elems = {0};\n".format(f['LENGTH'])
             ret = ret + T + 'if num_elems > 0\n'
@@ -291,8 +297,13 @@ def create_write_buf(basetypes,structs,struct_name):
 
     # Empty uint8 buf
     ret = ret + T + "buf = zeros(1,0,'uint8');\n" 
-    
+
     struct_def = structs[struct_name]
+
+    for f in struct_def['FIELDS']:
+        if 'LENGTH_FIELD' in f:
+            ret = ret + T + T + 'struct_out.{0} = length(self.{1});\n'.format(f['LENGTH_FIELD'], f['NAME'])
+    
     for f in struct_def['FIELDS']:
         if f['LENGTH'] == 1:
             if f['IS_BASETYPE']:
@@ -304,8 +315,9 @@ def create_write_buf(basetypes,structs,struct_name):
             if f['LENGTH'] == 'VECTOR':
                 # get number of elements
                 ret = ret + T + "num_elems=length(struct_out.{0});\n".format(f['NAME'])
-                # write number of elements
-                ret = ret + T + "buf = [buf typecast(uint32(num_elems),'uint8')];\n".format(f['NAME'])
+                # write number of elements if not already written
+                if 'LENGTH_FIELD' not in f:
+                    ret = ret + T + "buf = [buf typecast(uint32(num_elems),'uint8')];\n".format(f['NAME'])
             else:
                 # no need to write number of elements for fixed length, but logic below needs it
                 ret = ret + T + "num_elems={0};\n".format(f['LENGTH'])
@@ -336,6 +348,12 @@ def create_write_binary(basetypes,structs,struct_name):
 
     ret = ret + T + 'success = 0;\n'
     struct_def = structs[struct_name]
+
+    # Set any length fields that need to be set
+    for f in struct_def['FIELDS']:
+        if 'LENGTH_FIELD' in f:
+            ret = ret + T + T + 'struct_out.{0} = length(self.{1});\n'.format(f['LENGTH_FIELD'], f['NAME'])
+
     for f in struct_def['FIELDS']:
         if ['LENGTH'] == 1:
             if f['IS_BASETYPE']:
@@ -347,7 +365,8 @@ def create_write_binary(basetypes,structs,struct_name):
             if f['LENGTH'] == 'VECTOR':
                 # get number of elements
                 ret = ret + T + "num_elems=length(struct_out.{0});\n".format(f['NAME'])
-                ret = ret + T + "fwrite(file_handle,num_elems,'int32');\n"
+                if 'LENGTH_FIELD' not in f:
+                    ret = ret + T + "fwrite(file_handle,num_elems,'int32');\n"
             else:
                 ret = ret + T + "num_elems={0};\n".format(f['LENGTH'])
             ret = ret + T + 'if num_elems > 0\n'
